@@ -35,6 +35,7 @@ pub trait PneumaticContainer {
     fn volume(&self) -> Volume; // Not the volume of gas, but the physical measurements
     fn temperature(&self) -> ThermodynamicTemperature;
     fn change_volume(&mut self, volume: Volume);
+    fn update_pressure_only(&mut self, volume: Volume);
     fn update_temperature(&mut self, temperature_change: TemperatureInterval);
 }
 
@@ -71,7 +72,12 @@ impl PneumaticContainer for DefaultPipe {
         self.update_pressure_for_temperature_change(temperature_change);
         self.temperature += temperature_change;
     }
+
+    fn update_pressure_only(&mut self, volume: Volume) {
+        self.pressure += self.calculate_pressure_change_for_volume_change(volume);
+    } 
 }
+
 impl DefaultPipe {
     const HEAT_CAPACITY_RATIO: f64 = 1.4;
 
@@ -168,6 +174,40 @@ impl DefaultValve {
         self.move_volume(from, to, fluid_to_move);
 
         self.fluid_flow = fluid_to_move / context.delta_as_time();
+    }
+
+    // This method is the same as update_move_fluid
+    // but also updates the temperature of `to`
+    // according to a weighted mean
+    pub fn update_move_fluid_with_temperature(
+        &self,
+        context: &UpdateContext,
+        from: &mut impl PneumaticContainer,
+        to: &mut impl PneumaticContainer,
+    ) {
+        let equalization_volume = (from.pressure() - to.pressure()) * from.volume() * to.volume()
+            / Pressure::new::<pascal>(142000.)
+            / (from.volume() + to.volume());
+
+        let delta_v = 
+            self.open_amount()
+                * equalization_volume
+                * (1. - (-Self::TRANSFER_SPEED * context.delta_as_secs_f64()).exp());
+
+        self.move_volume(
+            from,
+            to,
+            delta_v,
+        );
+
+        let avg_temp: ThermodynamicTemperature= ThermodynamicTemperature::new::<degree_celsius>
+            ((delta_v.get::<cubic_meter>() * from.temperature().get::<degree_celsius>() 
+              + to.volume().get::<cubic_meter>()*to.temperature().get::<degree_celsius>())
+            / (delta_v.get::<cubic_meter>() + to.volume().get::<cubic_meter>()));
+        let delta_t: TemperatureInterval = TemperatureInterval::new::<temperature_interval::degree_celsius>
+            (avg_temp.get::<degree_celsius>() - to.temperature().get::<degree_celsius>());
+
+        to.update_temperature(delta_t);
     }
 
     fn move_volume(
@@ -313,6 +353,11 @@ impl PneumaticContainer for CompressionChamber {
     fn update_temperature(&mut self, temperature: TemperatureInterval) {
         self.pipe.update_temperature(temperature);
     }
+
+    fn update_pressure_only(&mut self, volume: Volume) {
+        self.pipe.update_pressure_only(volume);
+
+    } 
 }
 impl CompressionChamber {
     pub fn new(volume: Volume) -> Self {
@@ -384,6 +429,11 @@ impl PneumaticContainer for DefaultConsumer {
     fn update_temperature(&mut self, temperature: TemperatureInterval) {
         self.pipe.update_temperature(temperature);
     }
+
+    fn update_pressure_only(&mut self, volume: Volume) {
+        self.pipe.update_pressure_only(volume);
+    } 
+
 }
 impl DefaultConsumer {
     pub fn new(volume: Volume) -> Self {
@@ -405,6 +455,44 @@ impl DefaultConsumer {
         }
     }
 }
+
+// WING ANTI ICE BLOCK
+pub struct WingAntiIcePushButton {
+    mode_id: String,
+    mode: WingAntiIcePushButtonMode,
+}
+
+impl WingAntiIcePushButton {
+    pub fn new_off() -> Self {
+        Self {
+            mode_id: String::from("BUTTON_OVHD_ANTI_ICE_WING_Position"),
+            mode: WingAntiIcePushButtonMode::Off,
+        }
+    }
+
+    pub fn mode(&self) -> WingAntiIcePushButtonMode {
+        self.mode
+    }
+
+    pub fn is_on(&self) -> bool {
+        match self.mode {
+            WingAntiIcePushButtonMode::On => true,
+            _ => false,
+        }
+    }
+}
+
+impl SimulationElement for WingAntiIcePushButton {
+    fn write(&self, writer: &mut SimulatorWriter) {
+        writer.write(&self.mode_id,self.is_on());
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.mode = reader.read(&self.mode_id)
+    }
+}
+
+// END WING ANTI ICE BLOCK
 
 pub struct CrossBleedValveSelectorKnob {
     mode_id: String,
@@ -431,6 +519,28 @@ impl SimulationElement for CrossBleedValveSelectorKnob {
         self.mode = reader.read(&self.mode_id)
     }
 }
+
+//WING ANTI ICE BLOCK
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum WingAntiIcePushButtonMode {
+    Off = 0,
+    On = 1
+}
+
+read_write_enum!(WingAntiIcePushButtonMode);
+
+impl From<f64> for WingAntiIcePushButtonMode {
+    fn from(value: f64) -> Self {
+        match value as u8 {
+            0 => WingAntiIcePushButtonMode::Off,
+            _ => WingAntiIcePushButtonMode::On,
+        }
+    }
+}
+
+
+
+//END WING ANTI ICE BLOCK
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum CrossBleedValveSelectorMode {
@@ -568,6 +678,10 @@ impl PneumaticContainer for VariableVolumeContainer {
     fn update_temperature(&mut self, temperature_change: TemperatureInterval) {
         self.pipe.update_temperature(temperature_change);
     }
+
+    fn update_pressure_only(&mut self, volume: Volume) {
+        self.pipe.pressure += self.pipe.calculate_pressure_change_for_volume_change(volume);
+    } 
 }
 
 pub struct PneumaticContainerWithValve<T: PneumaticContainer> {
@@ -1308,7 +1422,6 @@ mod tests {
             Pressure::new::<psi>(1.),
             ThermodynamicTemperature::new::<degree_celsius>(15.),
         );
-
         let mut precooler = HeatExchanger::new(5e-1);
 
         for i in 1..1000 {
@@ -1433,4 +1546,6 @@ mod tests {
             assert_eq!(read_mode, CrossBleedValveSelectorMode::Open);
         }
     }
+
 }
+

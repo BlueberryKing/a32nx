@@ -16,23 +16,26 @@ use uom::si::{
 };
 
 use systems::{
-    hydraulic::Fluid,
-    overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
+    hydraulic::Fluid,          
+    overhead::{AutoOffFaultPushButton, OnOffFaultPushButton}, 
     pneumatic::{
         ApuCompressionChamberController, CompressionChamber, ConstantConsumerController,
         ControllablePneumaticValve, ControlledPneumaticValveSignal, CrossBleedValveSelectorKnob,
         CrossBleedValveSelectorMode, DefaultConsumer, DefaultPipe, DefaultValve,
         EngineCompressionChamberController, EngineState, HeatExchanger, PneumaticContainer,
-        PneumaticContainerWithValve, TargetPressureSignal, VariableVolumeContainer,
+        PneumaticContainerWithValve, TargetPressureSignal, VariableVolumeContainer,WingAntiIcePushButtonMode,WingAntiIcePushButton,
     },
     shared::{
-        ControllerSignal, DelayedTrueLogicGate, EngineCorrectedN1, EngineCorrectedN2,
-        EngineFirePushButtons, PneumaticValve,
+        ControllerSignal, EngineCorrectedN1, EngineCorrectedN2, EngineFirePushButtons,
+        PneumaticValve,
     },
     simulation::{
         Read, SimulationElement, SimulationElementVisitor, SimulatorReader, SimulatorWriter, Write,
     },
 };
+
+mod wing_anti_ice;
+use wing_anti_ice::*;
 
 use pid::Pid;
 
@@ -215,11 +218,13 @@ pub struct A320Pneumatic {
     apu: CompressionChamber,
     apu_bleed_air_valve: DefaultValve,
     apu_bleed_air_controller: ApuCompressionChamberController,
+    
+    //Wing anti ice
+    wing_anti_ice: WingAntiIceComplex,
 
     green_hydraulic_reservoir_with_valve: PneumaticContainerWithValve<VariableVolumeContainer>,
     blue_hydraulic_reservoir_with_valve: PneumaticContainerWithValve<VariableVolumeContainer>,
     yellow_hydraulic_reservoir_with_valve: PneumaticContainerWithValve<VariableVolumeContainer>,
-
     packs: [PackComplex; 2],
 }
 impl A320Pneumatic {
@@ -240,6 +245,8 @@ impl A320Pneumatic {
             apu: CompressionChamber::new(Volume::new::<cubic_meter>(1.)),
             apu_bleed_air_valve: DefaultValve::new_closed(),
             apu_bleed_air_controller: ApuCompressionChamberController::new(),
+          
+            wing_anti_ice: WingAntiIceComplex::new(),
             // TODO: I don't like how I have to initialize these containers independently of the actual reservoirs.
             // If the volumes of the reservoirs were to be changed in the hydraulics code, we would have to manually change them here as well
             green_hydraulic_reservoir_with_valve: PneumaticContainerWithValve::new(
@@ -324,6 +331,8 @@ impl A320Pneumatic {
             hydraulics.fake_yellow_reservoir(),
         );
 
+
+        self.wing_anti_ice.update(context, &mut self.engine_systems, overhead_panel.wing_anti_ice.mode()); 
         let (left, right) = self.engine_systems.split_at_mut(1);
         self.apu_bleed_air_valve
             .update_move_fluid(context, &mut self.apu, &mut left[0]);
@@ -337,7 +346,6 @@ impl A320Pneumatic {
             .update_flow_through_valve(context, &mut left[0]);
         self.yellow_hydraulic_reservoir_with_valve
             .update_flow_through_valve(context, &mut left[0]);
-
         self.packs[0].update(context, &mut left[0]);
         self.packs[1].update(context, &mut right[0]);
     }
@@ -405,6 +413,7 @@ impl SimulationElement for A320Pneumatic {
         }
 
         self.fadec.accept(visitor);
+        self.wing_anti_ice.accept(visitor);
 
         for pack in self.packs.iter_mut() {
             pack.accept(visitor)
@@ -802,7 +811,7 @@ impl ControllerSignal<FaultLightSignal> for EngineBleedFaultLightMonitor {
     }
 }
 
-struct EngineBleedAirSystem {
+pub struct EngineBleedAirSystem {
     number: usize,
     fan_compression_chamber_controller: EngineCompressionChamberController, // Controls pressure just behind the main fan
     ip_compression_chamber_controller: EngineCompressionChamberController,
@@ -904,7 +913,7 @@ impl EngineBleedAirSystem {
         self.engine_starter_consumer
             .update(&self.engine_starter_consumer_controller);
 
-        // Update valves (open amount)
+       // Update valves (open amount)
         self.ip_valve.update_open_amount(ipv_controller);
         self.hp_valve.update_open_amount(hpv_controller);
         self.pr_valve.update_open_amount(prv_controller);
@@ -1116,6 +1125,10 @@ impl PneumaticContainer for EngineBleedAirSystem {
     fn update_temperature(&mut self, temperature: TemperatureInterval) {
         self.precooler_outlet_pipe.update_temperature(temperature);
     }
+
+    fn update_pressure_only(&mut self, volume: Volume) {
+        self.precooler_outlet_pipe.update_pressure_only(volume);
+    }
 }
 
 pub struct A320PneumaticOverheadPanel {
@@ -1123,6 +1136,7 @@ pub struct A320PneumaticOverheadPanel {
     cross_bleed: CrossBleedValveSelectorKnob,
     engine_1_bleed: AutoOffFaultPushButton,
     engine_2_bleed: AutoOffFaultPushButton,
+    wing_anti_ice: WingAntiIcePushButton, 
 }
 impl A320PneumaticOverheadPanel {
     pub fn new() -> Self {
@@ -1131,6 +1145,7 @@ impl A320PneumaticOverheadPanel {
             cross_bleed: CrossBleedValveSelectorKnob::new_auto(),
             engine_1_bleed: AutoOffFaultPushButton::new_auto("PNEU_ENG_1_BLEED"),
             engine_2_bleed: AutoOffFaultPushButton::new_auto("PNEU_ENG_2_BLEED"),
+            wing_anti_ice: WingAntiIcePushButton::new_off(),
         }
     }
 
@@ -1140,6 +1155,13 @@ impl A320PneumaticOverheadPanel {
 
     pub fn cross_bleed_mode(&self) -> CrossBleedValveSelectorMode {
         self.cross_bleed.mode()
+    }
+
+    pub fn wing_anti_ice_is_on(&self) -> bool {
+        match self.wing_anti_ice.mode() {
+            WingAntiIcePushButtonMode::Off => false,
+            _ => true
+        }
     }
 
     pub fn engine_bleed_pb_is_auto(&self, engine_number: usize) -> bool {
@@ -1172,7 +1194,7 @@ impl SimulationElement for A320PneumaticOverheadPanel {
         self.cross_bleed.accept(visitor);
         self.engine_1_bleed.accept(visitor);
         self.engine_2_bleed.accept(visitor);
-
+        self.wing_anti_ice.accept(visitor);
         visitor.visit(self);
     }
 }
@@ -1584,6 +1606,7 @@ mod tests {
             self.query(|a| a.pneumatic.apu_bleed_air_valve.is_open())
         }
 
+
         fn set_engine_bleed_push_button_off(mut self, number: usize) -> Self {
             self.write(&format!("OVHD_PNEU_ENG_{}_BLEED_PB_IS_AUTO", number), false);
 
@@ -1691,7 +1714,7 @@ mod tests {
 
         let mut test_bed = test_bed_with()
             .in_isa_atmosphere(alt)
-            .idle_eng1()
+            .stop_eng1()
             .stop_eng2()
             .both_packs_auto()
             // .set_bleed_air_running()
@@ -2279,5 +2302,6 @@ mod tests {
                 CrossBleedValveSelectorMode::Shut
             );
         }
+        
     }
 }
