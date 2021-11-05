@@ -376,6 +376,16 @@ const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, type, constrain
                 <text x={1.5} y={2} className="Magenta shadow" strokeWidth={1} textAnchor="middle" dominantBaseline="middle" fontSize={22}>D</text>
             </>,
         );
+    } else if (type & (NdSymbolTypeFlags.PwpTopOfClimb)) {
+        showIdent = false;
+        elements.push(
+            <>
+                <circle cx={0} cy={0} r={13} strokeWidth={1.6} className="shadow" />
+                <circle cx={0} cy={0} r={12} strokeWidth={1.5} className="Magenta" />
+
+                <text x={1.5} y={2} className="Magenta shadow" strokeWidth={1} textAnchor="middle" dominantBaseline="middle" fontSize={22}>C</text>
+            </>,
+        );
     }
 
     if (showIdent) {

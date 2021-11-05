@@ -1,3 +1,6 @@
 export interface ClimbProfileBuilderResult {
-    distanceToAccelerationAltitude: number
+    distanceToAccelerationAltitude: number,
+    distanceToRotation: number,
+    distanceToTopOfClimb: number,
+    distanceToTopOfClimbFromEnd: number
 }

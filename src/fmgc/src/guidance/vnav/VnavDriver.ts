@@ -12,17 +12,19 @@ import { WaypointStats } from '@fmgc/flightplanning/data/flightplan';
 import { Leg } from '@fmgc/guidance/lnav/legs';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
-import { GuidanceController } from '../GuidanceController';
+import { Fmgc, GuidanceController } from '../GuidanceController';
 import { NauticalMiles } from '../../../../../typings';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 import { ClimbProfileBuilderResult } from './climb/ClimbProfileBuilderResult';
 
+const PWP_IDENT_TOC = '(T/C)';
 const PWP_IDENT_TOD = '(T/D)';
 const PWP_IDENT_DECEL = '(DECEL)';
 const PWP_IDENT_FLAP1 = '(FLAP1)';
 const PWP_IDENT_FLAP2 = '(FLAP2)';
 
 export class VnavDriver implements GuidanceComponent {
+    climbProfileBuilder: ClimbPathBuilder
     currentClimbProfile: ClimbProfileBuilderResult;
 
     currentDescentProfile: TheoreticalDescentPathCharacteristics
@@ -31,13 +33,31 @@ export class VnavDriver implements GuidanceComponent {
 
     constructor(
         private guidanceController: GuidanceController,
+        private fmgc: Fmgc
     ) {
+        this.climbProfileBuilder = new ClimbPathBuilder(fmgc)
     }
 
     acceptNewMultipleLegGeometry(geometry: Geometry) {
         this.computeVerticalProfile(geometry);
 
         const newPseudoWaypoints: PseudoWaypoint[] = [];
+
+        if (VnavConfig.VNAV_EMIT_TOC) {
+            const toc = VnavDriver.findPointFromEndOfPath(geometry, this.currentClimbProfile.distanceToTopOfClimbFromEnd);
+
+            if (toc) {
+                newPseudoWaypoints.push({
+                    ident: PWP_IDENT_TOC,
+                    alongLegIndex: toc[1],
+                    distanceFromLegTermination: this.currentClimbProfile.distanceToTopOfClimbFromEnd,
+                    efisSymbolFlag: NdSymbolTypeFlags.PwpTopOfClimb,
+                    efisSymbolLla: toc[0],
+                    displayedOnMcdu: true,
+                    stats: VnavDriver.computePseudoWaypointStats(PWP_IDENT_TOC, geometry.legs.get(toc[1]), this.currentClimbProfile.distanceToTopOfClimbFromEnd),
+                });
+            }
+        }
 
         if (VnavConfig.VNAV_EMIT_TOD) {
             const tod = VnavDriver.findPointFromEndOfPath(geometry, this.currentDescentProfile.tod);
@@ -149,7 +169,8 @@ export class VnavDriver implements GuidanceComponent {
 
     private computeVerticalProfile(geometry: Geometry) {
         if (geometry.legs.size > 0) {
-            this.currentClimbProfile = ClimbPathBuilder.computeClimbPath(geometry);
+            this.currentClimbProfile = this.climbProfileBuilder.computeClimbPath(geometry);
+            console.log(this.currentClimbProfile);
             this.currentApproachProfile = DecelPathBuilder.computeDecelPath(geometry);
             this.currentDescentProfile = DescentBuilder.computeDescentPath(geometry, this.currentApproachProfile);
         } else if (DEBUG) {

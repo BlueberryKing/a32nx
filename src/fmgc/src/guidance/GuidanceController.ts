@@ -8,10 +8,19 @@ import { FlightPlanManager } from '../flightplanning/FlightPlanManager';
 import { GuidanceManager } from './GuidanceManager';
 import { VnavDriver } from './vnav/VnavDriver';
 
+export interface Fmgc {
+    getZeroFuelWeight(): number;
+    getFOB(): number;
+    getV2Speed(): number;
+    getTropoPause(): number;
+}
+
 export class GuidanceController {
     public flightPlanManager: FlightPlanManager;
 
     public guidanceManager: GuidanceManager;
+
+    private fmgc: Fmgc;
 
     private lnavDriver: LnavDriver;
 
@@ -21,12 +30,13 @@ export class GuidanceController {
 
     public pseudoWaypoints: PseudoWaypoint[] = [];
 
-    constructor(flightPlanManager: FlightPlanManager, guidanceManager: GuidanceManager) {
+    constructor(flightPlanManager: FlightPlanManager, guidanceManager: GuidanceManager, fmgc: Fmgc) {
         this.flightPlanManager = flightPlanManager;
         this.guidanceManager = guidanceManager;
+        this.fmgc = fmgc;
 
         this.lnavDriver = new LnavDriver(this);
-        this.vnavDriver = new VnavDriver(this);
+        this.vnavDriver = new VnavDriver(this, this.fmgc);
     }
 
     init() {

@@ -29,4 +29,8 @@ export const VnavConfig = {
      */
     VNAV_EMIT_CDA_FLAP_PWP: true,
 
+    /**
+     * Whether to emit ToC pseudo waypoint
+     */
+    VNAV_EMIT_TOC: true,
 };

@@ -50,6 +50,7 @@ export enum NdSymbolTypeFlags {
     PwpTopOfDescent = 1 << 17,
     PwpCdaFlap1 = 1 << 18,
     PwpCdaFlap2 = 1 << 19,
+    PwpTopOfClimb = 1 << 20,
 }
 
 export interface NdSymbol {
