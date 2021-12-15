@@ -27,8 +27,10 @@ export class GeometryProfile {
     private totalDistance(): NauticalMiles {
         let totalDistance = 0;
 
-        for (const [i, leg] of this.geometry.legs.entries()) {
-            totalDistance += leg.distance;
+        const { legs, transitions } = this.geometry;
+
+        for (const [i, leg] of legs.entries()) {
+            totalDistance += Geometry.completeLegPathLengths(leg, transitions.get(i - 1), transitions.get(i)).reduce((sum, el) => sum + el, 0);
         }
 
         return totalDistance;
@@ -79,7 +81,7 @@ export class GeometryProfile {
     }
 
     private hasSpeedChange(distanceFromStart: NauticalMiles, maxSpeed: Knots): boolean {
-        for (let i = 0; i < this.checkpoints.length; i++) {
+        for (let i = 0; i < this.checkpoints.length - 1; i++) {
             if (distanceFromStart >= this.checkpoints[i].distanceFromStart && distanceFromStart < this.checkpoints[i + 1].distanceFromStart) {
                 return this.checkpoints[i + 1].speed > maxSpeed;
             }
@@ -114,9 +116,11 @@ export class GeometryProfile {
      */
     computePredictionsAtWaypoints(): Map<number, VerticalWaypointPrediction> {
         const predictions = new Map<number, VerticalWaypointPrediction>();
-        let totalDistance = this.totalFlightPlanDistance;
+        let totalDistance = 0;
 
         for (const [i, leg] of this.geometry.legs.entries()) {
+            totalDistance += Geometry.completeLegPathLengths(leg, this.geometry.transitions.get(i - 1), this.geometry.transitions.get(i)).reduce((sum, el) => sum + el, 0);
+
             const predictedAltitudeAtEndOfLeg = this.interpolateAltitude(totalDistance);
             const predictedSpeedAtEndOfLeg = this.findSpeedTarget(totalDistance);
 
@@ -130,8 +134,6 @@ export class GeometryProfile {
                 speedConstraint: leg.speedConstraint,
                 isSpeedConstraintMet: this.isSpeedConstraintMet(predictedSpeedAtEndOfLeg, leg.speedConstraint),
             });
-
-            totalDistance -= leg.distance;
         }
 
         return predictions;

@@ -353,8 +353,10 @@ export class ClimbPathBuilder {
     private computeTotalFlightPlanDistance(geometry: Geometry): NauticalMiles {
         let totalDistance = 0;
 
-        for (const [i, leg] of geometry.legs.entries()) {
-            totalDistance += leg.distance;
+        const { legs, transitions } = geometry;
+
+        for (const [i, leg] of legs.entries()) {
+            totalDistance += Geometry.completeLegPathLengths(leg, transitions.get(i - 1), transitions.get(i)).reduce((sum, el) => sum + el, 0);
         }
 
         return totalDistance;
@@ -368,7 +370,7 @@ export class ClimbPathBuilder {
             // Because of how sequencing works, the first leg (last one in geometry.legs) is behind the aircraft and the second one is the one we're on.
             // The distance of the one we're on is included through the getDistanceToActiveWaypoint() at the beginning.
             if (numberOfLegsToGo-- > 2) {
-                totalDistance += leg.distance;
+                totalDistance += Geometry.completeLegPathLengths(leg, geometry.transitions.get(i - 1), geometry.transitions.get(i)).reduce((sum, el) => sum + el, 0);
             }
         }
 
@@ -410,18 +412,18 @@ export class ClimbPathBuilder {
 
     private findMaxAltitudeConstraints(geometry: Geometry): MaxAltitudeConstraint[] {
         const result: MaxAltitudeConstraint[] = [];
-        let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
+        let distanceAlongTrackForStartOfLegWaypoint = 0;
 
         for (const [i, leg] of geometry.legs.entries()) {
-            distanceAlongTrackForStartOfLegWaypoint -= leg.distance;
+            distanceAlongTrackForStartOfLegWaypoint += Geometry.completeLegPathLengths(leg, geometry.transitions.get(i - 1), geometry.transitions.get(i)).reduce((sum, el) => sum + el, 0);
 
             if (leg.segment !== SegmentType.Origin && leg.segment !== SegmentType.Departure) {
                 continue;
             }
 
             if (leg.altitudeConstraint && leg.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove) {
-                result.unshift({
-                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
+                result.push({
+                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint,
                     maxAltitude: leg.altitudeConstraint.altitude1,
                 });
             }
@@ -432,18 +434,18 @@ export class ClimbPathBuilder {
 
     private findMaxSpeedConstraints(geometry: Geometry): MaxSpeedConstraint[] {
         const result: MaxSpeedConstraint[] = [];
-        let distanceAlongTrackForStartOfLegWaypoint = this.computeTotalFlightPlanDistance(geometry);
+        let distanceAlongTrackForStartOfLegWaypoint = 0;
 
         for (const [i, leg] of geometry.legs.entries()) {
-            distanceAlongTrackForStartOfLegWaypoint -= leg.distance;
+            distanceAlongTrackForStartOfLegWaypoint += Geometry.completeLegPathLengths(leg, geometry.transitions.get(i - 1), geometry.transitions.get(i)).reduce((sum, el) => sum + el, 0);
 
             if (leg.segment !== SegmentType.Origin && leg.segment !== SegmentType.Departure) {
                 continue;
             }
 
             if (leg.speedConstraint?.speed > 100 && leg.speedConstraint.type !== SpeedConstraintType.atOrAbove) {
-                result.unshift({
-                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint + leg.distance,
+                result.push({
+                    distanceFromStart: distanceAlongTrackForStartOfLegWaypoint,
                     maxSpeed: leg.speedConstraint.speed,
                 });
             }
@@ -521,7 +523,7 @@ export class ClimbPathBuilder {
             return;
         }
 
-        for (let i = 0; i < checkpoints.length; i++) {
+        for (let i = 0; i < checkpoints.length - 1; i++) {
             if (checkpointToAdd.distanceFromStart > checkpoints[i].distanceFromStart && checkpointToAdd.distanceFromStart <= checkpoints[i + 1].distanceFromStart) {
                 checkpoints.splice(i + 1, 0, checkpointToAdd);
                 return;
