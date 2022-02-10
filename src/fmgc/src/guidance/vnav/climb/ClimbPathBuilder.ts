@@ -1,7 +1,7 @@
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { SpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { Constants } from '@shared/Constants';
-import { ArmedVerticalMode, VerticalMode } from '@shared/autopilot';
+import { ArmedVerticalMode, isArmed, VerticalMode } from '@shared/autopilot';
 import { ClimbStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { Predictions, StepResults } from '../Predictions';
@@ -320,7 +320,7 @@ export class ClimbPathBuilder {
             VerticalMode.SRS_GA,
         ];
 
-        return ((armedVerticalMode & ArmedVerticalMode.CLB) === ArmedVerticalMode.CLB) || verticalModesToShowLevelOffArrowFor.includes(verticalMode);
+        return isArmed(armedVerticalMode, ArmedVerticalMode.CLB) || verticalModesToShowLevelOffArrowFor.includes(verticalMode);
     }
 
     private addCheckpointFromStep(profile: BaseGeometryProfile, step: StepResults, reason: VerticalCheckpointReason) {

@@ -58,39 +58,39 @@ export class ConstraintReader {
                 if (this.hasValidClimbAltitudeConstraint(leg)) {
                     this.climbAlitudeConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
-                        maxAltitude: leg.altitudeConstraint.altitude1,
+                        maxAltitude: leg.metadata.altitudeConstraint.altitude1,
                     });
                 }
 
                 if (this.hasValidClimbSpeedConstraint(leg)) {
                     this.climbSpeedConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
-                        maxSpeed: leg.speedConstraint.speed,
+                        maxSpeed: leg.metadata.speedConstraint.speed,
                     });
                 }
             } else if (leg.segment === SegmentType.Arrival || leg.segment === SegmentType.Approach) {
                 if (this.hasValidDescentAltitudeConstraint(leg)) {
                     this.descentAltitudeConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
-                        constraint: leg.altitudeConstraint,
+                        constraint: leg.metadata.altitudeConstraint,
                     });
                 }
 
                 if (this.hasValidDescentSpeedConstraint(leg)) {
                     this.descentSpeedConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
-                        maxSpeed: leg.speedConstraint.speed,
+                        maxSpeed: leg.metadata.speedConstraint.speed,
                     });
                 }
-            } else if (leg.altitudeConstraint) {
+            } else if (leg.metadata.altitudeConstraint) {
                 uncategorizedAltitudeConstraints.push({
                     distanceFromStart: this.totalFlightPlanDistance,
-                    constraint: leg.altitudeConstraint,
+                    constraint: leg.metadata.altitudeConstraint,
                 });
             } else if (this.hasValidSpeedConstraint(leg)) {
                 uncategorizedSpeedConstraints.push({
                     distanceFromStart: this.totalFlightPlanDistance,
-                    maxSpeed: leg.speedConstraint.speed,
+                    maxSpeed: leg.metadata.speedConstraint.speed,
                 });
             }
         }
@@ -119,21 +119,21 @@ export class ConstraintReader {
     }
 
     private hasValidSpeedConstraint(leg: Leg): boolean {
-        return leg.speedConstraint?.speed > 100 && leg.speedConstraint.type !== SpeedConstraintType.atOrAbove;
+        return leg.metadata.speedConstraint?.speed > 100 && leg.metadata.speedConstraint.type !== SpeedConstraintType.atOrAbove;
     }
 
     private hasValidClimbAltitudeConstraint(leg: Leg): boolean {
-        return leg.altitudeConstraint && leg.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove
-            && (this.climbAlitudeConstraints.length < 1 || leg.altitudeConstraint.altitude1 >= this.climbAlitudeConstraints[this.climbAlitudeConstraints.length - 1].maxAltitude);
+        return leg.metadata.altitudeConstraint && leg.metadata.altitudeConstraint.type !== AltitudeConstraintType.atOrAbove
+            && (this.climbAlitudeConstraints.length < 1 || leg.metadata.altitudeConstraint.altitude1 >= this.climbAlitudeConstraints[this.climbAlitudeConstraints.length - 1].maxAltitude);
     }
 
     private hasValidClimbSpeedConstraint(leg: Leg): boolean {
         return this.hasValidSpeedConstraint(leg)
-            && (this.climbSpeedConstraints.length < 1 || leg.speedConstraint.speed >= this.climbSpeedConstraints[this.climbSpeedConstraints.length - 1].maxSpeed);
+            && (this.climbSpeedConstraints.length < 1 || leg.metadata.speedConstraint.speed >= this.climbSpeedConstraints[this.climbSpeedConstraints.length - 1].maxSpeed);
     }
 
     private hasValidDescentAltitudeConstraint(leg: Leg): boolean {
-        return !!leg.altitudeConstraint;
+        return !!leg.metadata.altitudeConstraint;
     }
 
     private hasValidDescentSpeedConstraint(leg: Leg): boolean {

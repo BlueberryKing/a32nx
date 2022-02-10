@@ -365,12 +365,12 @@ export class EfisSymbols {
                     if (!isBehindAircraft && wp.legAltitudeDescription !== 0) {
                         const predictionAtWaypoint = waypointPredictions.get(i);
 
-                        if (!predictionAtWaypoint) {
-                            type |= NdSymbolTypeFlags.ConstraintUnknown;
-                        } else if (predictionAtWaypoint.isAltitudeConstraintMet) {
-                            type |= NdSymbolTypeFlags.ConstraintMet;
-                        } else {
-                            type |= NdSymbolTypeFlags.ConstraintMissed;
+                        type |= NdSymbolTypeFlags.Constraint;
+
+                        if (predictionAtWaypoint?.isAltitudeConstraintMet) {
+                            type |= NdSymbolTypeFlags.MagentaColor;
+                        } else if (predictionAtWaypoint) {
+                            type |= NdSymbolTypeFlags.AmberColor;
                         }
                     }
 
