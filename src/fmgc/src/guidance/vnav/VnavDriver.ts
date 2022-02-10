@@ -259,7 +259,7 @@ export class VnavDriver implements GuidanceComponent {
 
         if (this.isInManagedNav() && this.currentNdGeometryProfile) {
             // Move PresentPosition checkpoint to where we are at the end of the tactical repositioning to trick the managed profile computing from there
-            this.currentNdGeometryProfile.checkpoints.filter(({ reason }) => reason !== VerticalCheckpointReason.PresentPosition);
+            this.currentNdGeometryProfile.checkpoints = this.currentNdGeometryProfile.checkpoints.filter(({ reason }) => reason !== VerticalCheckpointReason.PresentPosition);
             this.currentNdGeometryProfile.addCheckpointFromLast((checkpoint) => ({ ...checkpoint, reason: VerticalCheckpointReason.PresentPosition }));
 
             this.finishProfileInManagedModes(this.currentNdGeometryProfile, Math.max(FmgcFlightPhase.Climb, flightPhase));
