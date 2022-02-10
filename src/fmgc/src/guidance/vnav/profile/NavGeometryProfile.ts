@@ -1,7 +1,7 @@
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { Geometry } from '../../Geometry';
-import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
+import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
 
 // TODO: Merge this with VerticalCheckpoint
 export interface VerticalWaypointPrediction {
@@ -83,6 +83,11 @@ export interface MaxSpeedConstraint {
 export interface DescentAltitudeConstraint {
     distanceFromStart: NauticalMiles,
     constraint: AltitudeConstraint,
+}
+
+export interface ApproachPathAngleConstraint {
+    distanceFromStart: NauticalMiles,
+    pathAngle: PathAngleConstraint,
 }
 
 export class NavGeometryProfile extends BaseGeometryProfile {

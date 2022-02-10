@@ -12,7 +12,7 @@ export const VnavConfig = {
     /**
      * VNAV descent calculation mode (NORMAL, CDA or DPO)
      */
-    VNAV_DESCENT_MODE: VnavDescentMode.CDA,
+    VNAV_DESCENT_MODE: VnavDescentMode.NORMAL,
 
     /**
      * Whether to emit CDA flap1/2 pseudo-waypoints (only if VNAV_DESCENT_MODE is CDA)
