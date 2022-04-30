@@ -28,11 +28,12 @@ import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDesce
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
 import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
 import { ApproachPathBuilder } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
+import { AircraftState, BuilderVisitor, McduProfileNode, PrinterVisitor, ProfileBuilder } from '@fmgc/guidance/vnav/nodes';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
@@ -127,6 +128,7 @@ export class VnavDriver implements GuidanceComponent {
 
         this.computeVerticalProfileForMcdu(geometry);
         this.computeVerticalProfileForNd(geometry);
+        this.computeProfileV2();
 
         this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
         this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
@@ -255,11 +257,6 @@ export class VnavDriver implements GuidanceComponent {
         this.currentNavGeometryProfile.finalizeProfile();
 
         console.timeEnd('VNAV computation');
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            console.log('this.currentNavGeometryProfile:', this.currentNavGeometryProfile);
-            this.currentMcduSpeedProfile.showDebugStats();
-        }
     }
 
     private computeVerticalProfileForNd(geometry: Geometry) {
@@ -337,10 +334,6 @@ export class VnavDriver implements GuidanceComponent {
         }
 
         this.currentNdGeometryProfile.finalizeProfile();
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            console.log('this.currentNdGeometryProfile:', this.currentNdGeometryProfile);
-        }
     }
 
     private getAppropriateTacticalDescentStrategy(fcuVerticalMode: VerticalMode, fcuVerticalSpeed: FeetPerMinute) {
@@ -523,5 +516,47 @@ export class VnavDriver implements GuidanceComponent {
         }
 
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
+    }
+
+    private computeProfileV2() {
+        if (!this.computationParametersObserver.canComputeProfile()) {
+            return;
+        }
+
+        const context = {
+            atmosphericConditions: this.atmosphericConditions,
+            observer: this.computationParametersObserver,
+        };
+
+        const { v2Speed, originAirfieldElevation } = this.computationParametersObserver.get();
+
+        const initialState: AircraftState = {
+            altitude: originAirfieldElevation,
+            distanceFromStart: 0,
+            time: 0,
+            weight: this.computationParametersObserver.get().fuelOnBoard + this.computationParametersObserver.get().zeroFuelWeight,
+            speed: v2Speed + 10,
+            mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation, v2Speed + 10),
+            trueAirspeed: this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10),
+            config: {
+                flapConfig: FlapConf.CONF_1,
+                speedbrakesExtended: false,
+                gearExtended: false,
+            },
+        };
+
+        const builder = new ProfileBuilder(initialState);
+
+        const visitor = new BuilderVisitor(builder);
+        const printer = new PrinterVisitor();
+
+        const profile = new McduProfileNode(context, this.constraintReader);
+
+        profile.accept(visitor);
+
+        if (VnavConfig.DEBUG_PROFILE) {
+            profile.accept(printer);
+            console.log(visitor);
+        }
     }
 }
