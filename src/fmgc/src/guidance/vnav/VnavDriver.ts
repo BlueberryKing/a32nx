@@ -28,12 +28,12 @@ import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDesce
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
 import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
 import { ApproachPathBuilder } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
+import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { AircraftState, BuilderVisitor, McduProfileNode, PrinterVisitor, ProfileBuilder } from '@fmgc/guidance/vnav/nodes';
+import { AircraftState, BuilderVisitor, McduProfile, NodeContext, PrinterVisitor, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
@@ -523,10 +523,11 @@ export class VnavDriver implements GuidanceComponent {
             return;
         }
 
-        const context = {
-            atmosphericConditions: this.atmosphericConditions,
-            observer: this.computationParametersObserver,
-        };
+        const context = new NodeContext(
+            this.atmosphericConditions,
+            this.computationParametersObserver,
+            new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile),
+        );
 
         const { v2Speed, originAirfieldElevation } = this.computationParametersObserver.get();
 
@@ -550,7 +551,7 @@ export class VnavDriver implements GuidanceComponent {
         const visitor = new BuilderVisitor(builder);
         const printer = new PrinterVisitor();
 
-        const profile = new McduProfileNode(context, this.constraintReader);
+        const profile = new McduProfile(context, this.constraintReader);
 
         profile.accept(visitor);
 

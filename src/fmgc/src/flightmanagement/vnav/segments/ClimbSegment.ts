@@ -1,0 +1,27 @@
+import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
+import { ManagedClimbMachSegment } from './ManagedClimbMachSegment';
+import { ManagedClimbSegment } from './ManagedClimbSegment';
+import { ProfileSegment, NodeContext, SymbolBuilder } from './index';
+
+export class ClimbSegment extends ProfileSegment {
+    constructor(context: NodeContext, constraints: ConstraintReader) {
+        super();
+
+        const { cruiseAltitude, climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();
+        const crossoverAltitude = 30000; // TODO
+
+        this.children = [
+            new ManagedClimbSegment(context, climbSpeedLimit.speed, climbSpeedLimit.underAltitude, constraints),
+            new ManagedClimbSegment(context, managedClimbSpeed, crossoverAltitude, constraints),
+            new ManagedClimbMachSegment(cruiseAltitude, managedClimbSpeedMach),
+        ];
+    }
+
+    getSymbols(symbolBuilder: SymbolBuilder): void {
+        symbolBuilder.push();
+    }
+
+    get repr() {
+        return 'ClimbNode';
+    }
+}
