@@ -1,5 +1,6 @@
 import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { ProfileSegment, NodeContext, AircraftState, ProfileBuilder } from './index';
+import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class ConfigurationChangeSegment extends ProfileSegment {
     constructor(_context: NodeContext, private config: AircraftConfiguration) {

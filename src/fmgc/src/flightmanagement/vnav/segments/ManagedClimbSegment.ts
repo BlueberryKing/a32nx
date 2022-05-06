@@ -1,9 +1,10 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ClimbThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { ClimbToAltConstraintSegment } from './ClimbToAltConstraintSegment';
-import { PureAccelerationSegment } from './PureAccelerationSegment';
-import { PureClimbToAltitudeSegment } from './PureClimbToAltitudeSegment';
-import { ProfileSegment, NodeContext } from './index';
+import { ClimbToAltConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbToAltConstraintSegment';
+import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureAccelerationSegment';
+import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
+import { NodeContext } from '@fmgc/flightmanagement/vnav/segments/index';
+import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class ManagedClimbSegment extends ProfileSegment {
     constructor(context: NodeContext, maxSpeed: Knots, toAltitude: Feet, constraints: ConstraintReader) {

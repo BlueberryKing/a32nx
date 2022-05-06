@@ -1,7 +1,8 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { ManagedClimbMachSegment } from './ManagedClimbMachSegment';
-import { ManagedClimbSegment } from './ManagedClimbSegment';
-import { ProfileSegment, NodeContext, SymbolBuilder } from './index';
+import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbMachSegment';
+import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbSegment';
+import { NodeContext, SymbolBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
+import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class ClimbSegment extends ProfileSegment {
     constructor(context: NodeContext, constraints: ConstraintReader) {

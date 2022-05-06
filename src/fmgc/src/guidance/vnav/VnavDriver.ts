@@ -34,6 +34,7 @@ import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory'
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { AircraftState, BuilderVisitor, McduProfile, NodeContext, PrinterVisitor, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { ManagedDescentSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedDescentSegment';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
@@ -128,7 +129,7 @@ export class VnavDriver implements GuidanceComponent {
 
         this.computeVerticalProfileForMcdu(geometry);
         this.computeVerticalProfileForNd(geometry);
-        this.computeProfileV2();
+        this.computeDescentProfileV2();
 
         this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
         this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
@@ -518,7 +519,7 @@ export class VnavDriver implements GuidanceComponent {
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
     }
 
-    private computeProfileV2() {
+    private computeClimbProfileV2() {
         if (!this.computationParametersObserver.canComputeProfile()) {
             return;
         }
@@ -552,6 +553,49 @@ export class VnavDriver implements GuidanceComponent {
         const printer = new PrinterVisitor();
 
         const profile = new McduProfile(context, this.constraintReader);
+
+        profile.accept(visitor);
+
+        if (VnavConfig.DEBUG_PROFILE) {
+            profile.accept(printer);
+            console.log(visitor);
+        }
+    }
+
+    private computeDescentProfileV2() {
+        if (!this.computationParametersObserver.canComputeProfile()) {
+            return;
+        }
+
+        const context = new NodeContext(
+            this.atmosphericConditions,
+            this.computationParametersObserver,
+            new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
+        );
+
+        const { v2Speed, originAirfieldElevation } = this.computationParametersObserver.get();
+
+        const initialState: AircraftState = {
+            altitude: 4000,
+            distanceFromStart: 200,
+            time: 0,
+            weight: this.computationParametersObserver.get().zeroFuelWeight + 2500,
+            speed: 220,
+            mach: this.atmosphericConditions.computeMachFromCas(4000, 220),
+            trueAirspeed: this.atmosphericConditions.computeTasFromCas(4000, 220),
+            config: {
+                flapConfig: FlapConf.CLEAN,
+                speedbrakesExtended: false,
+                gearExtended: false,
+            },
+        };
+
+        const builder = new ProfileBuilder(initialState);
+
+        const visitor = new BuilderVisitor(builder);
+        const printer = new PrinterVisitor();
+
+        const profile = new ManagedDescentSegment(context, this.constraintReader);
 
         profile.accept(visitor);
 

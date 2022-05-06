@@ -1,16 +1,14 @@
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { AccelFactorMode, Common } from '@fmgc/guidance/vnav/common';
+import { Common } from '@fmgc/guidance/vnav/common';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
-import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { ClimbSegment } from './ClimbSegment';
-import { CruiseAndDescentSegment } from './CruiseAndDescentSegment';
-import { TakeoffSegment } from './TakeoffSegment';
+import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/TakeoffSegment';
+import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbSegment';
+import { ProfileSegment } from './ProfileSegment';
 
-enum VerticalSegmentType {
+export enum VerticalSegmentType {
     Unknown = 1,
     Climb = 1 << 1,
     Level = 1 << 2,
@@ -19,7 +17,7 @@ enum VerticalSegmentType {
     Decelerate = 1 << 5,
 }
 
-interface Visitor {
+export interface Visitor {
     visitBeforeChildren(node: ProfileSegment, context: VisitorContext): void;
     visitAfterChildren(node: ProfileSegment, context: VisitorContext): void;
 }
@@ -28,6 +26,8 @@ export class PrinterVisitor implements Visitor {
     visitBeforeChildren(node: ProfileSegment, context: VisitorContext): void {
         console.log(`${'  '.repeat(context.depth)} - ${node.repr}`);
     }
+
+    visitAfterChildren(node: ProfileSegment, context: VisitorContext) { }
 }
 
 export class BuilderVisitor implements Visitor {
@@ -50,34 +50,8 @@ class SymbolGenerationVisitor implements Visitor {
     visitAfterChildren(_node: ProfileSegment, _context: VisitorContext) { }
 }
 
-interface VisitorContext {
+export interface VisitorContext {
     depth: number;
-}
-
-export abstract class ProfileSegment {
-    protected children: ProfileSegment[] = []
-
-    compute(_state: AircraftState, _builder: ProfileBuilder) { }
-
-    accept(visitor: Visitor, context: VisitorContext = { depth: 0 }) {
-        visitor.visitBeforeChildren(this, context);
-
-        for (const child of this.children) {
-            child.accept(visitor, { depth: context.depth + 1 });
-        }
-
-        visitor.visitAfterChildren(this, context);
-    }
-
-    getSymbols(_symbolBuilder: any) { }
-
-    get repr(): string {
-        return 'Unknown node';
-    }
-
-    get type(): VerticalSegmentType {
-        return VerticalSegmentType.Unknown;
-    }
 }
 
 export class McduProfile extends ProfileSegment {
@@ -87,7 +61,6 @@ export class McduProfile extends ProfileSegment {
         this.children = [
             new TakeoffSegment(context),
             new ClimbSegment(context, constraints),
-            new CruiseAndDescentSegment(),
         ];
     }
 
@@ -134,5 +107,86 @@ export class NodeContext {
 
     getIsaDeviation() {
         return this.atmosphericConditions.isaDeviation;
+    }
+}
+
+export class TemporaryStateSequence {
+    private states: AircraftState[];
+
+    constructor(...initialStates: AircraftState[]) {
+        this.states = initialStates;
+    }
+
+    get last(): AircraftState {
+        return this.states[this.states.length - 1];
+    }
+
+    get length(): number {
+        return this.states.length;
+    }
+
+    at(index: number): AircraftState {
+        return this.states[index];
+    }
+
+    reset() {
+        this.states.splice(1);
+    }
+
+    push(...states: AircraftState[]) {
+        this.states.push(...states);
+    }
+
+    reverse(): TemporaryStateSequence {
+        return new TemporaryStateSequence(
+            ...this.states.slice().reverse(),
+        );
+    }
+
+    interpolateEverythingFromStart(distanceFromStart: NauticalMiles): Partial<AircraftState> {
+        if (distanceFromStart <= this.states[0].distanceFromStart) {
+            return {
+                distanceFromStart,
+                altitude: this.states[0].altitude,
+                speed: this.states[0].speed,
+                mach: this.states[0].mach,
+            };
+        }
+
+        for (let i = 0; i < this.states.length - 1; i++) {
+            if (distanceFromStart > this.states[i].distanceFromStart && distanceFromStart <= this.states[i + 1].distanceFromStart) {
+                return {
+                    distanceFromStart,
+                    altitude: Common.interpolate(
+                        distanceFromStart,
+                        this.states[i].distanceFromStart,
+                        this.states[i + 1].distanceFromStart,
+                        this.states[i].altitude,
+                        this.states[i + 1].altitude,
+                    ),
+                    speed: Common.interpolate(
+                        distanceFromStart,
+                        this.states[i].distanceFromStart,
+                        this.states[i + 1].distanceFromStart,
+                        this.states[i].speed,
+                        this.states[i + 1].speed,
+                    ),
+                    mach: Common.interpolate(
+                        distanceFromStart,
+                        this.states[i].distanceFromStart,
+                        this.states[i + 1].distanceFromStart,
+                        this.states[i].mach,
+                        this.states[i + 1].mach,
+                    ),
+                };
+            }
+        }
+
+        return {
+            distanceFromStart,
+            altitude: this.last.altitude,
+            speed: this.last.speed,
+            mach: this.last.mach,
+        };
     }
 }

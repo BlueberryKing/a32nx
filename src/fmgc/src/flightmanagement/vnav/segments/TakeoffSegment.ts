@@ -1,8 +1,9 @@
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { ClimbThrustSetting, TakeoffThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { ConfigurationChangeSegment } from './ConfigurationChangeSegment';
-import { PureClimbToAltitudeSegment } from './PureClimbToAltitudeSegment';
-import { ProfileSegment, NodeContext } from './index';
+import { ConfigurationChangeSegment } from '@fmgc/flightmanagement/vnav/segments/ConfigurationChangeSegment';
+import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
+import { NodeContext } from '@fmgc/flightmanagement/vnav/segments/index';
+import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class TakeoffSegment extends ProfileSegment {
     constructor(context: NodeContext) {

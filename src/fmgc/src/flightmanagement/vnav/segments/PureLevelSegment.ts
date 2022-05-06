@@ -1,5 +1,6 @@
 import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndCondition, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
-import { ProfileSegment, NodeContext, AircraftState, ProfileBuilder } from './index';
+import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureLevelSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
@@ -27,7 +28,7 @@ export class PureLevelSegment extends ProfileSegment {
             state,
             this.endConditions,
             constantPitchPropagator(pitchTarget, this.context),
-        );
+        ).last;
 
         builder.push(endState);
     }
