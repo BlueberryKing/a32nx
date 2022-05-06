@@ -26,17 +26,16 @@ export function constantThrustPropagator(thrustSetting: ThrustSetting, context: 
         );
 
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
-        const distance: NauticalMiles = stepSize;
         const pathAngle: Radians = FlightModel.getConstantThrustPathAngle(thrust, state.weight, drag, accelerationFactor);
         const verticalSpeed: FeetPerMinute = 101.268 * tas * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * distance / groundSpeed;
+        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
 
         return {
-            distanceFromStart: state.distanceFromStart + distance,
+            distanceFromStart: state.distanceFromStart + stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
@@ -48,7 +47,7 @@ export function constantThrustPropagator(thrustSetting: ThrustSetting, context: 
     };
 }
 
-export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext) {
+export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext, stepSize: NauticalMiles = 0.1) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -70,38 +69,22 @@ export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext
             AccelFactorMode.CONSTANT_CAS,
         );
 
-        const pathAngle = pitch.getPathAngle(state);
-        const thrust = FlightModel.getThrustFromConstantPathAngle(pathAngle, state.weight, drag, accelerationFactor);
+        const pathAngle: Radians = pitch.getPathAngle(state);
+        const thrust = FlightModel.getThrustFromConstantPathAngle(pathAngle * MathUtils.RADIANS_TO_DEGREES, state.weight, drag, accelerationFactor);
         const correctedThrust = (thrust / delta2) / 2;
-
-        // TODO: Move this somewhere else
-        const tat = context.atmosphericConditions.totalAirTemperatureFromMach(state.altitude, state.mach);
-        const maxN1 = EngineModel.tableInterpolation(EngineModel.maxClimbThrustTableLeap, tat, state.altitude);
-        const maxCorrectedN1 = EngineModel.getCorrectedN1(maxN1, theta2);
-        const maxCorrectedThrust = EngineModel.tableInterpolation(EngineModel.table1506, maxCorrectedN1, state.mach) * 2 * EngineModel.maxThrust;
-        const maxThrust = EngineModel.getUncorrectedThrust(maxCorrectedThrust, delta2);
-        const availableGradient = FlightModel.getAvailableGradient(maxThrust, drag, state.weight);
-        const maxFpa = FlightModel.fpaForGradient(availableGradient, 0, accelerationFactor);
-        //
-
-        if (pathAngle > maxFpa) {
-            console.warn(`[FMS/VNAV] Demanded path angle greater than achievable (${pathAngle * MathUtils.RADIANS_TO_DEGREES} > ${maxFpa * MathUtils.RADIANS_TO_DEGREES})`);
-        }
-
         const n1 = EngineModel.reverseTableInterpolation(EngineModel.table1506, state.mach, (correctedThrust / EngineModel.maxThrust));
         const correctedN1 = EngineModel.getCorrectedN1(n1, theta2);
         const fuelFlow = EngineModel.getCorrectedFuelFlow(correctedN1, state.mach, state.altitude) * 2;
 
-        const distance: NauticalMiles = 0.1;
         const verticalSpeed: FeetPerMinute = 101.268 * tas * Math.sin(pathAngle);
-        const stepTime: Seconds = distance / groundSpeed;
+        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
 
         return {
-            distanceFromStart: state.distanceFromStart + distance,
+            distanceFromStart: state.distanceFromStart + stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
@@ -113,7 +96,7 @@ export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext
     };
 }
 
-export function accelerationPropagator(thrustSetting: ThrustSetting, context: NodeContext) {
+export function accelerationPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 0.1) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -134,13 +117,12 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
         );
 
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
-        const distance: NauticalMiles = 0.1;
 
         const availableGradient: Radians = FlightModel.getAvailableGradient(thrust, drag, state.weight);
         const pathAngle: Radians = FlightModel.getSpeedChangePathAngle(thrust, state.weight, drag);
         const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
         const verticalSpeed: FeetPerMinute = 101.268 * tas * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * distance / groundSpeed;
+        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
@@ -148,7 +130,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
 
         return {
-            distanceFromStart: state.distanceFromStart + distance,
+            distanceFromStart: state.distanceFromStart + stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
@@ -160,7 +142,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
     };
 }
 
-export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget: PitchTarget, context: NodeContext) {
+export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget: PitchTarget, context: NodeContext, stepSize: NauticalMiles = 0.1) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -181,13 +163,12 @@ export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget:
         );
 
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
-        const distance: NauticalMiles = 0.1;
 
         const availableGradient: Radians = FlightModel.getAvailableGradient(thrust, drag, state.weight);
         const pathAngle: Radians = pitchTarget.getPathAngle(state);
         const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
         const verticalSpeed: FeetPerMinute = 101.268 * tas * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * distance / groundSpeed;
+        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
@@ -195,7 +176,7 @@ export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget:
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
 
         return {
-            distanceFromStart: state.distanceFromStart + distance,
+            distanceFromStart: state.distanceFromStart + stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
@@ -211,7 +192,7 @@ export interface PitchTarget {
     getPathAngle(state: AircraftState): Radians;
 }
 
-class VerticalSpeedPitchTarget implements PitchTarget {
+export class VerticalSpeedPitchTarget implements PitchTarget {
     constructor(private verticalSpeed: FeetPerMinute) { }
 
     getPathAngle({ trueAirspeed }: AircraftState): Radians {
@@ -223,7 +204,7 @@ export class FlightPathAnglePitchTarget implements PitchTarget {
     constructor(private flightPathAngle: Degrees) { }
 
     getPathAngle(_: AircraftState): Radians {
-        return this.flightPathAngle;
+        return this.flightPathAngle * MathUtils.DEGREES_TO_RADIANS;
     }
 }
 

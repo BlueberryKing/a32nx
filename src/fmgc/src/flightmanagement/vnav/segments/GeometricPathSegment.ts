@@ -20,6 +20,8 @@ export class GeometricPathSegment extends ProfileSegment {
     }
 
     compute(state: AircraftState, _builder: ProfileBuilder): void {
+        this.children = [];
+
         if (this.lastConstraint === null) {
             return;
         }
@@ -31,17 +33,15 @@ export class GeometricPathSegment extends ProfileSegment {
                 continue;
             }
 
-            this.children.push(
+            this.children.unshift(
                 new DescentAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle, this.maxSpeed),
             );
         }
-
-        this.children.reverse();
     }
 
     calculatePreferredFlightPathAngle(state: AircraftState) {
         return MathUtils.RADIANS_TO_DEGREES
-            * Math.atan2(this.lastConstraint.constraint.altitude1 - state.altitude, 6076.12 * (this.lastConstraint.distanceFromStart - state.distanceFromStart));
+            * Math.atan2(state.altitude - this.lastConstraint.constraint.altitude1, 6076.12 * (state.distanceFromStart - this.lastConstraint.distanceFromStart));
     }
 
     get repr(): string {

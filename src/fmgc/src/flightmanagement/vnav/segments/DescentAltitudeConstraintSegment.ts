@@ -1,5 +1,5 @@
 import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
-import { PureDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureDecelerationSegment';
+import { PureGeometricDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureGeometricDecelerationSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { DescentAltitudeConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
@@ -12,7 +12,7 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
 
     compute(state: AircraftState, _builder: ProfileBuilder): void {
         this.children = [
-            new PureDecelerationSegment(this.context, this.flightPathAngle, this.maxSpeed, this.constraint.distanceFromStart),
+            new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, this.maxSpeed, this.constraint.distanceFromStart),
             new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.constraint.distanceFromStart),
         ];
 
@@ -29,10 +29,14 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
             );
 
             this.children.push(
-                new PureDecelerationSegment(this.context, this.flightPathAngle, this.maxSpeed, speedConstraint.distanceFromStart),
+                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, this.maxSpeed, speedConstraint.distanceFromStart),
             );
         }
 
         this.children.reverse();
+    }
+
+    get repr(): string {
+        return `DescentAltitudeConstraintSegment - Descend at ${this.flightPathAngle.toFixed(2)}°`;
     }
 }

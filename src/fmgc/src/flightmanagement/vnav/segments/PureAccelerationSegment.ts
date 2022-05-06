@@ -20,13 +20,13 @@ export class PureAccelerationSegment extends ProfileSegment {
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {
-        const endState = this.integrator.integrate(state,
+        const step = this.integrator.integrate(state,
             this.endConditions,
-            accelerationPropagator(this.thrustSetting, this.context)).last;
+            accelerationPropagator(this.thrustSetting, this.context));
 
         // Only add the new state if there was a significant change
-        if (endState.distanceFromStart - state.distanceFromStart > 1e-4) {
-            builder.push(endState);
+        if (step.length > 1) {
+            builder.push(step.last);
         }
     }
 

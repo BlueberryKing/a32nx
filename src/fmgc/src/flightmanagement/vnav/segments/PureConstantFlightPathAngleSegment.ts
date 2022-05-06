@@ -11,7 +11,7 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
         const endConditions = [
-            ({ distanceFromStart }) => distanceFromStart > this.toDistance,
+            ({ distanceFromStart }) => distanceFromStart <= this.toDistance,
         ];
 
         const pitchTarget = new FlightPathAnglePitchTarget(this.flightPathAngle);
@@ -19,9 +19,15 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
         const descentPath = this.integrator.integrate(
             state,
             endConditions,
-            constantPitchPropagator(pitchTarget, this.context),
+            constantPitchPropagator(pitchTarget, this.context, -0.1),
         );
 
-        builder.push(descentPath.last);
+        if (descentPath.length > 1) {
+            builder.push(descentPath.last);
+        }
+    }
+
+    get repr(): string {
+        return `PureConstantFlightPathAngleSegment - Descend from ${this.toDistance} NM`;
     }
 }

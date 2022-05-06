@@ -1,41 +1,57 @@
-import { constantThrustPropagator, IdleThrustSetting, IntegrationEndCondition, IntegrationPropagator, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { PureIdlePathDecelerationSegment } from './PureIdlePathDecelerationSegment';
+import { PureIdlePathConstantSpeedSegment } from './PureIdlePathConstantSpeedSegment';
 
 export class IdlePathSegment extends ProfileSegment {
-    private readonly endConditions: IntegrationEndCondition[] = [];
-
-    private integrator = new Integrator();
-
-    private idleThrustPropagator: IntegrationPropagator;
-
-    constructor(context: NodeContext, private constraints: ConstraintReader, toAltitude: Feet, maxSpeed: Knots) {
+    constructor(context: NodeContext, constraints: ConstraintReader, toAltitude: Feet) {
         super();
 
-        this.endConditions = [
-            ({ altitude }) => altitude > toAltitude,
-        ];
+        const { descentSpeedLimit, managedDescentSpeed } = context.observer.get();
 
-        this.idleThrustPropagator = constantThrustPropagator(
-            new IdleThrustSetting(context.atmosphericConditions),
-            context,
-            -1,
-        );
+        this.children = [
+            new IdlePathToAltitudeSegment(context, constraints, descentSpeedLimit.underAltitude, descentSpeedLimit.speed),
+            new IdlePathToAltitudeSegment(context, constraints, toAltitude, managedDescentSpeed),
+        ];
     }
 
     get repr(): string {
         return 'IdlePathSegment';
     }
+}
 
-    compute(state: AircraftState, builder: ProfileBuilder): void {
-        // Try idle
-        const result = this.integrator.integrate(
-            state,
-            this.endConditions,
-            this.idleThrustPropagator,
-        );
+export class IdlePathToAltitudeSegment extends ProfileSegment {
+    constructor(private context: NodeContext, private constraints: ConstraintReader, private toAltitude: Feet, private maxSpeed: Knots) {
+        super();
+    }
 
-        builder.push(result.last);
+    compute(state: AircraftState, _builder: ProfileBuilder): void {
+        let maxSpeed = this.maxSpeed;
+
+        this.children = [
+            new PureIdlePathDecelerationSegment(this.context, this.toAltitude, maxSpeed, -Infinity),
+            new PureIdlePathConstantSpeedSegment(this.context, this.toAltitude, maxSpeed, -Infinity),
+        ];
+
+        for (const speedConstraint of this.constraints.descentSpeedConstraints) {
+            if (speedConstraint.distanceFromStart > state.distanceFromStart) {
+                continue;
+            }
+
+            maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
+
+            this.children.unshift(
+                new PureIdlePathConstantSpeedSegment(this.context, this.toAltitude, maxSpeed, speedConstraint.distanceFromStart),
+            );
+
+            this.children.unshift(
+                new PureIdlePathDecelerationSegment(this.context, this.toAltitude, maxSpeed, speedConstraint.distanceFromStart),
+            );
+        }
+    }
+
+    get repr(): string {
+        return 'IdlePathToAltitudeSegment';
     }
 }

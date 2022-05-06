@@ -12,9 +12,9 @@ export class ManagedClimbSegment extends ProfileSegment {
 
         const climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
 
-        this.children.push(
+        this.children = [
             new PureClimbToAltitudeSegment(context, climbThrust, toAltitude, Infinity),
-        );
+        ];
 
         const allConstraints = [...constraints.climbAlitudeConstraints, ...constraints.climbSpeedConstraints];
         allConstraints.sort((a, b) => b.distanceFromStart - a.distanceFromStart);

@@ -23,7 +23,7 @@ export class ManagedDescentSegment extends ProfileSegment {
         const { managedDescentSpeed, cruiseAltitude } = context.observer.get();
 
         this.geometricSegment = new GeometricPathSegment(context, constraints, managedDescentSpeed);
-        this.idleSegment = new IdlePathSegment(context, constraints, cruiseAltitude, managedDescentSpeed);
+        this.idleSegment = new IdlePathSegment(context, constraints, cruiseAltitude);
 
         this.children = [
             this.geometricSegment,
@@ -46,6 +46,13 @@ export class ManagedDescentSegment extends ProfileSegment {
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
+        // TODO: Actually use an idle path to check which constraint cannot be met using an idle path.
+        if (this.constraints.descentAltitudeConstraints.length > 0 && this.constraints.descentAltitudeConstraints[0].constraint.type !== AltitudeConstraintType.atOrAbove) {
+            this.geometricSegment.setLastConstraint(this.constraints.descentAltitudeConstraints[0]);
+        }
+
+        return;
+
         // Try idle
         const result = this.integrator.integrate(
             state,
