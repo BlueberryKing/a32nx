@@ -28,6 +28,6 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
     }
 
     get repr(): string {
-        return `PureConstantFlightPathAngleSegment - Descend from ${this.toDistance} NM`;
+        return `PureConstantFlightPathAngleSegment - Descend from ${this.toDistance.toFixed(2)} NM`;
     }
 }

@@ -600,7 +600,7 @@ export class VnavDriver implements GuidanceComponent {
         profile.accept(visitor);
 
         if (VnavConfig.DEBUG_PROFILE) {
-            profile.accept(printer);
+            // profile.accept(printer);
             console.log(visitor);
         }
     }

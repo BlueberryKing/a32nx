@@ -38,6 +38,6 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
     }
 
     get repr(): string {
-        return `PureGeometricDecelerationSegment - Decelerate to ${this.toSpeed} kts`;
+        return `PureGeometricDecelerationSegment - Decelerate to ${this.toSpeed.toFixed(0)} kts`;
     }
 }
