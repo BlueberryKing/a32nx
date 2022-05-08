@@ -35,6 +35,7 @@ import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfi
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { AircraftState, BuilderVisitor, McduProfile, NodeContext, PrinterVisitor, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ManagedDescentSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedDescentSegment';
+import { ApproachSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachSegment';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
@@ -573,20 +574,20 @@ export class VnavDriver implements GuidanceComponent {
             new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
         );
 
-        const { v2Speed, originAirfieldElevation } = this.computationParametersObserver.get();
+        const { v2Speed, originAirfieldElevation, approachSpeed } = this.computationParametersObserver.get();
 
         const initialState: AircraftState = {
-            altitude: 4000,
-            distanceFromStart: 200,
+            altitude: originAirfieldElevation + 50,
+            distanceFromStart: this.constraintReader.totalFlightPlanDistance,
             time: 0,
             weight: this.computationParametersObserver.get().zeroFuelWeight + 2500,
-            speed: 220,
-            mach: this.atmosphericConditions.computeMachFromCas(4000, 220),
-            trueAirspeed: this.atmosphericConditions.computeTasFromCas(4000, 220),
+            speed: approachSpeed,
+            mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation + 50, approachSpeed),
+            trueAirspeed: this.atmosphericConditions.computeTasFromCas(originAirfieldElevation + 50, approachSpeed),
             config: {
-                flapConfig: FlapConf.CLEAN,
+                flapConfig: FlapConf.CONF_FULL,
                 speedbrakesExtended: false,
-                gearExtended: false,
+                gearExtended: true,
             },
         };
 
@@ -595,13 +596,17 @@ export class VnavDriver implements GuidanceComponent {
         const visitor = new BuilderVisitor(builder);
         const printer = new PrinterVisitor();
 
-        const profile = new ManagedDescentSegment(context, this.constraintReader);
+        const approachProfile = new ApproachSegment(context, this.constraintReader);
+        // const descentProfile = new ManagedDescentSegment(context, this.constraintReader);
 
-        profile.accept(visitor);
+        approachProfile.accept(visitor);
+        // descentProfile.accept(visitor);
 
         if (VnavConfig.DEBUG_PROFILE) {
             // profile.accept(printer);
             console.log(visitor);
+
+            SimVar.SetSimVarValue('A32NX_FM_VNAV_DEBUG_POINT', 'Nautical Miles', builder.lastState.distanceFromStart);
         }
     }
 }

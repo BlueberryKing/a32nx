@@ -43,7 +43,7 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
             );
 
             this.children.unshift(
-                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, this.maxSpeed, speedConstraint.distanceFromStart),
+                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, speedConstraint.distanceFromStart),
             );
         }
     }

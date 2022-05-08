@@ -4995,6 +4995,9 @@ class FMCMainDisplay extends BaseAirliners {
 
         return { direction: trueHeading, speed: this.perfApprWindSpeed };
     }
+    getIsFlaps3Landing() {
+        return this.perfApprFlaps3;
+    }
 }
 
 FMCMainDisplay.clrValue = "\xa0\xa0\xa0\xa0\xa0CLR";

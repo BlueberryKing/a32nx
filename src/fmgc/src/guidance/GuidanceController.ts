@@ -56,6 +56,7 @@ export interface Fmgc {
     getTripWind(): number,
     getWinds(): FmcWinds,
     getApproachWind(): FmcWindVector,
+    getIsFlaps3Landing(): boolean,
 }
 
 export class GuidanceController {

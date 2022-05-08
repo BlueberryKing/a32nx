@@ -96,7 +96,7 @@ export class ConstraintReader {
                 if (this.hasValidClimbSpeedConstraint(leg)) {
                     this.climbSpeedConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
-                        maxSpeed: leg.metadata.speedConstraint.speed,
+                        maxSpeed: Math.round(leg.metadata.speedConstraint.speed),
                     });
                 }
             } else if (waypoint.additionalData.constraintType === WaypointConstraintType.DES) {
@@ -110,7 +110,7 @@ export class ConstraintReader {
                 if (this.hasValidDescentSpeedConstraint(leg)) {
                     this.descentSpeedConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
-                        maxSpeed: leg.metadata.speedConstraint.speed,
+                        maxSpeed: Math.round(leg.metadata.speedConstraint.speed),
                     });
                 }
 

@@ -3,14 +3,14 @@ import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanageme
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class ConfigurationChangeSegment extends ProfileSegment {
-    constructor(_context: NodeContext, private config: AircraftConfiguration) {
+    constructor(_context: NodeContext, private config: Partial<AircraftConfiguration>) {
         super();
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder): void {
         builder.push({
             ...state,
-            config: this.config,
+            config: { ...state.config, ...this.config },
         });
     }
 

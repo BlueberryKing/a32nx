@@ -47,6 +47,7 @@ export interface VerticalProfileComputationParameters {
     flapRetractionSpeed: Knots,
     slatRetractionSpeed: Knots,
     cleanSpeed: Knots,
+    isFlaps3Landing: boolean,
 }
 
 export class VerticalProfileComputationParametersObserver {
@@ -99,6 +100,7 @@ export class VerticalProfileComputationParametersObserver {
             flapRetractionSpeed: this.fmgc.getFlapRetractionSpeed(),
             slatRetractionSpeed: this.fmgc.getSlatRetractionSpeed(),
             cleanSpeed: this.fmgc.getCleanSpeed(),
+            isFlaps3Landing: this.fmgc.getIsFlaps3Landing(),
         };
     }
 
