@@ -3,6 +3,7 @@ import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions
 import { AccelFactorMode, Common } from '@fmgc/guidance/vnav/common';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
+import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { MathUtils } from '@shared/MathUtils';
 
 export function constantThrustPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 0.1) {
@@ -263,7 +264,7 @@ export class IdleThrustSetting implements ThrustSetting {
     }
 
     getThrustAndFuelFlow({ altitude, mach }: AircraftState): [number, number] {
-        const n1 = EngineModel.getIdleN1(altitude, mach);
+        const n1 = EngineModel.getIdleN1(altitude, mach) + VnavConfig.IDLE_N1_MARGIN;
 
         const theta = Common.getTheta(altitude, this.atmosphericConditions.isaDeviation);
         const delta = Common.getDelta(altitude, false);
