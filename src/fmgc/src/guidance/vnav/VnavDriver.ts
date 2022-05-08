@@ -574,16 +574,16 @@ export class VnavDriver implements GuidanceComponent {
             new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
         );
 
-        const { v2Speed, originAirfieldElevation, approachSpeed } = this.computationParametersObserver.get();
+        const { v2Speed, destinationAirfieldElevation, approachSpeed } = this.computationParametersObserver.get();
 
         const initialState: AircraftState = {
-            altitude: originAirfieldElevation + 50,
+            altitude: destinationAirfieldElevation + 50,
             distanceFromStart: this.constraintReader.totalFlightPlanDistance,
             time: 0,
             weight: this.computationParametersObserver.get().zeroFuelWeight + 2500,
             speed: approachSpeed,
-            mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation + 50, approachSpeed),
-            trueAirspeed: this.atmosphericConditions.computeTasFromCas(originAirfieldElevation + 50, approachSpeed),
+            mach: this.atmosphericConditions.computeMachFromCas(destinationAirfieldElevation + 50, approachSpeed),
+            trueAirspeed: this.atmosphericConditions.computeTasFromCas(destinationAirfieldElevation + 50, approachSpeed),
             config: {
                 flapConfig: FlapConf.CONF_FULL,
                 speedbrakesExtended: false,
@@ -597,16 +597,16 @@ export class VnavDriver implements GuidanceComponent {
         const printer = new PrinterVisitor();
 
         const approachProfile = new ApproachSegment(context, this.constraintReader);
-        // const descentProfile = new ManagedDescentSegment(context, this.constraintReader);
+        const descentProfile = new ManagedDescentSegment(context, this.constraintReader);
 
         approachProfile.accept(visitor);
-        // descentProfile.accept(visitor);
+        descentProfile.accept(visitor);
 
         if (VnavConfig.DEBUG_PROFILE) {
             // profile.accept(printer);
             console.log(visitor);
 
-            SimVar.SetSimVarValue('A32NX_FM_VNAV_DEBUG_POINT', 'Nautical Miles', builder.lastState.distanceFromStart);
+            SimVar.SetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number', builder.lastState.distanceFromStart);
         }
     }
 }

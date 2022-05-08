@@ -6,7 +6,7 @@ import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vna
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/TakeoffSegment';
 import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbSegment';
-import { ProfileSegment } from './ProfileSegment';
+import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export enum VerticalSegmentType {
     Unknown = 1,
