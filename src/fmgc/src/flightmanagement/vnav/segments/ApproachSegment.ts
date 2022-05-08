@@ -20,23 +20,20 @@ export class ApproachSegment extends ProfileSegment {
 
         this.children = [
             new FinalApproachSegment(context),
-            new ApproachFlapSegment(context, constraints, flapRetractionSpeed), // In flaps 3
-            new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_2, gearExtended: true }),
-            new ApproachFlapSegment(context, constraints, slatRetractionSpeed), // In flaps 2
-            new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_1 }),
-            new ApproachFlapSegment(context, constraints, cleanSpeed), // In flaps 1
-
         ];
 
         if (!isFlaps3Landing) {
-            this.children.unshift(
-                new ApproachFlapSegment(context, constraints, (flapRetractionSpeed + approachSpeed) / 2),
-            );
-
-            this.children.unshift(
-                new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_3 }),
-            );
+            this.children.push(new ApproachFlapSegment(context, constraints, (flapRetractionSpeed + approachSpeed) / 2));
+            this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_3 }));
         }
+
+        this.children.push(new ApproachFlapSegment(context, constraints, flapRetractionSpeed)); /* In flaps 3 */
+        this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_2, gearExtended: true }));
+        this.children.push(new ApproachFlapSegment(context, constraints, slatRetractionSpeed)); /* In flaps 2 */
+        this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_1 }));
+        this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In flaps 1 */
+        this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CLEAN }));
+        this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In clean configuration */
     }
 
     get repr(): string {
