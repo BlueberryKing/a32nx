@@ -25,7 +25,7 @@ export class ApproachSegment extends ProfileSegment {
         }
 
         this.children.push(new ApproachFlapSegment(context, constraints, flapRetractionSpeed)); /* In flaps 3 */
-        this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_2, gearExtended: true }));
+        this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_2, gearExtended: false }));
         this.children.push(new ApproachFlapSegment(context, constraints, slatRetractionSpeed)); /* In flaps 2 */
         this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_1 }));
         this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In flaps 1 */
