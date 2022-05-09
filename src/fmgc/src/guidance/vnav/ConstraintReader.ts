@@ -113,13 +113,11 @@ export class ConstraintReader {
                         maxSpeed: Math.round(leg.metadata.speedConstraint.speed),
                     });
                 }
-
-                if (this.hasValidPathAngleConstraint(leg)) {
-                    this.flightPathAngleConstraints.push({
-                        distanceFromStart: this.totalFlightPlanDistance,
-                        pathAngle: leg.metadata.pathAngleConstraint,
-                    });
-                }
+            } else if (this.hasValidPathAngleConstraint(leg)) {
+                this.flightPathAngleConstraints.push({
+                    distanceFromStart: this.totalFlightPlanDistance,
+                    pathAngle: leg.metadata.pathAngleConstraint,
+                });
             }
         }
 
