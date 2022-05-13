@@ -7,7 +7,7 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
 
     private propagator: IntegrationPropagator;
 
-    constructor(context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles) {
+    constructor(context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles, private maxAltitude: Knots) {
         super();
 
         this.propagator = speedChangePropagator(
@@ -22,7 +22,7 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
         // The AMM says decel distance is max 20 NM and goes max 6000 higher.
         const endConditions = [
             ({ distanceFromStart }) => distanceFromStart <= Math.max(this.toDistance, state.distanceFromStart - 20),
-            ({ altitude }) => altitude >= state.altitude + 6000,
+            ({ altitude }) => altitude >= this.maxAltitude || altitude >= state.altitude + 6000,
             ({ speed }) => speed >= this.toSpeed,
         ];
 

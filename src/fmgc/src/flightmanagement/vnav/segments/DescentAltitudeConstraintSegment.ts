@@ -9,24 +9,33 @@ import { AltitudeConstraint, AltitudeConstraintType } from '@fmgc/guidance/lnav/
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 
 export class DescentAltitudeConstraintSegment extends ProfileSegment {
-    constructor(private context: NodeContext, private constraints: ConstraintReader, private constraint: DescentAltitudeConstraint, private flightPathAngle: Degrees, private maxSpeed: Knots) {
+    constructor(
+        private context: NodeContext,
+        private constraints: ConstraintReader,
+        private constraint: DescentAltitudeConstraint,
+        private flightPathAngle: Degrees,
+        private maxSpeed: Knots,
+        private maxAltitude: Feet,
+    ) {
         super();
     }
 
     compute(state: AircraftState, _builder: ProfileBuilder): void {
+        // If we're already above the `maxAltitude`, we can just return
+        if (state.altitude >= this.maxAltitude) {
+            return;
+        }
+
         const altAtConstraint = state.altitude + 6076.12 * (this.constraint.distanceFromStart - state.distanceFromStart) * Math.tan(this.flightPathAngle * MathUtils.DEGREES_TO_RADIANS);
         if (VnavConfig.DEBUG_PROFILE && !this.isAltitudeConstraintMet(altAtConstraint, this.constraint.constraint)) {
             console.warn(`[FMS/VNAV] Expecting to miss constraint. Predicting altitude ${altAtConstraint.toFixed(0)}, but should be at ${JSON.stringify(this.constraint.constraint)}`);
         }
 
-        // Use constraints before this segment to find the actual maxSpeed in this segment.
-        let maxSpeed = this.constraints.descentSpeedConstraints.reduce(
-            (previous, current) => (current.distanceFromStart <= this.constraint.distanceFromStart ? Math.min(previous, current.maxSpeed) : previous), this.maxSpeed,
-        );
+        let maxSpeed = this.computeMaxSpeedOnSegment();
 
         this.children = [
-            new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, this.constraint.distanceFromStart),
-            new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.constraint.distanceFromStart),
+            new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, this.constraint.distanceFromStart, this.maxAltitude),
+            new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.constraint.distanceFromStart, this.maxAltitude),
         ];
 
         for (const speedConstraint of this.constraints.descentSpeedConstraints) {
@@ -39,11 +48,11 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
             this.children.unshift(
-                new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, speedConstraint.distanceFromStart),
+                new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, speedConstraint.distanceFromStart, this.maxAltitude),
             );
 
             this.children.unshift(
-                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, speedConstraint.distanceFromStart),
+                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.maxAltitude),
             );
         }
     }
@@ -70,5 +79,12 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
 
     get repr(): string {
         return `DescentAltitudeConstraintSegment - Descend at ${this.flightPathAngle.toFixed(2)}°`;
+    }
+
+    private computeMaxSpeedOnSegment(): Knots {
+        // Use constraints before this segment to find the actual maxSpeed in this segment.
+        return this.constraints.descentSpeedConstraints.reduce(
+            (previous, current) => (current.distanceFromStart <= this.constraint.distanceFromStart ? Math.min(previous, current.maxSpeed) : previous), this.maxSpeed,
+        );
     }
 }
