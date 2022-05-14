@@ -451,7 +451,8 @@ class CDUPerformancePage {
         let expeditePredToDistanceCell = "---";
         let expeditePredToTimeCell = "----";
 
-        if (vnavDriver) {
+        // TODO
+        if (false && vnavDriver) {
             [predToDistanceCell, predToTimeCell] = CDUPerformancePage.getTimeAndDistancePredictionsFromGeometryProfile(vnavDriver.currentNavGeometryProfile, altitudeToPredict, mcdu.flightPhaseManager.phase >= FmgcFlightPhases.TAKEOFF);
 
             if (isPhaseActive) {

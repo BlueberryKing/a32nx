@@ -92,7 +92,7 @@ class CDUFlightPlanPage {
 
         // PWPs
         const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
-        const fmsGeometryProfile = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile;
+        const fmsGeometryProfile = null; // TODO
 
         let vnavPredictionsMapByWaypoint = null;
         if (fmsGeometryProfile && fmsGeometryProfile.isReadyToDisplay) {

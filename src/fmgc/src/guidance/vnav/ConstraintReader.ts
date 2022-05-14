@@ -1,8 +1,7 @@
 import { FlightPlanManager } from '@fmgc/wtsdk';
 import { Leg } from '@fmgc/guidance/lnav/legs/Leg';
-import { ApproachPathAngleConstraint, DescentAltitudeConstraint, MaxAltitudeConstraint, MaxSpeedConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { Geometry } from '@fmgc/guidance/Geometry';
-import { AltitudeConstraintType, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
+import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
 import { FlightPlans, WaypointConstraintType } from '@fmgc/flightplanning/FlightPlanManager';
 import { AltitudeDescriptor } from '@fmgc/types/fstypes/FSEnums';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
@@ -228,4 +227,24 @@ export class ConstraintReader {
             }
         }
     }
+}
+
+export interface MaxAltitudeConstraint {
+    distanceFromStart: NauticalMiles,
+    maxAltitude: Feet,
+}
+
+export interface MaxSpeedConstraint {
+    distanceFromStart: NauticalMiles,
+    maxSpeed: Feet,
+}
+
+export interface DescentAltitudeConstraint {
+    distanceFromStart: NauticalMiles,
+    constraint: AltitudeConstraint,
+}
+
+export interface ApproachPathAngleConstraint {
+    distanceFromStart: NauticalMiles,
+    pathAngle: PathAngleConstraint,
 }

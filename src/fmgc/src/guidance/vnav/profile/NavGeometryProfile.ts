@@ -5,12 +5,13 @@ import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { Geometry } from '../../Geometry';
 import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
+import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 
 // TODO: Merge this with VerticalCheckpoint
 export interface VerticalWaypointPrediction {
     waypointIndex: number,
     distanceFromStart: NauticalMiles,
-    secondsFromPresent: Seconds,
+    time: Seconds,
     altitude: Feet,
     speed: Knots | Mach,
     altitudeConstraint: AltitudeConstraint,
@@ -65,82 +66,23 @@ export enum VerticalCheckpointReason {
     Landing = 'Landing',
 }
 
-export interface VerticalCheckpoint {
-    reason: VerticalCheckpointReason,
-    distanceFromStart: NauticalMiles,
-    secondsFromPresent: Seconds,
-    altitude: Feet,
-    remainingFuelOnBoard: number,
-    speed: Knots,
-    mach: Mach,
-}
-
-export interface MaxAltitudeConstraint {
-    distanceFromStart: NauticalMiles,
-    maxAltitude: Feet,
-}
-
-export interface MaxSpeedConstraint {
-    distanceFromStart: NauticalMiles,
-    maxSpeed: Feet,
-}
-
-export interface DescentAltitudeConstraint {
-    distanceFromStart: NauticalMiles,
-    constraint: AltitudeConstraint,
-}
-
-export interface ApproachPathAngleConstraint {
-    distanceFromStart: NauticalMiles,
-    pathAngle: PathAngleConstraint,
-}
-
 export class NavGeometryProfile extends BaseGeometryProfile {
     public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
     constructor(
         public geometry: Geometry,
-        private constraintReader: ConstraintReader,
         private atmosphericConditions: AtmosphericConditions,
         public waypointCount: number,
     ) {
         super();
     }
 
-    override get maxAltitudeConstraints(): MaxAltitudeConstraint[] {
-        return this.constraintReader.climbAlitudeConstraints;
-    }
-
-    override get descentAltitudeConstraints(): DescentAltitudeConstraint[] {
-        return this.constraintReader.descentAltitudeConstraints;
-    }
-
-    override get maxClimbSpeedConstraints(): MaxSpeedConstraint[] {
-        return this.constraintReader.climbSpeedConstraints;
-    }
-
-    override get descentSpeedConstraints(): MaxSpeedConstraint[] {
-        return this.constraintReader.descentSpeedConstraints;
-    }
-
-    override get distanceToPresentPosition(): number {
-        return this.constraintReader.distanceToPresentPosition;
-    }
-
-    get totalFlightPlanDistance(): number {
-        return this.constraintReader.totalFlightPlanDistance;
-    }
-
-    get lastCheckpoint(): VerticalCheckpoint | null {
+    get lastCheckpoint(): AircraftState | null {
         if (this.checkpoints.length < 1) {
             return null;
         }
 
         return this.checkpoints[this.checkpoints.length - 1];
-    }
-
-    addCheckpointFromLast(checkpointBuilder: (lastCheckpoint: VerticalCheckpoint) => Partial<VerticalCheckpoint>) {
-        this.checkpoints.push({ ...this.lastCheckpoint, ...checkpointBuilder(this.lastCheckpoint) });
     }
 
     /**
@@ -154,8 +96,6 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         }
 
         let totalDistance = 0;
-
-        const topOfDescent = this.findVerticalCheckpoint(VerticalCheckpointReason.TopOfDescent);
 
         for (let i = 0; i < this.waypointCount; i++) {
             const leg = this.geometry.legs.get(i);
@@ -176,12 +116,12 @@ export class NavGeometryProfile extends BaseGeometryProfile {
 
             totalDistance += totalLegLength;
 
-            const { secondsFromPresent, altitude, speed, mach } = this.interpolateEverythingFromStart(totalDistance);
+            const { time, altitude, speed, mach } = this.interpolateEverythingFromStart(totalDistance);
 
             predictions.set(i, {
                 waypointIndex: i,
                 distanceFromStart: totalDistance,
-                secondsFromPresent,
+                time,
                 altitude,
                 speed: this.atmosphericConditions.casOrMach(speed, mach, altitude),
                 altitudeConstraint: leg.metadata.altitudeConstraint,
@@ -189,7 +129,7 @@ export class NavGeometryProfile extends BaseGeometryProfile {
                 speedConstraint: leg.metadata.speedConstraint,
                 isSpeedConstraintMet: this.isSpeedConstraintMet(speed, leg.metadata.speedConstraint),
                 altError: this.computeAltError(altitude, leg.metadata.altitudeConstraint),
-                distanceToTopOfDescent: topOfDescent ? topOfDescent.distanceFromStart - totalDistance : null,
+                distanceToTopOfDescent: null, // TODO
             });
 
             let distanceInDiscontinuity = 0;
@@ -206,31 +146,6 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         }
 
         return predictions;
-    }
-
-    override findDistancesToSpeedChanges(): NauticalMiles[] {
-        const result = [];
-
-        const checkpointBlacklist = [
-            VerticalCheckpointReason.AccelerationAltitude,
-            VerticalCheckpointReason.PresentPosition,
-            VerticalCheckpointReason.CrossingFcuAltitudeClimb,
-            VerticalCheckpointReason.CrossingFcuAltitudeDescent,
-        ];
-
-        for (let i = 0; i < this.checkpoints.length - 1; i++) {
-            const checkpoint = this.checkpoints[i];
-
-            if (checkpointBlacklist.includes(checkpoint.reason)) {
-                continue;
-            }
-
-            if (this.checkpoints[i + 1].speed - checkpoint.speed > 5) {
-                result.push(checkpoint.distanceFromStart);
-            }
-        }
-
-        return result;
     }
 
     private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
@@ -301,13 +216,5 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         super.finalizeProfile();
 
         this.waypointPredictions = this.computePredictionsAtWaypoints();
-    }
-
-    getDistanceFromStart(distanceFromEnd: NauticalMiles): NauticalMiles {
-        return this.constraintReader.totalFlightPlanDistance - distanceFromEnd;
-    }
-
-    override resetAltitudeConstraints() {
-        this.constraintReader.resetAltitudeConstraints();
     }
 }

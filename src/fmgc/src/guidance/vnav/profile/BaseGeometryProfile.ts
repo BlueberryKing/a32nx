@@ -1,30 +1,18 @@
 import { Common } from '@fmgc/guidance/vnav/common';
 import { PseudoWaypointFlightPlanInfo } from '@fmgc/guidance/PseudoWaypoint';
-import { DescentAltitudeConstraint, MaxAltitudeConstraint, MaxSpeedConstraint, VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { MathUtils } from '@shared/MathUtils';
+import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 
 export interface PerformancePagePrediction {
     altitude: Feet,
     distanceFromStart: NauticalMiles,
-    secondsFromPresent: Seconds,
+    time: Seconds,
 }
 
 export abstract class BaseGeometryProfile {
     public isReadyToDisplay: boolean = false;
 
-    public checkpoints: VerticalCheckpoint[] = [];
-
-    abstract get maxAltitudeConstraints(): MaxAltitudeConstraint[];
-
-    abstract get descentAltitudeConstraints(): DescentAltitudeConstraint[];
-
-    abstract get maxClimbSpeedConstraints(): MaxSpeedConstraint[];
-
-    abstract get descentSpeedConstraints(): MaxSpeedConstraint[];
-
-    abstract get distanceToPresentPosition(): NauticalMiles;
-
-    get lastCheckpoint(): VerticalCheckpoint | null {
+    get lastCheckpoint(): AircraftState | null {
         if (this.checkpoints.length < 1) {
             return null;
         }
@@ -32,24 +20,26 @@ export abstract class BaseGeometryProfile {
         return this.checkpoints[this.checkpoints.length - 1];
     }
 
-    addCheckpointFromLast(checkpointBuilder: (lastCheckpoint: VerticalCheckpoint) => Partial<VerticalCheckpoint>) {
+    constructor(public checkpoints: AircraftState[] = []) { }
+
+    addCheckpointFromLast(checkpointBuilder: (lastCheckpoint: AircraftState) => Partial<AircraftState>) {
         this.checkpoints.push({ ...this.lastCheckpoint, ...checkpointBuilder(this.lastCheckpoint) });
     }
 
-    predictAtTime(secondsFromPresent: Seconds): PseudoWaypointFlightPlanInfo {
-        const distanceFromStart = this.interpolateDistanceAtTime(secondsFromPresent);
+    predictAtTime(time: Seconds): PseudoWaypointFlightPlanInfo {
+        const distanceFromStart = this.interpolateDistanceAtTime(time);
         const { altitude, speed } = this.interpolateEverythingFromStart(distanceFromStart);
 
         return {
             distanceFromStart,
             altitude,
             speed,
-            secondsFromPresent,
+            time,
         };
     }
 
     private interpolateFromCheckpoints<T extends number, U extends number>(
-        indexValue: T, keySelector: (checkpoint: VerticalCheckpoint) => T, valueSelector: (checkpoint: VerticalCheckpoint) => U,
+        indexValue: T, keySelector: (checkpoint: AircraftState) => T, valueSelector: (checkpoint: AircraftState) => U,
     ) {
         if (indexValue <= keySelector(this.checkpoints[0])) {
             return valueSelector(this.checkpoints[0]);
@@ -71,7 +61,7 @@ export abstract class BaseGeometryProfile {
     }
 
     private interpolateFromCheckpointsBackwards<T extends number, U extends number>(
-        indexValue: T, keySelector: (checkpoint: VerticalCheckpoint) => T, valueSelector: (checkpoint: VerticalCheckpoint) => U,
+        indexValue: T, keySelector: (checkpoint: AircraftState) => T, valueSelector: (checkpoint: AircraftState) => U,
     ) {
         if (indexValue < keySelector(this.checkpoints[this.checkpoints.length - 1])) {
             return valueSelector(this.checkpoints[this.checkpoints.length - 1]);
@@ -98,7 +88,7 @@ export abstract class BaseGeometryProfile {
      * @returns Predicted altitude
      */
     interpolateTimeAtDistance(distanceFromStart: NauticalMiles): Seconds {
-        return this.interpolateFromCheckpoints(distanceFromStart, (checkpoint) => checkpoint.distanceFromStart, (checkpoint) => checkpoint.secondsFromPresent);
+        return this.interpolateFromCheckpoints(distanceFromStart, (checkpoint) => checkpoint.distanceFromStart, (checkpoint) => checkpoint.time);
     }
 
     /**
@@ -121,22 +111,24 @@ export abstract class BaseGeometryProfile {
 
     /**
      * Find the distanceFromStart at which the profile predicts us to be at a time since departure
-     * @param secondsFromPresent Time since departure
+     * @param time Time since departure
      * @returns Predicted distance
      */
-    interpolateDistanceAtTime(secondsFromPresent: Seconds): NauticalMiles {
-        return this.interpolateFromCheckpoints(secondsFromPresent, (checkpoint) => checkpoint.secondsFromPresent, (checkpoint) => checkpoint.distanceFromStart);
+    interpolateDistanceAtTime(time: Seconds): NauticalMiles {
+        return this.interpolateFromCheckpoints(time, (checkpoint) => checkpoint.time, (checkpoint) => checkpoint.distanceFromStart);
     }
 
-    interpolateEverythingFromStart(distanceFromStart: NauticalMiles, doInterpolateAltitude = true): Omit<VerticalCheckpoint, 'reason'> {
+    interpolateEverythingFromStart(distanceFromStart: NauticalMiles, doInterpolateAltitude = true): AircraftState {
         if (distanceFromStart <= this.checkpoints[0].distanceFromStart) {
             return {
                 distanceFromStart,
-                secondsFromPresent: this.checkpoints[0].secondsFromPresent,
+                time: this.checkpoints[0].time,
                 altitude: this.checkpoints[0].altitude,
-                remainingFuelOnBoard: this.checkpoints[0].remainingFuelOnBoard,
+                weight: this.checkpoints[0].weight,
                 speed: this.checkpoints[0].speed,
                 mach: this.checkpoints[0].mach,
+                trueAirspeed: this.checkpoints[0].trueAirspeed,
+                config: this.checkpoints[0].config,
             };
         }
 
@@ -144,12 +136,12 @@ export abstract class BaseGeometryProfile {
             if (distanceFromStart > this.checkpoints[i].distanceFromStart && distanceFromStart <= this.checkpoints[i + 1].distanceFromStart) {
                 return {
                     distanceFromStart,
-                    secondsFromPresent: Common.interpolate(
+                    time: Common.interpolate(
                         distanceFromStart,
                         this.checkpoints[i].distanceFromStart,
                         this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].secondsFromPresent,
-                        this.checkpoints[i + 1].secondsFromPresent,
+                        this.checkpoints[i].time,
+                        this.checkpoints[i + 1].time,
                     ),
                     altitude: doInterpolateAltitude ? Common.interpolate(
                         distanceFromStart,
@@ -158,12 +150,12 @@ export abstract class BaseGeometryProfile {
                         this.checkpoints[i].altitude,
                         this.checkpoints[i + 1].altitude,
                     ) : this.checkpoints[i].altitude,
-                    remainingFuelOnBoard: Common.interpolate(
+                    weight: Common.interpolate(
                         distanceFromStart,
                         this.checkpoints[i].distanceFromStart,
                         this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].remainingFuelOnBoard,
-                        this.checkpoints[i + 1].remainingFuelOnBoard,
+                        this.checkpoints[i].weight,
+                        this.checkpoints[i + 1].weight,
                     ),
                     speed: Common.interpolate(
                         distanceFromStart,
@@ -172,6 +164,13 @@ export abstract class BaseGeometryProfile {
                         this.checkpoints[i].speed,
                         this.checkpoints[i + 1].speed,
                     ),
+                    trueAirspeed: Common.interpolate(
+                        distanceFromStart,
+                        this.checkpoints[i].distanceFromStart,
+                        this.checkpoints[i + 1].distanceFromStart,
+                        this.checkpoints[i].trueAirspeed,
+                        this.checkpoints[i + 1].trueAirspeed,
+                    ),
                     mach: Common.interpolate(
                         distanceFromStart,
                         this.checkpoints[i].distanceFromStart,
@@ -179,17 +178,20 @@ export abstract class BaseGeometryProfile {
                         this.checkpoints[i].mach,
                         this.checkpoints[i + 1].mach,
                     ),
+                    config: this.checkpoints[i].config,
                 };
             }
         }
 
         return {
             distanceFromStart,
-            secondsFromPresent: this.lastCheckpoint.secondsFromPresent,
+            time: this.lastCheckpoint.time,
             altitude: this.lastCheckpoint.altitude,
-            remainingFuelOnBoard: this.lastCheckpoint.remainingFuelOnBoard,
+            weight: this.lastCheckpoint.weight,
             speed: this.lastCheckpoint.speed,
+            trueAirspeed: this.lastCheckpoint.trueAirspeed,
             mach: this.lastCheckpoint.mach,
+            config: this.lastCheckpoint.config,
         };
     }
 
@@ -202,7 +204,7 @@ export abstract class BaseGeometryProfile {
     }
 
     interpolateFuelAtDistance(distance: NauticalMiles): NauticalMiles {
-        return this.interpolateFromCheckpoints(distance, (checkpoint) => checkpoint.distanceFromStart, (checkpoint) => checkpoint.remainingFuelOnBoard);
+        return this.interpolateFromCheckpoints(distance, (checkpoint) => checkpoint.distanceFromStart, (checkpoint) => checkpoint.weight);
     }
 
     interpolatePathAngleAtDistance(distanceFromStart: NauticalMiles): Degrees {
@@ -222,136 +224,7 @@ export abstract class BaseGeometryProfile {
         return 0;
     }
 
-    findVerticalCheckpoint(...reasons: VerticalCheckpointReason[]): VerticalCheckpoint | undefined {
-        return this.checkpoints.find((checkpoint) => reasons.includes(checkpoint.reason));
-    }
-
-    findLastVerticalCheckpoint(...reasons: VerticalCheckpointReason[]): VerticalCheckpoint | undefined {
-        return [...this.checkpoints].reverse().find((checkpoint) => reasons.includes(checkpoint.reason));
-    }
-
-    findLastVerticalCheckpointIndex(...reasons: VerticalCheckpointReason[]): number {
-        return findLastIndex(this.checkpoints, ({ reason }) => reasons.includes(reason));
-    }
-
-    purgeVerticalCheckpoints(reason: VerticalCheckpointReason): void {
-        this.checkpoints = this.checkpoints.filter((checkpoint) => checkpoint.reason !== reason);
-    }
-
-    // TODO: We shouldn't have to go looking for this here...
-    // This logic probably belongs to `ClimbPathBuilder`.
-    findSpeedLimitCrossing(): [NauticalMiles, Knots] | undefined {
-        const speedLimit = this.checkpoints.find((checkpoint) => checkpoint.reason === VerticalCheckpointReason.CrossingClimbSpeedLimit);
-
-        if (!speedLimit) {
-            return undefined;
-        }
-
-        return [speedLimit.distanceFromStart, speedLimit.speed];
-    }
-
-    // TODO: Make this not iterate over map
-    findDistancesToSpeedChanges(): NauticalMiles[] {
-        const result: NauticalMiles[] = [];
-
-        const speedLimitCrossing = this.findSpeedLimitCrossing();
-        if (!speedLimitCrossing) {
-            return [];
-        }
-
-        const [speedLimitDistance, _] = speedLimitCrossing;
-        result.push(speedLimitDistance);
-
-        return result;
-    }
-
-    findNextSpeedTarget(distanceFromStart: NauticalMiles): Knots {
-        if (distanceFromStart < this.checkpoints[0].distanceFromStart) {
-            return this.checkpoints[0].speed;
-        }
-
-        for (let i = 0; i < this.checkpoints.length - 1; i++) {
-            if (distanceFromStart > this.checkpoints[i].distanceFromStart && distanceFromStart <= this.checkpoints[i + 1].distanceFromStart) {
-                return this.checkpoints[i + 1].speed;
-            }
-        }
-
-        return this.lastCheckpoint.speed;
-    }
-
-    addInterpolatedCheckpoint(distanceFromStart: NauticalMiles, additionalProperties: HasAtLeast<VerticalCheckpoint, 'reason'>) {
-        if (distanceFromStart <= this.checkpoints[0].distanceFromStart) {
-            this.checkpoints.unshift({
-                distanceFromStart,
-                secondsFromPresent: this.checkpoints[0].secondsFromPresent,
-                altitude: this.checkpoints[0].altitude,
-                remainingFuelOnBoard: this.checkpoints[0].remainingFuelOnBoard,
-                speed: this.checkpoints[0].speed,
-                mach: this.checkpoints[0].mach,
-                ...additionalProperties,
-            });
-
-            return;
-        }
-
-        for (let i = 0; i < this.checkpoints.length - 1; i++) {
-            if (distanceFromStart > this.checkpoints[i].distanceFromStart && distanceFromStart <= this.checkpoints[i + 1].distanceFromStart) {
-                this.checkpoints.splice(i + 1, 0, {
-                    distanceFromStart,
-                    secondsFromPresent: Common.interpolate(
-                        distanceFromStart,
-                        this.checkpoints[i].distanceFromStart,
-                        this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].secondsFromPresent,
-                        this.checkpoints[i + 1].secondsFromPresent,
-                    ),
-                    altitude: Common.interpolate(
-                        distanceFromStart,
-                        this.checkpoints[i].distanceFromStart,
-                        this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].altitude,
-                        this.checkpoints[i + 1].altitude,
-                    ),
-                    remainingFuelOnBoard: Common.interpolate(
-                        distanceFromStart,
-                        this.checkpoints[i].distanceFromStart,
-                        this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].remainingFuelOnBoard,
-                        this.checkpoints[i + 1].remainingFuelOnBoard,
-                    ),
-                    speed: Common.interpolate(
-                        distanceFromStart,
-                        this.checkpoints[i].distanceFromStart,
-                        this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].speed,
-                        this.checkpoints[i + 1].speed,
-                    ),
-                    mach: Common.interpolate(
-                        distanceFromStart,
-                        this.checkpoints[i].distanceFromStart,
-                        this.checkpoints[i + 1].distanceFromStart,
-                        this.checkpoints[i].mach,
-                        this.checkpoints[i + 1].mach,
-                    ),
-                    ...additionalProperties,
-                });
-
-                return;
-            }
-        }
-
-        this.checkpoints.push({
-            distanceFromStart,
-            secondsFromPresent: this.lastCheckpoint.secondsFromPresent,
-            altitude: this.lastCheckpoint.altitude,
-            remainingFuelOnBoard: this.lastCheckpoint.remainingFuelOnBoard,
-            speed: this.lastCheckpoint.speed,
-            mach: this.lastCheckpoint.mach,
-            ...additionalProperties,
-        });
-    }
-
-    addCheckpointAtDistanceFromStart(distanceFromStart: NauticalMiles, ...checkpoints: VerticalCheckpoint[]) {
+    addCheckpointAtDistanceFromStart(distanceFromStart: NauticalMiles, ...checkpoints: AircraftState[]) {
         if (distanceFromStart <= this.checkpoints[0].distanceFromStart) {
             this.checkpoints.unshift(...checkpoints);
 
@@ -392,86 +265,16 @@ export abstract class BaseGeometryProfile {
         return {
             altitude: fcuAltitude,
             distanceFromStart: distanceToFcuAltitude,
-            secondsFromPresent: timeToFcuAltitude,
+            time: timeToFcuAltitude,
         };
     }
-
-    getCheckpointsToDrawOnNd(): VerticalCheckpoint[] {
-        if (!this.isReadyToDisplay) {
-            return [];
-        }
-
-        const CHECKPOINTS_TO_DRAW_ON_ND = new Set([
-            VerticalCheckpointReason.TopOfClimb,
-            VerticalCheckpointReason.LevelOffForClimbConstraint,
-            VerticalCheckpointReason.ContinueClimb,
-            VerticalCheckpointReason.CrossingFcuAltitudeClimb,
-            VerticalCheckpointReason.TopOfDescent,
-            VerticalCheckpointReason.CrossingFcuAltitudeDescent,
-            VerticalCheckpointReason.LevelOffForDescentConstraint,
-            VerticalCheckpointReason.InterceptDescentProfileManaged,
-            VerticalCheckpointReason.InterceptDescentProfileSelected,
-            VerticalCheckpointReason.Decel,
-            VerticalCheckpointReason.Flaps1,
-            VerticalCheckpointReason.Flaps2,
-            VerticalCheckpointReason.Flaps3,
-            VerticalCheckpointReason.FlapsFull,
-        ]);
-
-        return this.checkpoints.filter((checkpoint) => CHECKPOINTS_TO_DRAW_ON_ND.has(checkpoint.reason));
-    }
-
-    getCheckpointsInMcdu(): VerticalCheckpoint[] {
-        if (!this.isReadyToDisplay) {
-            return [];
-        }
-
-        const CHECKPOINTS_TO_PUT_IN_MCDU = new Set([
-            VerticalCheckpointReason.TopOfClimb,
-            VerticalCheckpointReason.CrossingClimbSpeedLimit,
-
-            VerticalCheckpointReason.StepClimb,
-            VerticalCheckpointReason.StepDescent,
-
-            // Descent
-            VerticalCheckpointReason.TopOfDescent,
-            VerticalCheckpointReason.CrossingDescentSpeedLimit,
-
-            // Approach
-            VerticalCheckpointReason.Decel,
-            VerticalCheckpointReason.Flaps1,
-            VerticalCheckpointReason.Flaps2,
-            VerticalCheckpointReason.Flaps3,
-            VerticalCheckpointReason.FlapsFull,
-        ]);
-
-        return this.checkpoints.filter((checkpoint) => CHECKPOINTS_TO_PUT_IN_MCDU.has(checkpoint.reason));
-    }
-
-    addPresentPositionCheckpoint(presentPosition: LatLongAlt, remainingFuelOnBoard: number) {
-        this.checkpoints.push({
-            reason: VerticalCheckpointReason.PresentPosition,
-            distanceFromStart: this.distanceToPresentPosition,
-            secondsFromPresent: 0,
-            altitude: presentPosition.alt,
-            remainingFuelOnBoard,
-            speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
-            mach: SimVar.GetSimVarValue('AIRSPEED MACH', 'number'),
-        });
-    }
-
-    abstract resetAltitudeConstraints(): void;
 
     getRemainingFuelAtDestination(): Pounds | null {
         if (this.checkpoints.length < 1) {
             return null;
         }
 
-        if (this.lastCheckpoint.reason !== VerticalCheckpointReason.Landing) {
-            return null;
-        }
-
-        return this.lastCheckpoint.remainingFuelOnBoard;
+        return this.lastCheckpoint.weight;
     }
 
     getTimeToDestination(): Pounds | null {
@@ -479,11 +282,7 @@ export abstract class BaseGeometryProfile {
             return null;
         }
 
-        if (this.lastCheckpoint.reason !== VerticalCheckpointReason.Landing) {
-            return null;
-        }
-
-        return this.lastCheckpoint.secondsFromPresent;
+        return this.lastCheckpoint.time;
     }
 }
 
