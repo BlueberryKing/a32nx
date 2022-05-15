@@ -7,7 +7,7 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
 
     private endConditions: IntegrationEndCondition[];
 
-    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance) {
+    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles) {
         super();
 
         this.endConditions = [

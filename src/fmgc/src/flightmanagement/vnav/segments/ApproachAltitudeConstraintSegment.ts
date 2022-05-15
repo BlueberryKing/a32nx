@@ -2,8 +2,7 @@ import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanageme
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
-import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { DescentAltitudeConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
 import { MathUtils } from '@shared/MathUtils';
 import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
 

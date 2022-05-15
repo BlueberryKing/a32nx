@@ -14,7 +14,7 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
      * @param toDistance
      * @param maxAltiude
      */
-    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toDistance: NauticalMiles, private maxAltiude: Feet) {
+    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toDistance: NauticalMiles, private maxAltiude: Feet = context.observer.get().cruiseAltitude) {
         super();
 
         this.endConditions = [
