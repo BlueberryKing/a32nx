@@ -1,7 +1,6 @@
 //  Copyright (c) 2021 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { DecelPathCharacteristics } from '@fmgc/guidance/vnav/descent/DecelPathBuilder';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { RequestedVerticalMode, TargetAltitude, TargetVerticalSpeed } from '@fmgc/guidance/ControlLaws';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
@@ -9,11 +8,8 @@ import { CoarsePredictions } from '@fmgc/guidance/vnav/CoarsePredictions';
 import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 import { VerticalMode, ArmedLateralMode, ArmedVerticalMode, isArmed, LateralMode } from '@shared/autopilot';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
-import { CruiseToDescentCoordinator } from '@fmgc/guidance/vnav/CruiseToDescentCoordinator';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { McduSpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
-import { SelectedGeometryProfile } from '@fmgc/guidance/vnav/profile/SelectedGeometryProfile';
-import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDescentGuidance';
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
@@ -22,22 +18,12 @@ import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory'
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { VerticalProfileManager } from '@fmgc/flightmanagement/vnav/VerticalProfileManager';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
+import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
-import { NavGeometryProfile } from './profile/NavGeometryProfile';
 
 export class VnavDriver implements GuidanceComponent {
     version: number = 0;
-
-    cruiseToDescentCoordinator: CruiseToDescentCoordinator;
-
-    currentNavGeometryProfile: NavGeometryProfile;
-
-    currentSelectedGeometryProfile?: SelectedGeometryProfile;
-
-    currentNdGeometryProfile?: BaseGeometryProfile;
-
-    currentApproachProfile?: DecelPathCharacteristics;
 
     private guidanceMode: RequestedVerticalMode;
 
@@ -88,6 +74,7 @@ export class VnavDriver implements GuidanceComponent {
             this.headingProfile,
             this.windProfileFactory,
             this.stepCoordinator,
+            flightPlanManager,
         );
     }
 
@@ -102,7 +89,7 @@ export class VnavDriver implements GuidanceComponent {
         // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
         // this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
-        this.profileManager.computeFlightPlanProfile();
+        this.profileManager.update(geometry);
 
         this.version++;
     }
@@ -243,5 +230,9 @@ export class VnavDriver implements GuidanceComponent {
         }
 
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
+    }
+
+    getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {
+        return this.profileManager.getWaypointPrediction(waypointIndex);
     }
 }

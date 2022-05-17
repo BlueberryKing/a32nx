@@ -92,12 +92,7 @@ class CDUFlightPlanPage {
 
         // PWPs
         const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
-        const fmsGeometryProfile = null; // TODO
-
-        let vnavPredictionsMapByWaypoint = null;
-        if (fmsGeometryProfile && fmsGeometryProfile.isReadyToDisplay) {
-            vnavPredictionsMapByWaypoint = fmsGeometryProfile.waypointPredictions;
-        }
+        const vnav = mcdu.guidanceController.vnavDriver; // TODO
 
         let cumulativeDistance = 0;
         // Primary F-PLAN
@@ -119,9 +114,10 @@ class CDUFlightPlanPage {
             const wp = fpm.getWaypoint(i);
 
             // We either use the VNAV distance (which takes transitions into account), or we use whatever has already been computed in wp.distanceInFP.
-            if (vnavPredictionsMapByWaypoint && vnavPredictionsMapByWaypoint.get(i)) {
-                wp.distanceFromLastLine = vnavPredictionsMapByWaypoint.get(i).distanceFromStart - cumulativeDistance;
-                cumulativeDistance = vnavPredictionsMapByWaypoint.get(i).distanceFromStart;
+            const waypointPrediction = vnav.getWaypointPrediction(i);
+            if (waypointPrediction) {
+                wp.distanceFromLastLine = waypointPrediction.distanceFromStart - cumulativeDistance;
+                cumulativeDistance = waypointPrediction.distanceFromStart;
             } else {
                 wp.distanceFromLastLine = wp.distanceInFP;
                 cumulativeDistance = wp.cumulativeDistanceInFP;
@@ -207,10 +203,7 @@ class CDUFlightPlanPage {
                 let ident = wp.ident;
                 const isOverfly = wp.additionalData && wp.additionalData.overfly;
 
-                let verticalWaypoint = null;
-                if (vnavPredictionsMapByWaypoint) {
-                    verticalWaypoint = vnavPredictionsMapByWaypoint.get(fpIndex);
-                }
+                const verticalWaypoint = vnav.getWaypointPrediction(fpIndex);
 
                 // Color
                 let color = "green";
@@ -223,12 +216,12 @@ class CDUFlightPlanPage {
                 // Time
                 let timeCell = "----[s-text]";
                 let timeColor = "white";
-                if (verticalWaypoint && isFinite(verticalWaypoint.secondsFromPresent)) {
+                if (verticalWaypoint && isFinite(verticalWaypoint.time)) {
                     const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                     timeCell = isFlying
-                        ? `${FMCMainDisplay.secondsToUTC(utcTime + verticalWaypoint.secondsFromPresent)}[s-text]`
-                        : `${FMCMainDisplay.secondsTohhmm(verticalWaypoint.secondsFromPresent)}[s-text]`;
+                        ? `${FMCMainDisplay.secondsToUTC(utcTime + verticalWaypoint.time)}[s-text]`
+                        : `${FMCMainDisplay.secondsTohhmm(verticalWaypoint.time)}[s-text]`;
 
                     timeColor = color;
                 }
@@ -363,7 +356,7 @@ class CDUFlightPlanPage {
                         }
                     // Waypoint with no alt constraint.
                     // In this case `altitudeConstraint is actually just the predictedAltitude`
-                    } else if (vnavPredictionsMapByWaypoint && !hasAltConstraint) {
+                    } else if (!hasAltConstraint) {
                         if (verticalWaypoint && verticalWaypoint.altitude) {
                             altitudeConstraint = formatAltitudeOrLevel(verticalWaypoint.altitude);
                         } else {
@@ -483,12 +476,12 @@ class CDUFlightPlanPage {
                 const color = (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green";
 
                 let timeCell = "----[s-text]";
-                if (pwp.flightPlanInfo && isFinite(pwp.flightPlanInfo.secondsFromPresent)) {
+                if (pwp.flightPlanInfo && isFinite(pwp.flightPlanInfo.time)) {
                     const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                     timeCell = isFlying
-                        ? `${FMCMainDisplay.secondsToUTC(utcTime + pwp.flightPlanInfo.secondsFromPresent)}[s-text]`
-                        : `${FMCMainDisplay.secondsTohhmm(pwp.flightPlanInfo.secondsFromPresent)}[s-text]`;
+                        ? `${FMCMainDisplay.secondsToUTC(utcTime + pwp.flightPlanInfo.time)}[s-text]`
+                        : `${FMCMainDisplay.secondsTohhmm(pwp.flightPlanInfo.time)}[s-text]`;
                 }
 
                 let speed = "---";
@@ -688,19 +681,18 @@ class CDUFlightPlanPage {
             let destDistCell = "---";
             let destEFOBCell = "---";
 
-            if (fpm.getDestination() && fmsGeometryProfile) {
-                const destStats = stats.get(fpm.getCurrentFlightPlan().waypoints.length - 1);
+            if (fpm.getDestination()) {
+                const finalState = vnav.getWaypointPrediction(fpm.getDestinationIndex());
 
-                if (destStats) {
-                    destDistCell = destStats.distanceFromPpos.toFixed(0);
+                if (finalState) {
+                    destDistCell = Math.round(finalState.distanceFromStart).toFixed(0);
 
-                    const destEfob = fmsGeometryProfile.getRemainingFuelAtDestination();
-                    if (isFinite(destEfob)) {
+                    if (false && isFinite(destEfob)) {
                         destEFOBCell = (NXUnits.poundsToUser(destEfob) / 1000).toFixed(1);
                     }
 
-                    const timeRemaining = fmsGeometryProfile.getTimeToDestination();
-                    if (isFinite(timeRemaining)) {
+                    const timeRemaining = finalState.time;
+                    if (timeRemaining && isFinite(timeRemaining)) {
                         const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                         destTimeCell = isFlying

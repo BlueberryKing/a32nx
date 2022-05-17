@@ -3,9 +3,9 @@ import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
+import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 import { Geometry } from '../../Geometry';
 import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
-import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 
 // TODO: Merge this with VerticalCheckpoint
 export interface VerticalWaypointPrediction {
