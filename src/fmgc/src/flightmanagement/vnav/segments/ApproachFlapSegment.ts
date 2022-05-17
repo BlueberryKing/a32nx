@@ -50,7 +50,7 @@ export class ApproachFlapSegment extends ProfileSegment {
 
         for (const constraint of this.constraints.descentAltitudeConstraints) {
             if (constraint.distanceFromStart > state.distanceFromStart) {
-                continue;
+                break;
             }
 
             this.children.unshift(

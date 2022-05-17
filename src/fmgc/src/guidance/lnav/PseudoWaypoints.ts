@@ -81,6 +81,8 @@ export class PseudoWaypoints implements GuidanceComponent {
         const geometry = this.guidanceController.activeGeometry;
         const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
 
+        return;
+
         if (!geometry || geometry.legs.size < 1) {
             this.pseudoWaypoints.length = 0;
             return;
