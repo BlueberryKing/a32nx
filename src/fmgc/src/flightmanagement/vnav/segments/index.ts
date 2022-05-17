@@ -7,6 +7,8 @@ import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/TakeoffSegment';
 import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/CruiseAndDescentSegment';
+import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 
 export enum VerticalSegmentType {
     Unknown = 1,
@@ -55,12 +57,13 @@ export interface VisitorContext {
 }
 
 export class McduProfile extends ProfileSegment {
-    constructor(context: NodeContext, constraints: ConstraintReader) {
+    constructor(context: NodeContext, constraints: ConstraintReader, stepCoordinator: StepCoordinator) {
         super();
 
         this.children = [
             new TakeoffSegment(context),
             new ClimbSegment(context, constraints),
+            new CruiseAndDescentSegment(context, constraints, stepCoordinator),
         ];
     }
 
@@ -87,12 +90,20 @@ export class ProfileBuilder {
         this.push(initialState);
     }
 
-    push(state: AircraftState) {
-        this.checkpoints.push(state);
+    push(...states: AircraftState[]) {
+        this.checkpoints.push(...states);
     }
 
     get lastState(): AircraftState {
         return this.checkpoints[this.checkpoints.length - 1];
+    }
+
+    get allCheckpoints(): AircraftState[] {
+        return this.checkpoints;
+    }
+
+    resetUpToInitialState() {
+        this.checkpoints.splice(1);
     }
 }
 

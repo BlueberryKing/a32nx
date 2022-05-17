@@ -43,7 +43,7 @@ export class ManagedDescentSegment extends ProfileSegment {
     }
 
     get repr(): string {
-        return 'DescentSegment';
+        return 'ManagedDescentSegment';
     }
 
     private setGeometricPathPoint() {

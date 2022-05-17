@@ -9,6 +9,7 @@ import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
+import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 
 // Tasks: Compute a vertical profile for different use cases:
 //  - A tactical profile used to display pseudowaypoints such as level off arrows on the ND
@@ -21,10 +22,11 @@ export class VerticalProfileManager {
         private constraintReader: ConstraintReader,
         private headingProfile: NavHeadingProfile,
         private windProfileFactory: WindProfileFactory,
+        private stepCoordinator: StepCoordinator,
     ) {
     }
 
-    private computeFlightPlanProfile() {
+    computeFlightPlanProfile() {
         if (!this.observer.canComputeProfile()) {
             return;
         }
@@ -57,60 +59,13 @@ export class VerticalProfileManager {
         const visitor = new BuilderVisitor(builder);
         const printer = new PrinterVisitor();
 
-        const profile = new McduProfile(context, this.constraintReader);
+        const profile = new McduProfile(context, this.constraintReader, this.stepCoordinator);
 
         profile.accept(visitor);
 
         if (VnavConfig.DEBUG_PROFILE) {
             profile.accept(printer);
             console.log(visitor);
-        }
-    }
-
-    private computeDescentProfileV2() {
-        if (!this.observer.canComputeProfile()) {
-            return;
-        }
-
-        const context = new NodeContext(
-            this.atmosphericConditions,
-            this.observer,
-            new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
-        );
-
-        const { v2Speed, destinationAirfieldElevation, approachSpeed } = this.observer.get();
-
-        const initialState: AircraftState = {
-            altitude: destinationAirfieldElevation + 50,
-            distanceFromStart: this.constraintReader.totalFlightPlanDistance,
-            time: 0,
-            weight: this.observer.get().zeroFuelWeight + 2500,
-            speed: approachSpeed,
-            mach: this.atmosphericConditions.computeMachFromCas(destinationAirfieldElevation + 50, approachSpeed),
-            trueAirspeed: this.atmosphericConditions.computeTasFromCas(destinationAirfieldElevation + 50, approachSpeed),
-            config: {
-                flapConfig: FlapConf.CONF_FULL,
-                speedbrakesExtended: false,
-                gearExtended: true,
-            },
-        };
-
-        const builder = new ProfileBuilder(initialState);
-
-        const visitor = new BuilderVisitor(builder);
-        const printer = new PrinterVisitor();
-
-        const approachProfile = new ApproachSegment(context, this.constraintReader);
-        const descentProfile = new ManagedDescentSegment(context, this.constraintReader);
-
-        approachProfile.accept(visitor);
-        descentProfile.accept(visitor);
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            // profile.accept(printer);
-            console.log(visitor);
-
-            SimVar.SetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number', builder.lastState.distanceFromStart);
         }
     }
 }

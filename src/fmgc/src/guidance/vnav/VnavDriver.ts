@@ -8,7 +8,6 @@ import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions
 import { CoarsePredictions } from '@fmgc/guidance/vnav/CoarsePredictions';
 import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 import { VerticalMode, ArmedLateralMode, ArmedVerticalMode, isArmed, LateralMode } from '@shared/autopilot';
-import { PseudoWaypointFlightPlanInfo } from '@fmgc/guidance/PseudoWaypoint';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { CruiseToDescentCoordinator } from '@fmgc/guidance/vnav/CruiseToDescentCoordinator';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
@@ -22,6 +21,7 @@ import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/Ai
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { VerticalProfileManager } from '@fmgc/flightmanagement/vnav/VerticalProfileManager';
+import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile } from './profile/NavGeometryProfile';
@@ -58,6 +58,8 @@ export class VnavDriver implements GuidanceComponent {
 
     private headingProfile: NavHeadingProfile;
 
+    private stepCoordinator: StepCoordinator;
+
     private profileManager: VerticalProfileManager;
 
     constructor(
@@ -77,12 +79,15 @@ export class VnavDriver implements GuidanceComponent {
             ? new LatchedDescentGuidance(this.aircraftToDescentProfileRelation, computationParametersObserver, this.atmosphericConditions)
             : new DescentGuidance(this.aircraftToDescentProfileRelation, computationParametersObserver, this.atmosphericConditions);
 
+        this.stepCoordinator = new StepCoordinator(this.flightPlanManager);
+
         this.profileManager = new VerticalProfileManager(
             this.computationParametersObserver,
             this.atmosphericConditions,
             this.constraintReader,
             this.headingProfile,
             this.windProfileFactory,
+            this.stepCoordinator,
         );
     }
 
@@ -94,8 +99,10 @@ export class VnavDriver implements GuidanceComponent {
         this.constraintReader.extract(geometry, this.guidanceController.activeLegIndex, this.guidanceController.activeTransIndex, this.computationParametersObserver.get().presentPosition);
         this.headingProfile.updateGeometry(this.guidanceController.activeGeometry);
 
-        this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
-        this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
+        // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
+        // this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
+
+        this.profileManager.computeFlightPlanProfile();
 
         this.version++;
     }
@@ -127,8 +134,8 @@ export class VnavDriver implements GuidanceComponent {
                 );
                 this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
 
-                this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
-                this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
+                // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
+                // this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
                 this.version++;
             }
