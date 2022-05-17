@@ -13,7 +13,7 @@ export class ManagedClimbSegment extends ProfileSegment {
         const climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
 
         this.children = [
-            new PureClimbToAltitudeSegment(context, climbThrust, toAltitude, Infinity),
+            new PureClimbToAltitudeSegment(context, climbThrust, toAltitude),
         ];
 
         const allConstraints = [...constraints.climbAlitudeConstraints, ...constraints.climbSpeedConstraints];

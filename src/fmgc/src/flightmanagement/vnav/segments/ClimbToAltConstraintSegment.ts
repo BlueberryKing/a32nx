@@ -10,7 +10,7 @@ export class ClimbToAltConstraintSegment extends ProfileSegment {
         super();
 
         this.children = [
-            new PureClimbToAltitudeSegment(context, thrustSetting, constraint.maxAltitude, constraint.distanceFromStart),
+            new PureClimbToAltitudeSegment(context, thrustSetting, constraint.maxAltitude, false, constraint.distanceFromStart),
             new PureLevelSegment(context, constraint.distanceFromStart),
         ];
     }

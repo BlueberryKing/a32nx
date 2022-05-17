@@ -137,6 +137,10 @@ export class Common {
         return 1479.1 * Math.sqrt(term3);
     }
 
+    static TAStoMach(tas: number, theta: number): number {
+        return tas / 661.4786 / Math.sqrt(theta);
+    }
+
     static CAStoTAS(cas: number, theta: number, delta: number): number {
         const term1 = 1 + 0.2 * (cas / 661.4786) ** 2;
         const term2 = (1 / delta) * ((term1 ** 3.5) - 1);
@@ -149,6 +153,20 @@ export class Common {
         const term2 = (1 / delta) * ((term1 ** 3.5) - 1);
         const term3 = delta * (((term2 + 1) ** (1 / 3.5)) - 1);
         return 1479.1 * Math.sqrt(term3);
+    }
+
+    static getDeltaFromCasMach(cas: number, mach: number) {
+        const numerator = (1 + 0.2 * (cas / 661.4786) ** 2) ** 3.5 - 1;
+        return numerator / ((mach ** 2 / 5 + 1) ** 3.5 - 1);
+    }
+
+    static pressureAltitudeFromDelta(delta: number) {
+        // This is above the tropopause
+        if (delta < 0.22336) {
+            return 36089.24 - 20805.7 * Math.log(delta / 0.22336);
+        }
+
+        return 288.15 / 0.0019812 * (1 - delta ** (1 / 5.25588));
     }
 
     static getAccelFactorCAS(mach: number, aboveTropo: boolean, tempRatio?: number): number {

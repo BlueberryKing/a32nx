@@ -167,4 +167,8 @@ export class AtmosphericConditions {
 
         return cas;
     }
+
+    crossoverAltitude(cas: Knots, mach: Mach): Feet {
+        return Common.pressureAltitudeFromDelta(Common.getDeltaFromCasMach(cas, mach));
+    }
 }

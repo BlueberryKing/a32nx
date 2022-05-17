@@ -8,7 +8,7 @@ export class PureClimbToAltitudeSegment extends ProfileSegment {
     private readonly endConditions: IntegrationEndCondition[] = [];
 
     constructor(
-        private context: NodeContext, private thrustSetting: ThrustSetting, private toAltitude: Feet, maxDistance: NauticalMiles = Infinity,
+        private context: NodeContext, private thrustSetting: ThrustSetting, private toAltitude: Feet, private useMachVsCas: boolean = false, maxDistance: NauticalMiles = Infinity,
     ) {
         super();
 
@@ -21,7 +21,7 @@ export class PureClimbToAltitudeSegment extends ProfileSegment {
     override compute(state: AircraftState, builder: ProfileBuilder) {
         const step = this.integrator.integrate(state,
             this.endConditions,
-            constantThrustPropagator(this.thrustSetting, this.context));
+            constantThrustPropagator(this.thrustSetting, this.context, 0.1, this.useMachVsCas));
 
         // Only add the new state if there was a significant change
         if (step.length > 1) {

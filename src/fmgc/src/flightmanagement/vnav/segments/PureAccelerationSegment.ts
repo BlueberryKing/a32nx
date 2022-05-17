@@ -8,15 +8,41 @@ export class PureAccelerationSegment extends ProfileSegment {
     private readonly endConditions: IntegrationEndCondition[] = [];
 
     constructor(
-        private context: NodeContext, private thrustSetting: ThrustSetting, private toSpeed: Knots, private toAltitude: Feet, maxDistance: NauticalMiles = Infinity,
+        private context: NodeContext,
+        private thrustSetting: ThrustSetting,
+        private toSpeed: Knots,
+        private toAltitude: Feet,
+        maxDistance: NauticalMiles = Infinity,
+        toMach: Mach = 0.82,
     ) {
         super();
 
         this.endConditions = [
             (state) => state.speed > toSpeed,
+            (state) => state.mach > toMach,
             (state) => state.altitude > toAltitude,
             (state) => state.distanceFromStart > maxDistance,
         ];
+    }
+
+    /**
+     * A helper function to initialize a PureAccelerationSegment to accelerate to a mach target
+     */
+    static toMach(
+        context: NodeContext,
+        thrustSetting: ThrustSetting,
+        toMach: Mach = 0.82,
+        toAltitude: Feet,
+        maxDistance: NauticalMiles = Infinity,
+    ): PureAccelerationSegment {
+        return new PureAccelerationSegment(
+            context,
+            thrustSetting,
+            340, // Just use VMO for this since we really want to constraint the Mach number
+            toAltitude,
+            maxDistance,
+            toMach,
+        );
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {

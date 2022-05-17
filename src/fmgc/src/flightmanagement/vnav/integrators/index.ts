@@ -34,14 +34,17 @@ export function constantThrustPropagator(thrustSetting: ThrustSetting, context: 
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
+        const newCas = useMachVsCas ? Common.machToCas(state.mach, newDelta) : state.speed;
+        const newMach = useMachVsCas ? state.mach : Common.CAStoMach(state.speed, newDelta);
+
         return {
             distanceFromStart: state.distanceFromStart + stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
-            speed: state.speed,
-            trueAirspeed: Common.CAStoTAS(state.speed, newTheta, newDelta),
-            mach: Common.CAStoMach(state.speed, newDelta),
+            speed: newCas,
+            trueAirspeed: useMachVsCas ? Common.machToTAS(newMach, newTheta) : Common.CAStoTAS(newCas, newTheta, newDelta),
+            mach: newMach,
             config: state.config,
         };
     };
@@ -83,14 +86,17 @@ export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
+        const newCas = useMachVsCas ? Common.machToCas(state.mach, newDelta) : state.speed;
+        const newMach = useMachVsCas ? state.mach : Common.CAStoMach(state.speed, newDelta);
+
         return {
             distanceFromStart: state.distanceFromStart + stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
-            speed: state.speed,
-            trueAirspeed: Common.CAStoTAS(state.speed, newTheta, newDelta),
-            mach: Common.CAStoMach(state.speed, newDelta),
+            speed: newCas,
+            trueAirspeed: useMachVsCas ? Common.machToTAS(newMach, newTheta) : Common.CAStoTAS(newCas, newTheta, newDelta),
+            mach: newMach,
             config: state.config,
         };
     };
@@ -124,7 +130,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
-        const newCas = state.speed + acceleration * stepTime;
+        const newTas = state.trueAirspeed + acceleration * stepTime;
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
@@ -133,9 +139,9 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
-            speed: state.speed + acceleration * stepTime,
-            trueAirspeed: Common.CAStoTAS(newCas, newTheta, newDelta),
-            mach: Common.CAStoMach(newCas, newDelta),
+            speed: Common.TAStoCAS(newTas, newTheta, newDelta),
+            trueAirspeed: newTas,
+            mach: Common.TAStoMach(newTas, newTheta),
             config: state.config,
         };
     };
@@ -169,7 +175,7 @@ export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget:
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
-        const newCas = state.speed + acceleration * stepTime;
+        const newTas = state.trueAirspeed + acceleration * stepTime;
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
@@ -178,9 +184,9 @@ export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget:
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
-            speed: state.speed + acceleration * stepTime,
-            trueAirspeed: Common.CAStoTAS(newCas, newTheta, newDelta),
-            mach: Common.CAStoMach(newCas, newDelta),
+            speed: Common.TAStoCAS(newTas, newTheta, newDelta),
+            trueAirspeed: newTas,
+            mach: Common.TAStoMach(newTas, newTheta),
             config: state.config,
         };
     };

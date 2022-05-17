@@ -9,12 +9,12 @@ export class ClimbSegment extends ProfileSegment {
         super();
 
         const { cruiseAltitude, climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();
-        const crossoverAltitude = 30000; // TODO
+        const crossoverAltitude = context.atmosphericConditions.crossoverAltitude(managedClimbSpeed, managedClimbSpeedMach);
 
         this.children = [
-            new ManagedClimbSegment(context, climbSpeedLimit.speed, climbSpeedLimit.underAltitude, constraints),
-            new ManagedClimbSegment(context, managedClimbSpeed, crossoverAltitude, constraints),
-            new ManagedClimbMachSegment(cruiseAltitude, managedClimbSpeedMach),
+            new ManagedClimbSegment(context, climbSpeedLimit.speed, Math.min(climbSpeedLimit.underAltitude, cruiseAltitude, crossoverAltitude), constraints),
+            new ManagedClimbSegment(context, managedClimbSpeed, Math.min(crossoverAltitude, cruiseAltitude), constraints),
+            new ManagedClimbMachSegment(context, cruiseAltitude, managedClimbSpeedMach),
         ];
     }
 
@@ -23,6 +23,6 @@ export class ClimbSegment extends ProfileSegment {
     }
 
     get repr() {
-        return 'ClimbNode';
+        return 'ClimbSegment';
     }
 }
