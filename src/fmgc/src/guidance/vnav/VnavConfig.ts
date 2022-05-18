@@ -23,7 +23,7 @@ export const VnavConfig = {
 
     DEBUG_PROFILE: true,
 
-    VNAV_USE_LATCHED_DESCENT_MODE: false,
+    VNAV_USE_LATCHED_DESCENT_MODE: true,
 
     /**
      * Percent N1 to add to the predicted idle N1. The real aircraft does also use a margin for this, but I don't know how much

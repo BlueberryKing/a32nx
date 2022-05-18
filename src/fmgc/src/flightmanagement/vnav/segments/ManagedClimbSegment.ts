@@ -5,6 +5,7 @@ import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/Pu
 import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { PureLevelAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelAccelerationSegment';
 
 export class ManagedClimbSegment extends ProfileSegment {
     private climbThrust: ClimbThrustSetting;
@@ -18,18 +19,23 @@ export class ManagedClimbSegment extends ProfileSegment {
             new PureClimbToAltitudeSegment(context, this.climbThrust, toAltitude),
         ];
 
-        const allConstraints = [...constraints.climbAlitudeConstraints, ...constraints.climbSpeedConstraints];
+        const allConstraints = [...constraints.climbSpeedConstraints, ...constraints.climbAlitudeConstraints];
         allConstraints.sort((a, b) => b.distanceFromStart - a.distanceFromStart);
 
         let currentMaxSpeed = maxSpeed;
         let currentMaxAltitude = toAltitude;
         for (const constraint of allConstraints) {
+            // Is speed constraint
             if ('maxSpeed' in constraint) {
-                // Is speed constraint
+                // Accelerate in level flight if an upcoming constraint requires it.
+                this.children.push(new PureLevelAccelerationSegment(context, this.climbThrust, currentMaxSpeed, currentMaxSpeed));
+                // Accelerate
                 this.children.push(new PureAccelerationSegment(context, this.climbThrust, currentMaxSpeed, currentMaxAltitude));
+                // Make sure we actually fly to the constraint
+                this.children.push(new ClimbToAltConstraintSegment(context, this.climbThrust, currentMaxAltitude, constraint.distanceFromStart));
                 currentMaxSpeed = Math.min(currentMaxSpeed, constraint.maxSpeed);
             } else if (constraint.maxAltitude <= toAltitude) {
-                this.children.push(new ClimbToAltConstraintSegment(context, this.climbThrust, constraint));
+                this.children.push(new ClimbToAltConstraintSegment(context, this.climbThrust, constraint.maxAltitude, constraint.distanceFromStart));
                 currentMaxAltitude = Math.min(currentMaxAltitude, constraint.maxAltitude);
             }
         }

@@ -3,19 +3,18 @@ import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevel
 import { NodeContext } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
-import { MaxAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
 
 export class ClimbToAltConstraintSegment extends ProfileSegment {
-    constructor(context: NodeContext, thrustSetting: ThrustSetting, private constraint: MaxAltitudeConstraint) {
+    constructor(context: NodeContext, thrustSetting: ThrustSetting, private toAltitude: Feet, private toDistance: NauticalMiles) {
         super();
 
         this.children = [
-            new PureClimbToAltitudeSegment(context, thrustSetting, constraint.maxAltitude, false, constraint.distanceFromStart),
-            new PureLevelSegment(context, constraint.distanceFromStart),
+            new PureClimbToAltitudeSegment(context, thrustSetting, toAltitude, false, toDistance),
+            new PureLevelSegment(context, toDistance),
         ];
     }
 
     get repr() {
-        return `ClimbToAltConstraint - Stay below ${this.constraint.maxAltitude} ft`;
+        return `ClimbToAltConstraint - Stay below ${this.toAltitude} ft`;
     }
 }
