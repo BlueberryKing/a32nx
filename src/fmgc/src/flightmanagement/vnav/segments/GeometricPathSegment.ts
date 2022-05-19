@@ -17,7 +17,7 @@ export class GeometricPathSegment extends ProfileSegment {
      * @param maxSpeed
      * @param toAltitude This is used to implement the speed limit.
      */
-    constructor(private context: NodeContext, private constraints: ConstraintReader, private maxSpeed: Knots, private toAltitude: Feet) {
+    constructor(private context: NodeContext, private constraints: ConstraintReader, private maxSpeed: Knots, private toAltitude: Feet, private useMachVsCas: boolean = false) {
         super();
     }
 
@@ -40,7 +40,7 @@ export class GeometricPathSegment extends ProfileSegment {
             }
 
             this.children.unshift(
-                new DescentAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle, this.maxSpeed, this.toAltitude),
+                new DescentAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle, this.maxSpeed, this.toAltitude, this.useMachVsCas),
             );
         }
     }

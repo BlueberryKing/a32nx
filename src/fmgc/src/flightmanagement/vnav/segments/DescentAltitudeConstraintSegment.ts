@@ -15,6 +15,7 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
         private flightPathAngle: Degrees,
         private maxSpeed: Knots,
         private maxAltitude: Feet,
+        private useMachVsCas: boolean = false,
     ) {
         super();
     }
@@ -34,7 +35,7 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
 
         this.children = [
             new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, this.constraint.distanceFromStart, this.maxAltitude),
-            new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.constraint.distanceFromStart, this.maxAltitude),
+            new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.constraint.distanceFromStart, this.maxAltitude, this.useMachVsCas),
         ];
 
         for (const speedConstraint of this.constraints.descentSpeedConstraints) {
@@ -47,7 +48,7 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
             this.children.unshift(
-                new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, speedConstraint.distanceFromStart, this.maxAltitude),
+                new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, speedConstraint.distanceFromStart, this.maxAltitude, this.useMachVsCas),
             );
 
             this.children.unshift(

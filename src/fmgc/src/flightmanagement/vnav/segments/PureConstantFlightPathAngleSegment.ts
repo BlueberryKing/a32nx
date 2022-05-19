@@ -14,7 +14,13 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
      * @param toDistance
      * @param maxAltiude
      */
-    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toDistance: NauticalMiles, private maxAltiude: Feet = context.observer.get().cruiseAltitude) {
+    constructor(
+        private context: NodeContext,
+        private flightPathAngle: Degrees,
+        private toDistance: NauticalMiles,
+        private maxAltiude: Feet = context.observer.get().cruiseAltitude,
+        private useMachVsCas: boolean = false,
+    ) {
         super();
 
         this.endConditions = [
@@ -29,7 +35,7 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
         const descentPath = this.integrator.integrate(
             state,
             this.endConditions,
-            constantPitchPropagator(pitchTarget, this.context, -0.1),
+            constantPitchPropagator(pitchTarget, this.context, -0.1, this.useMachVsCas),
         );
 
         if (descentPath.length > 1) {
