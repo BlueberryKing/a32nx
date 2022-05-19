@@ -1,6 +1,7 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { PureIdlePathConstantMachSegment } from '@fmgc/flightmanagement/vnav/segments/PureIdlePathConstantMachSegment';
 import { PureIdlePathDecelerationSegment } from './PureIdlePathDecelerationSegment';
 import { PureIdlePathConstantSpeedSegment } from './PureIdlePathConstantSpeedSegment';
 
@@ -8,11 +9,14 @@ export class IdlePathSegment extends ProfileSegment {
     constructor(context: NodeContext, constraints: ConstraintReader, toAltitude: Feet) {
         super();
 
-        const { descentSpeedLimit, managedDescentSpeed } = context.observer.get();
+        const { descentSpeedLimit, managedDescentSpeed, managedDescentSpeedMach } = context.observer.get();
+
+        const crossoverAltitude = context.computeCrossoverAltitude(managedDescentSpeed, managedDescentSpeedMach);
 
         this.children = [
-            new IdlePathToAltitudeSegment(context, constraints, descentSpeedLimit.underAltitude, descentSpeedLimit.speed),
-            new IdlePathToAltitudeSegment(context, constraints, toAltitude, managedDescentSpeed),
+            new IdlePathToAltitudeSegment(context, constraints, Math.min(descentSpeedLimit.underAltitude, crossoverAltitude, toAltitude), descentSpeedLimit.speed),
+            new IdlePathToAltitudeSegment(context, constraints, Math.min(crossoverAltitude, toAltitude), managedDescentSpeed),
+            new PureIdlePathConstantMachSegment(context, toAltitude, -Infinity),
         ];
     }
 
@@ -31,7 +35,7 @@ export class IdlePathToAltitudeSegment extends ProfileSegment {
 
         this.children = [
             new PureIdlePathDecelerationSegment(this.context, this.toAltitude, maxSpeed, -Infinity),
-            new PureIdlePathConstantSpeedSegment(this.context, this.toAltitude, maxSpeed, -Infinity),
+            new PureIdlePathConstantSpeedSegment(this.context, this.toAltitude, -Infinity),
         ];
 
         for (const speedConstraint of this.constraints.descentSpeedConstraints) {
@@ -42,7 +46,7 @@ export class IdlePathToAltitudeSegment extends ProfileSegment {
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
             this.children.unshift(
-                new PureIdlePathConstantSpeedSegment(this.context, this.toAltitude, maxSpeed, speedConstraint.distanceFromStart),
+                new PureIdlePathConstantSpeedSegment(this.context, this.toAltitude, speedConstraint.distanceFromStart),
             );
 
             this.children.unshift(

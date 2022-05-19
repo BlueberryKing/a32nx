@@ -8,7 +8,7 @@ import {
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
-export class PureIdlePathConstantSpeedSegment extends ProfileSegment {
+export class PureIdlePathConstantMachSegment extends ProfileSegment {
     private readonly endConditions: IntegrationEndCondition[] = [];
 
     private integrator = new Integrator();
@@ -27,6 +27,7 @@ export class PureIdlePathConstantSpeedSegment extends ProfileSegment {
             new IdleThrustSetting(context.atmosphericConditions),
             context,
             -1,
+            true,
         );
     }
 
@@ -43,6 +44,6 @@ export class PureIdlePathConstantSpeedSegment extends ProfileSegment {
     }
 
     get repr(): string {
-        return 'PureIdlePathConstantSpeedSegment';
+        return 'PureIdlePathConstantMachSegment';
     }
 }

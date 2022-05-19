@@ -119,6 +119,10 @@ export class NodeContext {
     getIsaDeviation() {
         return this.atmosphericConditions.isaDeviation;
     }
+
+    computeCrossoverAltitude(cas: Knots, mach: Mach) {
+        return this.atmosphericConditions.crossoverAltitude(cas, mach);
+    }
 }
 
 export class TemporaryStateSequence {

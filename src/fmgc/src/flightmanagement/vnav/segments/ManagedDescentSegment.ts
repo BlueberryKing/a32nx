@@ -50,6 +50,8 @@ export class ManagedDescentSegment extends ProfileSegment {
         for (const constraint of this.constraints.descentAltitudeConstraints) {
             if (constraint.constraint.type !== AltitudeConstraintType.atOrAbove) {
                 this.geometricSegments.forEach((segment) => segment.setLastConstraint(constraint));
+
+                return;
             }
         }
     }
