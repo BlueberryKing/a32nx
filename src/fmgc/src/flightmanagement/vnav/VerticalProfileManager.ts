@@ -1,7 +1,7 @@
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { AircraftState, BuilderVisitor, McduProfile, NodeContext, PrinterVisitor, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, BuilderVisitor, McduProfile, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -69,16 +69,12 @@ export class VerticalProfileManager {
         };
 
         const builder = new ProfileBuilder(initialState);
-
         const visitor = new BuilderVisitor(builder);
-        const printer = new PrinterVisitor();
-
         const profile = new McduProfile(context, this.constraintReader, this.stepCoordinator);
 
         profile.accept(visitor);
 
         if (VnavConfig.DEBUG_PROFILE) {
-            profile.accept(printer);
             console.log(visitor);
         }
 
