@@ -9,6 +9,7 @@ import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbSegment'
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/CruiseAndDescentSegment';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export enum VerticalSegmentType {
     Unknown = 1,
@@ -39,17 +40,9 @@ export class BuilderVisitor implements Visitor {
         node.compute(this.builder.lastState, this.builder);
     }
 
-    visitAfterChildren(node: ProfileSegment, context: VisitorContext) { }
-}
-
-class SymbolGenerationVisitor implements Visitor {
-    constructor(private symbols: SymbolBuilder) { }
-
-    visitBeforeChildren(node: ProfileSegment, _context: VisitorContext): void {
-        node.getSymbols(this.symbols);
+    visitAfterChildren(node: ProfileSegment, context: VisitorContext) {
+        node.allowPhaseChange(this.builder);
     }
-
-    visitAfterChildren(_node: ProfileSegment, _context: VisitorContext) { }
 }
 
 export interface VisitorContext {
@@ -84,28 +77,108 @@ export interface AircraftState {
 }
 
 export class ProfileBuilder {
-    private checkpoints: AircraftState[] = [];
+    private currentFlightPhase: FmgcFlightPhase;
 
-    constructor(initialState: AircraftState) {
-        this.push(initialState);
+    private phases: Map<FmgcFlightPhase, AircraftState[]> = new Map();
+
+    constructor(initialState: AircraftState, phase: FmgcFlightPhase, private buildInReverse: boolean = false) {
+        this.currentFlightPhase = phase;
+
+        this.phases.set(phase, [initialState]);
     }
 
-    push(...states: AircraftState[]) {
-        this.checkpoints.push(...states);
+    push(...states: AircraftState[]): ProfileBuilder {
+        this.phases.get(this.currentFlightPhase).push(...states);
+
+        return this;
+    }
+
+    changePhase(newPhase: FmgcFlightPhase): ProfileBuilder {
+        this.currentFlightPhase = newPhase;
+
+        if (!this.phases.has(newPhase)) {
+            this.phases.set(newPhase, []);
+        }
+
+        return this;
     }
 
     get lastState(): AircraftState {
-        return this.checkpoints[this.checkpoints.length - 1];
+        for (let i = this.currentFlightPhase; i >= 0 && i <= 7; i += (this.buildInReverse ? 1 : -1)) {
+            const checkpointsOfCurrentPhase = this.phases.get(i);
+
+            if (checkpointsOfCurrentPhase && checkpointsOfCurrentPhase.length > 0) {
+                return checkpointsOfCurrentPhase[checkpointsOfCurrentPhase.length - 1];
+            }
+        }
+
+        return undefined;
     }
 
     get allCheckpoints(): AircraftState[] {
-        return this.checkpoints;
+        const order = [
+            FmgcFlightPhase.Preflight,
+            FmgcFlightPhase.Takeoff,
+            FmgcFlightPhase.Climb,
+            FmgcFlightPhase.Cruise,
+            FmgcFlightPhase.Descent,
+            FmgcFlightPhase.Approach,
+            FmgcFlightPhase.GoAround,
+            FmgcFlightPhase.Done,
+        ];
+
+        return order.reduce((checkpoints, phase) => {
+            if (this.phases.has(phase)) {
+                checkpoints.push(...this.phases.get(phase));
+            }
+
+            return checkpoints;
+        }, [] as AircraftState[]);
     }
 
-    resetUpToInitialState() {
-        this.checkpoints.splice(1);
+    get allCheckpointsWithPhase(): AircraftStateWithPhase[] {
+        const order = [
+            FmgcFlightPhase.Preflight,
+            FmgcFlightPhase.Takeoff,
+            FmgcFlightPhase.Climb,
+            FmgcFlightPhase.Cruise,
+            FmgcFlightPhase.Descent,
+            FmgcFlightPhase.Approach,
+            FmgcFlightPhase.GoAround,
+            FmgcFlightPhase.Done,
+        ];
+
+        return order.reduce((checkpoints, phase) => {
+            if (this.phases.has(phase)) {
+                checkpoints.push(...this.phases.get(phase).map((state) => ({ ...state, phase })));
+            }
+
+            return checkpoints;
+        }, [] as AircraftStateWithPhase[]);
+    }
+
+    get currentPhase(): FmgcFlightPhase {
+        return this.currentFlightPhase;
+    }
+
+    checkpointsOfPhase(phase: FmgcFlightPhase): AircraftState[] {
+        return this.phases.get(phase);
+    }
+
+    resetPhaseUpToInitialState(): ProfileBuilder {
+        this.phases.get(this.currentFlightPhase).splice(1);
+
+        return this;
+    }
+
+    resetPhase(): ProfileBuilder {
+        this.phases.set(this.currentFlightPhase, []);
+
+        return this;
     }
 }
+
+export type AircraftStateWithPhase = AircraftState & { phase: FmgcFlightPhase }
 
 export interface SymbolBuilder {
     push(): void;

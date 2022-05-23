@@ -1,7 +1,7 @@
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { AircraftState, BuilderVisitor, McduProfile, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, AircraftStateWithPhase, BuilderVisitor, McduProfile, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -12,6 +12,7 @@ import { Geometry } from '@fmgc/guidance/Geometry';
 import { VerticalFlightPlan } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { FlightPlanManager } from '@shared/flightplan';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 // Tasks: Compute a vertical profile for different use cases:
 //  - A tactical profile used to display pseudowaypoints such as level off arrows on the ND
@@ -29,7 +30,7 @@ export class VerticalProfileManager {
         private stepCoordinator: StepCoordinator,
         flightPlanManager: FlightPlanManager,
     ) {
-        this.verticalFlightPlan = new VerticalFlightPlan(flightPlanManager, atmosphericConditions);
+        this.verticalFlightPlan = new VerticalFlightPlan(flightPlanManager, this.observer, atmosphericConditions);
     }
 
     update(geometry: Geometry) {
@@ -40,7 +41,7 @@ export class VerticalProfileManager {
         }
     }
 
-    private computeFlightPlanProfile(): AircraftState[] {
+    private computeFlightPlanProfile(): AircraftStateWithPhase[] {
         if (!this.observer.canComputeProfile()) {
             return [];
         }
@@ -68,7 +69,7 @@ export class VerticalProfileManager {
             },
         };
 
-        const builder = new ProfileBuilder(initialState);
+        const builder = new ProfileBuilder(initialState, FmgcFlightPhase.Takeoff);
         const visitor = new BuilderVisitor(builder);
         const profile = new McduProfile(context, this.constraintReader, this.stepCoordinator);
 
@@ -78,7 +79,7 @@ export class VerticalProfileManager {
             console.log(visitor);
         }
 
-        return builder.allCheckpoints;
+        return builder.allCheckpointsWithPhase;
     }
 
     getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {

@@ -1,4 +1,4 @@
-import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftStateWithPhase } from '@fmgc/flightmanagement/vnav/segments';
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
@@ -6,6 +6,8 @@ import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { Common } from '@fmgc/guidance/vnav/common';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanManager } from '@shared/flightplan';
 
 enum VerticalFlightPlanState {
@@ -19,14 +21,31 @@ export class VerticalFlightPlan {
 
     private waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
-    constructor(private flightPlanManager: FlightPlanManager, private atmosphericConditions: AtmosphericConditions) { }
+    private climbCrossoverAltitude: Feet = 25000;
+
+    private cruiseCrossoverAltitude: Feet = 25000;
+
+    private descentCrossoverAltitude: Feet = 25000;
+
+    constructor(private flightPlanManager: FlightPlanManager, private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions) {
+
+    }
 
     get displayState(): VerticalFlightPlanState {
         return this.state;
     }
 
-    update(checkpoints: AircraftState[], geometry: Geometry) {
+    update(checkpoints: AircraftStateWithPhase[], geometry: Geometry) {
+        this.updateCrossoverAltitudes();
         this.computePredictionsAtWaypoints(checkpoints, geometry);
+    }
+
+    private updateCrossoverAltitudes() {
+        const { managedClimbSpeed, managedClimbSpeedMach, managedCruiseSpeed, managedCruiseSpeedMach, managedDescentSpeed, managedDescentSpeedMach } = this.observer.get();
+
+        this.climbCrossoverAltitude = this.atmosphericConditions.crossoverAltitude(managedClimbSpeed, managedClimbSpeedMach);
+        this.cruiseCrossoverAltitude = this.atmosphericConditions.crossoverAltitude(managedCruiseSpeed, managedCruiseSpeedMach);
+        this.descentCrossoverAltitude = this.atmosphericConditions.crossoverAltitude(managedDescentSpeed, managedDescentSpeedMach);
     }
 
     getWaypointPrediction(index: number): VerticalWaypointPrediction | null {
@@ -37,7 +56,25 @@ export class VerticalFlightPlan {
         return this.waypointPredictions.get(index);
     }
 
-    private computePredictionsAtWaypoints(checkpoints: AircraftState[], geometry: Geometry) {
+    private getCrossoverAltitudeByPhase(phase: FmgcFlightPhase): Mach {
+        switch (phase) {
+        case FmgcFlightPhase.Preflight:
+        case FmgcFlightPhase.Takeoff:
+        case FmgcFlightPhase.Climb:
+        case FmgcFlightPhase.GoAround:
+            return this.climbCrossoverAltitude;
+        case FmgcFlightPhase.Cruise:
+            return this.cruiseCrossoverAltitude;
+        case FmgcFlightPhase.Descent:
+        case FmgcFlightPhase.Approach:
+        case FmgcFlightPhase.Done:
+            return this.descentCrossoverAltitude;
+        default:
+            return 0.78; // This is here so eslint is happy
+        }
+    }
+
+    private computePredictionsAtWaypoints(checkpoints: AircraftStateWithPhase[], geometry: Geometry) {
         this.state = VerticalFlightPlanState.InComputation;
 
         this.waypointPredictions.clear();
@@ -63,14 +100,14 @@ export class VerticalFlightPlan {
 
             totalDistance += totalLegLength;
 
-            const { time, altitude, speed, mach } = this.interpolateEverythingFromStart(checkpoints, totalDistance);
+            const { time, altitude, speed, mach, phase } = this.interpolateEverythingFromStart(checkpoints, totalDistance);
 
             this.waypointPredictions.set(i, {
                 waypointIndex: i,
                 distanceFromStart: totalDistance,
                 time,
                 altitude,
-                speed: this.atmosphericConditions.casOrMach(speed, mach, altitude),
+                speed: altitude >= this.getCrossoverAltitudeByPhase(phase) ? mach : speed,
                 altitudeConstraint: leg.metadata.altitudeConstraint,
                 isAltitudeConstraintMet: this.isAltitudeConstraintMet(altitude, leg.metadata.altitudeConstraint),
                 speedConstraint: leg.metadata.speedConstraint,
@@ -159,7 +196,7 @@ export class VerticalFlightPlan {
         }
     }
 
-    private interpolateEverythingFromStart(checkpoints: AircraftState[], distanceFromStart: NauticalMiles): AircraftState {
+    private interpolateEverythingFromStart(checkpoints: AircraftStateWithPhase[], distanceFromStart: NauticalMiles): AircraftStateWithPhase {
         if (distanceFromStart <= checkpoints[0].distanceFromStart) {
             return {
                 distanceFromStart,
@@ -170,6 +207,7 @@ export class VerticalFlightPlan {
                 mach: checkpoints[0].mach,
                 trueAirspeed: checkpoints[0].trueAirspeed,
                 config: checkpoints[0].config,
+                phase: checkpoints[0].phase,
             };
         }
 
@@ -220,6 +258,7 @@ export class VerticalFlightPlan {
                         checkpoints[i + 1].mach,
                     ),
                     config: checkpoints[i].config,
+                    phase: checkpoints[i].phase,
                 };
             }
         }
@@ -233,6 +272,7 @@ export class VerticalFlightPlan {
             trueAirspeed: checkpoints[checkpoints.length - 1].trueAirspeed,
             mach: checkpoints[checkpoints.length - 1].mach,
             config: checkpoints[checkpoints.length - 1].config,
+            phase: checkpoints[checkpoints.length - 1].phase,
         };
     }
 }

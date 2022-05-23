@@ -1,8 +1,9 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbMachSegment';
 import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbSegment';
-import { NodeContext, SymbolBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
+import { NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export class ClimbSegment extends ProfileSegment {
     constructor(context: NodeContext, constraints: ConstraintReader) {
@@ -18,8 +19,8 @@ export class ClimbSegment extends ProfileSegment {
         ];
     }
 
-    getSymbols(symbolBuilder: SymbolBuilder): void {
-        symbolBuilder.push();
+    allowPhaseChange(builder: ProfileBuilder): void {
+        builder.changePhase(FmgcFlightPhase.Cruise);
     }
 
     get repr() {

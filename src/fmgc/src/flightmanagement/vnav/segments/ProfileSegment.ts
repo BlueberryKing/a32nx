@@ -5,6 +5,8 @@ export abstract class ProfileSegment {
 
     compute(_state: AircraftState, _builder: ProfileBuilder) { }
 
+    allowPhaseChange(_builder: ProfileBuilder) { }
+
     accept(visitor: Visitor, context: VisitorContext = { depth: 0 }) {
         visitor.visitBeforeChildren(this, context);
 
@@ -14,8 +16,6 @@ export abstract class ProfileSegment {
 
         visitor.visitAfterChildren(this, context);
     }
-
-    getSymbols(_symbolBuilder: any) { }
 
     get repr(): string {
         return 'Unknown node';

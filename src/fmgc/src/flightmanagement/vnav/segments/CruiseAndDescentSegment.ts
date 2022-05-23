@@ -6,6 +6,7 @@ import { ApproachSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachSe
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export class CruiseAndDescentSegment extends ProfileSegment {
     private descentSegment: ManagedDescentSegment;
@@ -21,16 +22,18 @@ export class CruiseAndDescentSegment extends ProfileSegment {
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
         const initialState = this.getInitialState(this.context, this.constraintReader);
-        const temporaryDescentBuilder = new ProfileBuilder(initialState);
+        const temporaryDescentBuilder = new ProfileBuilder(initialState, FmgcFlightPhase.Approach, true);
         const temporaryDescentVisitor = new BuilderVisitor(temporaryDescentBuilder);
 
-        const temporaryCruiseBuilder = new ProfileBuilder(state);
+        const temporaryCruiseBuilder = new ProfileBuilder(state, FmgcFlightPhase.Cruise);
         const temporaryCruiseVisitor = new BuilderVisitor(temporaryCruiseBuilder);
 
-        // First step.
         for (let i = 0; i < 4; i++) {
-            temporaryDescentBuilder.resetUpToInitialState();
-            temporaryCruiseBuilder.resetUpToInitialState();
+            if (temporaryDescentBuilder.currentPhase === FmgcFlightPhase.Descent) {
+                temporaryDescentBuilder.resetPhase().changePhase(FmgcFlightPhase.Approach).resetPhaseUpToInitialState();
+            }
+
+            temporaryCruiseBuilder.resetPhaseUpToInitialState();
 
             this.approachSegment.accept(temporaryDescentVisitor);
             this.descentSegment.accept(temporaryDescentVisitor);
@@ -42,8 +45,12 @@ export class CruiseAndDescentSegment extends ProfileSegment {
             initialState.time += temporaryCruiseBuilder.lastState.time - temporaryDescentBuilder.lastState.time;
         }
 
-        builder.push(...temporaryCruiseBuilder.allCheckpoints);
-        builder.push(...temporaryDescentBuilder.allCheckpoints.slice().reverse());
+        builder.changePhase(FmgcFlightPhase.Cruise);
+        builder.push(...temporaryCruiseBuilder.checkpointsOfPhase(FmgcFlightPhase.Cruise));
+        builder.changePhase(FmgcFlightPhase.Descent);
+        builder.push(...temporaryDescentBuilder.checkpointsOfPhase(FmgcFlightPhase.Descent).slice().reverse());
+        builder.changePhase(FmgcFlightPhase.Approach);
+        builder.push(...temporaryDescentBuilder.checkpointsOfPhase(FmgcFlightPhase.Approach).slice().reverse());
     }
 
     get repr() {
