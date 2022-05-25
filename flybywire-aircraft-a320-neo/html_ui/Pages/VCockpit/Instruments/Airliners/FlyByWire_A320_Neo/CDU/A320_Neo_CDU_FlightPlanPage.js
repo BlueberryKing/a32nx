@@ -91,8 +91,8 @@ class CDUFlightPlanPage {
         const first = (mcdu.flightPhaseManager.phase <= FmgcFlightPhases.TAKEOFF) ? 0 : activeFirst;
 
         // PWPs
-        const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
-        const vnav = mcdu.guidanceController.vnavDriver; // TODO
+        const fmsPseudoWaypoints = mcdu.guidanceController.pseudoWaypoints.mcduPseudoWaypoints;
+        const vnav = mcdu.guidanceController.vnavDriver;
 
         let cumulativeDistance = 0;
         // Primary F-PLAN

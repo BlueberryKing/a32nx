@@ -1,26 +1,11 @@
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
-import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
+import { VerticalWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { Geometry } from '../../Geometry';
-import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
-
-// TODO: Merge this with VerticalCheckpoint
-export interface VerticalWaypointPrediction {
-    waypointIndex: number,
-    distanceFromStart: NauticalMiles,
-    time: Seconds,
-    altitude: Feet,
-    speed: Knots | Mach,
-    altitudeConstraint: AltitudeConstraint,
-    speedConstraint: SpeedConstraint,
-    isAltitudeConstraintMet: boolean,
-    isSpeedConstraintMet: boolean,
-    altError: number,
-    distanceToTopOfDescent: NauticalMiles | null,
-}
+import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
 
 export enum VerticalCheckpointReason {
     Liftoff = 'Liftoff',

@@ -9,9 +9,8 @@ import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfi
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { Geometry } from '@fmgc/guidance/Geometry';
-import { VerticalFlightPlan } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
+import { VerticalFlightPlan, VerticalWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { FlightPlanManager } from '@shared/flightplan';
-import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
 // Tasks: Compute a vertical profile for different use cases:
@@ -84,5 +83,9 @@ export class VerticalProfileManager {
 
     getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {
         return this.verticalFlightPlan.getWaypointPrediction(waypointIndex);
+    }
+
+    get verticalFlightPlanForMcdu(): VerticalFlightPlan {
+        return this.verticalFlightPlan;
     }
 }

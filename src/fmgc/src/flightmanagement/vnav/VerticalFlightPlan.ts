@@ -5,7 +5,6 @@ import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { Common } from '@fmgc/guidance/vnav/common';
-import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanManager } from '@shared/flightplan';
@@ -275,4 +274,25 @@ export class VerticalFlightPlan {
             phase: checkpoints[checkpoints.length - 1].phase,
         };
     }
+}
+
+export interface VerticalWaypointPrediction {
+    waypointIndex: number,
+    distanceFromStart: NauticalMiles,
+    time: Seconds,
+    altitude: Feet,
+    speed: Knots | Mach,
+    altitudeConstraint: AltitudeConstraint,
+    speedConstraint: SpeedConstraint,
+    isAltitudeConstraintMet: boolean,
+    isSpeedConstraintMet: boolean,
+    altError: number,
+    distanceToTopOfDescent: NauticalMiles | null,
+}
+
+export interface VerticalPseudoWaypointPrediction {
+    distanceFromStart?: NauticalMiles,
+    altitude: Feet,
+    speed: Knots,
+    time: Seconds,
 }

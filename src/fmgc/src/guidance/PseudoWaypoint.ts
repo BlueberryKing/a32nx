@@ -7,24 +7,26 @@ import { Coordinates } from '@fmgc/flightplanning/data/geo';
  * Types that tie pseudo waypoints to sequencing actions
  */
 export enum PseudoWaypointSequencingAction {
-
     /**
      * Used to trigger "DECELERATE / T/D REACHED" message on EFIS (depending on EIS version and standard) eg. (T/D)
      */
-    TOD_REACHED,
+    TdReached,
 
     /**
      * Used for approach phase auto-engagement condition eg. (DECEL)
      */
-    APPROACH_PHASE_AUTO_ENGAGE,
+    EngageApproachPhase,
 
     /**
      * Used to delete the step waypoint
      */
-    STEP_REACHED,
+    StepReached,
 
 }
 
+/**
+ * NOTE: This is probably gonna be split up into McduPseudoWaypoint and NdPseudoWaypoint
+ */
 export interface PseudoWaypoint {
 
     /**
@@ -79,24 +81,7 @@ export interface PseudoWaypoint {
     mcduHeader?: string,
 
     /**
-     * Additional information that is display if the waypoint is displayed on the MCDU (`displayedOnMcdu`)
-     */
-    flightPlanInfo?: PseudoWaypointFlightPlanInfo
-
-    /**
      * Determines whether a PWP should show up as a symbol on the ND
      */
     displayedOnNd: boolean,
-}
-
-export interface PseudoWaypointFlightPlanInfo {
-    distanceFromStart?: NauticalMiles,
-
-    altitude: Feet,
-
-    speed: Knots,
-
-    time: Seconds,
-
-    distanceFromLastFix?: NauticalMiles,
 }
