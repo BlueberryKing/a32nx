@@ -18,7 +18,7 @@ import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory'
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { VerticalProfileManager } from '@fmgc/flightmanagement/vnav/VerticalProfileManager';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
-import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { VerticalWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 
@@ -98,8 +98,6 @@ export class VnavDriver implements GuidanceComponent {
 
     update(deltaTime: number): void {
         try {
-            this.atmosphericConditions.update();
-
             if (this.coarsePredictionsUpdate.canUpdate(deltaTime) !== -1) {
                 CoarsePredictions.updatePredictions(this.guidanceController, this.atmosphericConditions);
             }
