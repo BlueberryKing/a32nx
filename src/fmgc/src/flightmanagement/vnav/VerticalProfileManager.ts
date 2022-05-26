@@ -1,7 +1,7 @@
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { AircraftState, AircraftStateWithPhase, BuilderVisitor, McduProfile, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, BuilderVisitor, McduProfile, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -33,18 +33,13 @@ export class VerticalProfileManager {
     }
 
     update(geometry: Geometry) {
-        const profile = this.computeFlightPlanProfile();
-
-        if (profile.length > 0) {
+        if (this.observer.canComputeProfile()) {
+            const profile = this.computeFlightPlanProfile();
             this.verticalFlightPlan.update(profile, geometry);
         }
     }
 
-    private computeFlightPlanProfile(): AircraftStateWithPhase[] {
-        if (!this.observer.canComputeProfile()) {
-            return [];
-        }
-
+    private computeFlightPlanProfile(): ProfileBuilder {
         const context = new NodeContext(
             this.atmosphericConditions,
             this.observer,
@@ -78,7 +73,7 @@ export class VerticalProfileManager {
             console.log(visitor);
         }
 
-        return builder.allCheckpointsWithPhase;
+        return builder;
     }
 
     getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {

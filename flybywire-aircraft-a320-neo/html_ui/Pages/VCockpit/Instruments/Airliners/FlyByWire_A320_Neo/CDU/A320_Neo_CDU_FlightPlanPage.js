@@ -94,17 +94,17 @@ class CDUFlightPlanPage {
         const fmsPseudoWaypoints = mcdu.guidanceController.pseudoWaypoints.mcduPseudoWaypoints;
         const vnav = mcdu.guidanceController.vnavDriver;
 
-        let cumulativeDistance = 0;
         // Primary F-PLAN
+        let cumulativeDistance = 0;
 
         // In this loop, we insert pseudowaypoints between regular waypoints and compute the distances between the previous and next (pseudo-)waypoint.
         for (let i = first; i < fpm.getWaypointsCount(); i++) {
-            const pseudoWaypointsOnLeg = fmsPseudoWaypoints.filter((it) => it.displayedOnMcdu && it.alongLegIndex === i);
-            pseudoWaypointsOnLeg.sort((a, b) => a.flightPlanInfo.distanceFromLastFix - b.flightPlanInfo.distanceFromLastFix);
+            const pseudoWaypointsOnLeg = fmsPseudoWaypoints.filter((it) => it.alongLegIndex === i);
+            pseudoWaypointsOnLeg.sort((a, b) => a.distanceFromLastFix - b.distanceFromLastFix);
 
             for (const pwp of pseudoWaypointsOnLeg) {
-                pwp.distanceInFP = pwp.distanceFromStart - cumulativeDistance;
-                cumulativeDistance = pwp.distanceFromStart;
+                pwp.distanceInFP = pwp.prediction.distanceFromStart - cumulativeDistance;
+                cumulativeDistance = pwp.prediction.distanceFromStart;
             }
 
             if (pseudoWaypointsOnLeg) {
@@ -476,29 +476,29 @@ class CDUFlightPlanPage {
                 const color = (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green";
 
                 let timeCell = "----[s-text]";
-                if (pwp.flightPlanInfo && isFinite(pwp.flightPlanInfo.time)) {
+                if (pwp.prediction && isFinite(pwp.prediction.time)) {
                     const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                     timeCell = isFlying
-                        ? `${FMCMainDisplay.secondsToUTC(utcTime + pwp.flightPlanInfo.time)}[s-text]`
-                        : `${FMCMainDisplay.secondsTohhmm(pwp.flightPlanInfo.time)}[s-text]`;
+                        ? `${FMCMainDisplay.secondsToUTC(utcTime + pwp.prediction.time)}[s-text]`
+                        : `${FMCMainDisplay.secondsTohhmm(pwp.prediction.time)}[s-text]`;
                 }
 
                 let speed = "---";
-                if (pwp.flightPlanInfo) {
-                    speed = pwp.flightPlanInfo.speed < 1 ? formatMachNumber(pwp.flightPlanInfo.speed) : Math.round(pwp.flightPlanInfo.speed).toFixed(0);
+                if (pwp.prediction) {
+                    speed = pwp.prediction.speed < 1 ? formatMachNumber(pwp.prediction.speed) : Math.round(pwp.prediction.speed).toFixed(0);
                 }
 
                 scrollWindow[rowI] = {
                     fpIndex: fpIndex,
                     active: false,
-                    ident: pwp.mcduIdent || pwp.ident,
+                    ident: pwp.mcduIdent,
                     color: (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green",
                     distance: pwp.distanceInFP ? Math.round(pwp.distanceInFP).toFixed(0) : "",
-                    spdColor: pwp.flightPlanInfo ? "green" : "white",
+                    spdColor: pwp.prediction ? "green" : "white",
                     speedConstraint: speed,
-                    altColor: pwp.flightPlanInfo ? "green" : "white",
-                    altitudeConstraint: { alt: pwp.flightPlanInfo ? formatAltitudeOrLevel(pwp.flightPlanInfo.altitude) : "-----", altPrefix: "\xa0" },
+                    altColor: pwp.prediction ? "green" : "white",
+                    altitudeConstraint: { alt: pwp.prediction ? formatAltitudeOrLevel(pwp.prediction.altitude) : "-----", altPrefix: "\xa0" },
                     timeCell,
                     timeColor: color,
                     fixAnnotation: `{green}${pwp.mcduHeader || ''}{end}`,

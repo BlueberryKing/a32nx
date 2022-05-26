@@ -4,6 +4,7 @@ import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/Manage
 import { NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class ClimbSegment extends ProfileSegment {
     constructor(context: NodeContext, constraints: ConstraintReader) {
@@ -19,7 +20,8 @@ export class ClimbSegment extends ProfileSegment {
         ];
     }
 
-    allowPhaseChange(builder: ProfileBuilder): void {
+    onAfterBuildingChildren(builder: ProfileBuilder): void {
+        builder.requestPseudoWaypoint(McduPseudoWaypointType.TopOfClimb, builder.lastState);
         builder.changePhase(FmgcFlightPhase.Cruise);
     }
 

@@ -1,4 +1,4 @@
-import { AircraftStateWithPhase } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftStateWithPhase, McduPseudoWaypointRequest, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
@@ -26,6 +26,8 @@ export class VerticalFlightPlan {
 
     private descentCrossoverAltitude: Feet = 25000;
 
+    mcduPseudoWaypointRequests: McduPseudoWaypointRequest[] = []
+
     constructor(private flightPlanManager: FlightPlanManager, private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions) {
 
     }
@@ -34,9 +36,14 @@ export class VerticalFlightPlan {
         return this.state;
     }
 
-    update(checkpoints: AircraftStateWithPhase[], geometry: Geometry) {
+    update(builder: ProfileBuilder, geometry: Geometry) {
+        this.state = VerticalFlightPlanState.InComputation;
+
         this.updateCrossoverAltitudes();
-        this.computePredictionsAtWaypoints(checkpoints, geometry);
+        this.computePredictionsAtWaypoints(builder.allCheckpointsWithPhase, geometry);
+        this.mcduPseudoWaypointRequests = builder.mcduPseudoWaypointRequests;
+
+        this.state = VerticalFlightPlanState.AfterComputation;
     }
 
     private updateCrossoverAltitudes() {
@@ -74,8 +81,6 @@ export class VerticalFlightPlan {
     }
 
     private computePredictionsAtWaypoints(checkpoints: AircraftStateWithPhase[], geometry: Geometry) {
-        this.state = VerticalFlightPlanState.InComputation;
-
         this.waypointPredictions.clear();
 
         let totalDistance = 0;
@@ -127,8 +132,10 @@ export class VerticalFlightPlan {
 
             totalDistance += distanceInDiscontinuity;
         }
+    }
 
-        this.state = VerticalFlightPlanState.AfterComputation;
+    private updateMcduPseudoWaypoints(builder: ProfileBuilder) {
+        this.mcduPseudoWaypointRequests = builder.mcduPseudoWaypointRequests;
     }
 
     private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
@@ -291,7 +298,7 @@ export interface VerticalWaypointPrediction {
 }
 
 export interface VerticalPseudoWaypointPrediction {
-    distanceFromStart?: NauticalMiles,
+    distanceFromStart: NauticalMiles,
     altitude: Feet,
     speed: Knots,
     time: Seconds,

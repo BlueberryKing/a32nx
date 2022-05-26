@@ -30,10 +30,10 @@ export class CruiseAndDescentSegment extends ProfileSegment {
 
         for (let i = 0; i < 4; i++) {
             if (temporaryDescentBuilder.currentPhase === FmgcFlightPhase.Descent) {
-                temporaryDescentBuilder.resetPhase().changePhase(FmgcFlightPhase.Approach).resetPhaseUpToInitialState();
+                temporaryDescentBuilder.resetPseudoWaypoints().resetPhase().changePhase(FmgcFlightPhase.Approach).resetPhaseUpToInitialState();
             }
 
-            temporaryCruiseBuilder.resetPhaseUpToInitialState();
+            temporaryCruiseBuilder.resetPhaseUpToInitialState().resetPseudoWaypoints();
 
             this.approachSegment.accept(temporaryDescentVisitor);
             this.descentSegment.accept(temporaryDescentVisitor);
@@ -47,10 +47,14 @@ export class CruiseAndDescentSegment extends ProfileSegment {
 
         builder.changePhase(FmgcFlightPhase.Cruise);
         builder.push(...temporaryCruiseBuilder.checkpointsOfPhase(FmgcFlightPhase.Cruise));
+        builder.mcduPseudoWaypointRequests.push(...temporaryCruiseBuilder.mcduPseudoWaypointRequests);
+
         builder.changePhase(FmgcFlightPhase.Descent);
         builder.push(...temporaryDescentBuilder.checkpointsOfPhase(FmgcFlightPhase.Descent).slice().reverse());
+
         builder.changePhase(FmgcFlightPhase.Approach);
         builder.push(...temporaryDescentBuilder.checkpointsOfPhase(FmgcFlightPhase.Approach).slice().reverse());
+        builder.mcduPseudoWaypointRequests.push(...temporaryDescentBuilder.mcduPseudoWaypointRequests);
     }
 
     get repr() {

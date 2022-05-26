@@ -6,6 +6,7 @@ import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ApproachFlapSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachFlapSegment';
 import { FinalApproachSegment } from '@fmgc/flightmanagement/vnav/segments/FinalApproachSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 /**
  * This represents a path from the Missed Approach Point to the Decel point, slowing the aircraft from descent speed to Vapp.
@@ -34,7 +35,8 @@ export class ApproachSegment extends ProfileSegment {
         this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In clean configuration */
     }
 
-    allowPhaseChange(builder: ProfileBuilder): void {
+    onAfterBuildingChildren(builder: ProfileBuilder): void {
+        builder.requestPseudoWaypoint(McduPseudoWaypointType.Decel, builder.lastState);
         builder.changePhase(FmgcFlightPhase.Descent);
     }
 

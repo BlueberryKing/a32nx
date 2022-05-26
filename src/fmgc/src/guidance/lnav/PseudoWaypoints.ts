@@ -14,7 +14,7 @@ import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadi
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
-import { VerticalPseudoWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
+import { VerticalFlightPlan, VerticalPseudoWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 
 type McduPseudoWaypointTemplate = {
     readonly type: McduPseudoWaypointType,
@@ -29,7 +29,7 @@ interface McduPseudoWaypoint extends McduPseudoWaypointTemplate {
     prediction: VerticalPseudoWaypointPrediction,
 }
 
-enum McduPseudoWaypointType {
+export enum McduPseudoWaypointType {
     SpeedLimit,
     TopOfClimb,
     TopOfDescent,
@@ -61,9 +61,15 @@ export class PseudoWaypoints implements GuidanceComponent {
 
     constructor(private guidanceController: GuidanceController) { }
 
-    acceptVerticalProfile() {
+    acceptVerticalProfile(verticalFlightPlan: VerticalFlightPlan) {
         if (DEBUG) {
             console.log('[FMS/PWP] Computed new pseudo waypoints because of new vertical profile.');
+        }
+
+        this.mcduPseudoWaypoints.length = 0;
+
+        for (const { type, state } of verticalFlightPlan.mcduPseudoWaypointRequests) {
+            this.registerMcduPseudoWaypoint(type, state);
         }
     }
 
@@ -71,8 +77,6 @@ export class PseudoWaypoints implements GuidanceComponent {
         if (DEBUG) {
             console.log('[FMS/PWP] Computed new pseudo waypoints because of new lateral geometry.');
         }
-
-        this.mcduPseudoWaypoints.length = 0;
     }
 
     registerMcduPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
@@ -80,10 +84,9 @@ export class PseudoWaypoints implements GuidanceComponent {
         const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
 
         // Find position in flight plan
-        // TODO: Make `pointFromEndOfPath` use `distanceFromStart` instead of end
-        const [_, distanceFromEndOfLeg, alongLegIndex] = this.pointFromEndOfPath(geometry, wptCount, state.distanceFromStart);
+        const [_, distanceFromLastFix, alongLegIndex] = this.pointOnPath(geometry, wptCount, state.distanceFromStart);
 
-        const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix: distanceFromEndOfLeg, prediction: state as VerticalPseudoWaypointPrediction };
+        const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix, prediction: state as VerticalPseudoWaypointPrediction };
 
         this.mcduPseudoWaypoints.push(pwp);
     }
@@ -155,13 +158,13 @@ export class PseudoWaypoints implements GuidanceComponent {
         }
     }
 
-    private pointFromEndOfPath(
+    private pointOnPath(
         path: Geometry,
         wptCount: number,
-        distanceFromEnd: NauticalMiles,
+        distanceFromStart: NauticalMiles,
         debugString?: string,
     ): [lla: Coordinates, distanceFromLastFix: number, legIndex: number] | undefined {
-        if (!distanceFromEnd || distanceFromEnd < 0) {
+        if (!distanceFromStart || distanceFromStart < 0) {
             if (VnavConfig.DEBUG_PROFILE) {
                 console.warn('[FMS/PWP](pointFromEndOfPath) distanceFromEnd was negative or undefined');
             }
@@ -172,10 +175,10 @@ export class PseudoWaypoints implements GuidanceComponent {
         let accumulator = 0;
 
         if (DEBUG) {
-            console.log(`[FMS/PWP] Starting placement of PWP '${debugString}': dist: ${distanceFromEnd.toFixed(2)}nm`);
+            console.log(`[FMS/PWP] Starting placement of PWP '${debugString}': dist: ${distanceFromStart.toFixed(2)}nm`);
         }
 
-        for (let i = wptCount - 1; i > 0; i--) {
+        for (let i = 1; i < wptCount; i++) {
             const leg = path.legs.get(i);
 
             if (!leg || leg.isNull) {
@@ -212,17 +215,17 @@ export class PseudoWaypoints implements GuidanceComponent {
                 const outb = outboundTransLength.toFixed(2);
                 const acc = accumulator.toFixed(2);
 
-                console.log(`[FMS/PWP] Trying to place PWP '${debugString}' ${distanceFromEnd.toFixed(2)} along leg #${i}; inb: ${inb}, leg: ${legd}, outb: ${outb}, acc: ${acc}`);
+                console.log(`[FMS/PWP] Trying to place PWP '${debugString}' ${distanceFromStart.toFixed(2)} along leg #${i}; inb: ${inb}, leg: ${legd}, outb: ${outb}, acc: ${acc}`);
             }
 
-            if (accumulator > distanceFromEnd) {
-                if (accumulator - totalLegPathLength > distanceFromEnd) {
+            if (accumulator > distanceFromStart) {
+                if (accumulator - distanceInDiscontinuity < distanceFromStart) {
                     // Points lies on discontinuity (on the direct line between the two fixes)
                     // In this case, we don't want to place the
                     return undefined;
                 }
 
-                const distanceFromLastFix = accumulator - distanceFromEnd;
+                const distanceFromLastFix = distanceFromStart - (accumulator - distanceInDiscontinuity - totalLegPathLength);
 
                 let lla;
                 if (distanceFromLastFix > inboundTransLength + legPartLength) {
@@ -264,7 +267,7 @@ export class PseudoWaypoints implements GuidanceComponent {
         }
 
         if (DEBUG) {
-            console.error(`[FMS/PseudoWaypoints] ${distanceFromEnd.toFixed(2)}nm is larger than the total lateral path.`);
+            console.error(`[FMS/PseudoWaypoints] ${distanceFromStart.toFixed(2)}nm is larger than the total lateral path.`);
         }
 
         return undefined;

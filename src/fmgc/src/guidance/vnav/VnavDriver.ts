@@ -1,7 +1,6 @@
 //  Copyright (c) 2021 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { RequestedVerticalMode, TargetAltitude, TargetVerticalSpeed } from '@fmgc/guidance/ControlLaws';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { CoarsePredictions } from '@fmgc/guidance/vnav/CoarsePredictions';
@@ -19,6 +18,7 @@ import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfi
 import { VerticalProfileManager } from '@fmgc/flightmanagement/vnav/VerticalProfileManager';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { VerticalWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
+import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 
@@ -87,9 +87,9 @@ export class VnavDriver implements GuidanceComponent {
         this.headingProfile.updateGeometry(this.guidanceController.activeGeometry);
 
         // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
-        // this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
         this.profileManager.update(geometry);
+        this.guidanceController.pseudoWaypoints.acceptVerticalProfile(this.profileManager.verticalFlightPlanForMcdu);
 
         this.version++;
     }
@@ -119,8 +119,10 @@ export class VnavDriver implements GuidanceComponent {
                 );
                 this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
 
+                this.profileManager.update(this.guidanceController.activeGeometry);
+                this.guidanceController.pseudoWaypoints.acceptVerticalProfile(this.profileManager.verticalFlightPlanForMcdu);
+
                 // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
-                // this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
                 this.version++;
             }

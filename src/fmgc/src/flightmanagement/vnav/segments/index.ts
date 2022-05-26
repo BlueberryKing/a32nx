@@ -10,6 +10,7 @@ import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegm
 import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/CruiseAndDescentSegment';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export enum VerticalSegmentType {
     Unknown = 1,
@@ -41,7 +42,7 @@ export class BuilderVisitor implements Visitor {
     }
 
     visitAfterChildren(node: ProfileSegment, context: VisitorContext) {
-        node.allowPhaseChange(this.builder);
+        node.onAfterBuildingChildren(this.builder);
     }
 }
 
@@ -76,10 +77,17 @@ export interface AircraftState {
     weight: Pounds,
 }
 
+export interface McduPseudoWaypointRequest {
+    type: McduPseudoWaypointType,
+    state: AircraftState
+}
+
 export class ProfileBuilder {
     private currentFlightPhase: FmgcFlightPhase;
 
     private phases: Map<FmgcFlightPhase, AircraftState[]> = new Map();
+
+    mcduPseudoWaypointRequests: McduPseudoWaypointRequest[] = []
 
     constructor(initialState: AircraftState, phase: FmgcFlightPhase, private buildInReverse: boolean = false) {
         this.currentFlightPhase = phase;
@@ -101,6 +109,13 @@ export class ProfileBuilder {
         }
 
         return this;
+    }
+
+    requestPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
+        this.mcduPseudoWaypointRequests.push({
+            type,
+            state,
+        });
     }
 
     get lastState(): AircraftState {
@@ -173,6 +188,12 @@ export class ProfileBuilder {
 
     resetPhase(): ProfileBuilder {
         this.phases.set(this.currentFlightPhase, []);
+
+        return this;
+    }
+
+    resetPseudoWaypoints(): ProfileBuilder {
+        this.mcduPseudoWaypointRequests.length = 0;
 
         return this;
     }

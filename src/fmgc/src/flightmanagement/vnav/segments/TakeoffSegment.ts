@@ -19,7 +19,7 @@ export class TakeoffSegment extends ProfileSegment {
         ];
     }
 
-    allowPhaseChange(builder: ProfileBuilder): void {
+    onAfterBuildingChildren(builder: ProfileBuilder): void {
         builder.changePhase(FmgcFlightPhase.Climb);
     }
 
