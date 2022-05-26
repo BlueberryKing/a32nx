@@ -41,7 +41,7 @@ export class VerticalFlightPlan {
 
         this.updateCrossoverAltitudes();
         this.computePredictionsAtWaypoints(builder.allCheckpointsWithPhase, geometry);
-        this.mcduPseudoWaypointRequests = builder.mcduPseudoWaypointRequests;
+        this.updateMcduPseudoWaypoints(builder);
 
         this.state = VerticalFlightPlanState.AfterComputation;
     }
