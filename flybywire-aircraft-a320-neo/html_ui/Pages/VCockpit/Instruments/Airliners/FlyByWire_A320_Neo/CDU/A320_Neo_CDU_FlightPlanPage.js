@@ -320,7 +320,6 @@ class CDUFlightPlanPage {
                 if (fpIndex === fpm.getDestinationIndex()) {
                     // Only for destination waypoint, show runway elevation.
                     altColor = "white";
-                    spdColor = "white";
                     const [rwTxt, rwAlt] = getRunwayInfo(fpm.getDestinationRunway());
                     if (rwTxt && rwAlt) {
                         altPrefix = "{magenta}*{end}";
@@ -373,7 +372,7 @@ class CDUFlightPlanPage {
                     altColor = "white";
                 }
 
-                if (fpIndex !== fpm.getDestinationIndex() && timeCell !== "----[s-text]") {
+                if (timeCell !== "----[s-text]") {
                     timeColor = color;
                 } else {
                     timeColor = "white";
