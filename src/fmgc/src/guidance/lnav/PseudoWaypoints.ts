@@ -84,7 +84,13 @@ export class PseudoWaypoints implements GuidanceComponent {
         const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
 
         // Find position in flight plan
-        const [_, distanceFromLastFix, alongLegIndex] = this.pointOnPath(geometry, wptCount, state.distanceFromStart);
+        const position = this.pointOnPath(geometry, wptCount, state.distanceFromStart);
+        if (!position) {
+            console.warn(`[FMS/VNAV] Could not place PWP of type ${type}: ${JSON.stringify(state)}`);
+            return;
+        }
+
+        const [_, distanceFromLastFix, alongLegIndex] = position;
 
         const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix, prediction: state as VerticalPseudoWaypointPrediction };
 

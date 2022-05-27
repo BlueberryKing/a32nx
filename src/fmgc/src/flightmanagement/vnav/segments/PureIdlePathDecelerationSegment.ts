@@ -29,6 +29,7 @@ export class PureIdlePathDecelerationSegment extends ProfileSegment {
         this.idleThrustPropagator = speedChangePropagator(
             new IdleThrustSetting(context.atmosphericConditions),
             new VerticalSpeedPitchTarget(-500),
+            false,
             context,
             -0.1,
         );

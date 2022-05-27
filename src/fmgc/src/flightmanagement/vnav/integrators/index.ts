@@ -147,7 +147,9 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
     };
 }
 
-export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget: PitchTarget, context: NodeContext, stepSize: NauticalMiles = 0.1, useMachVsCas: boolean = false) {
+export function speedChangePropagator(
+    thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, context: NodeContext, stepSize: NauticalMiles = 0.1, useMachVsCas: boolean = false,
+) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -168,7 +170,18 @@ export function speedChangePropagator(thrustSetting: ThrustSetting, pitchTarget:
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
 
         const availableGradient: Radians = FlightModel.getAvailableGradient(thrust, drag, state.weight);
-        const pathAngle: Radians = pitchTarget.getPathAngle(state);
+
+        // I don't know if this exists in the real aircraft. I suspect there is, but these are just empricial values.
+        const minimumAccelDecel: KnotsPerSecond = desireAccelerationVsDeceleration ? 0.5 : -0.3;
+
+        // The reason this is here is that we might be demanding a patüeh angle which doesn't actually end up accelerating/decelerating the plane.
+        const pathAngleForMinimumAccelDecel = FlightModel.fpaForGradient(availableGradient, minimumAccelDecel / FlightModel.gravityConstKNS, accelerationFactor);
+
+        const targetPathAngle: Radians = pitchTarget.getPathAngle(state);
+        const pathAngle = desireAccelerationVsDeceleration
+            ? Math.max(0, Math.min(targetPathAngle, pathAngleForMinimumAccelDecel))
+            : Math.min(0, Math.max(targetPathAngle, pathAngleForMinimumAccelDecel));
+
         const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
         const verticalSpeed: FeetPerMinute = 101.268 * state.trueAirspeed * Math.sin(pathAngle);
         const stepTime: Seconds = 3600 * stepSize / groundSpeed;

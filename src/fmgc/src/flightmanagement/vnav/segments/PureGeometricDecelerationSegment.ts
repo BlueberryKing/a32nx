@@ -15,6 +15,7 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
         this.propagator = speedChangePropagator(
             new IdleThrustSetting(context.atmosphericConditions),
             new FlightPathAnglePitchTarget(flightPathAngle),
+            false,
             context,
             -0.1,
         );

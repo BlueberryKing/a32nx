@@ -21,7 +21,7 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
 
         const pitchTarget = new FlightPathAnglePitchTarget(0);
 
-        this.propagator = speedChangePropagator(thrustSetting, pitchTarget, this.context);
+        this.propagator = speedChangePropagator(thrustSetting, pitchTarget, true, this.context);
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {

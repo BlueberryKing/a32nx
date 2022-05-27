@@ -24,6 +24,7 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
         const propagator = speedChangePropagator(
             new IdleThrustSetting(this.context.atmosphericConditions),
             new FlightPathAnglePitchTarget(this.flightPathAngle),
+            false,
             this.context,
             -0.1,
         );
