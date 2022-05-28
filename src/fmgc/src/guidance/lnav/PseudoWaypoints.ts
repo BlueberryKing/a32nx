@@ -27,6 +27,7 @@ interface McduPseudoWaypoint extends McduPseudoWaypointTemplate {
     alongLegIndex: number,
     distanceFromLastFix: NauticalMiles;
     prediction: VerticalPseudoWaypointPrediction,
+    speedConstraint?: Knots
 }
 
 export enum McduPseudoWaypointType {
@@ -68,8 +69,8 @@ export class PseudoWaypoints implements GuidanceComponent {
 
         this.mcduPseudoWaypoints.length = 0;
 
-        for (const { type, state } of verticalFlightPlan.mcduPseudoWaypointRequests) {
-            this.registerMcduPseudoWaypoint(type, state);
+        for (const { type, state, speedConstraint } of verticalFlightPlan.mcduPseudoWaypointRequests) {
+            this.registerMcduPseudoWaypoint(type, state, speedConstraint);
         }
     }
 
@@ -77,24 +78,6 @@ export class PseudoWaypoints implements GuidanceComponent {
         if (DEBUG) {
             console.log('[FMS/PWP] Computed new pseudo waypoints because of new lateral geometry.');
         }
-    }
-
-    registerMcduPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
-        const geometry = this.guidanceController.activeGeometry;
-        const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
-
-        // Find position in flight plan
-        const position = this.pointOnPath(geometry, wptCount, state.distanceFromStart);
-        if (!position) {
-            console.warn(`[FMS/VNAV] Could not place PWP of type ${type}: ${JSON.stringify(state)}`);
-            return;
-        }
-
-        const [_, distanceFromLastFix, alongLegIndex] = position;
-
-        const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix, prediction: state as VerticalPseudoWaypointPrediction };
-
-        this.mcduPseudoWaypoints.push(pwp);
     }
 
     init() {
@@ -278,4 +261,36 @@ export class PseudoWaypoints implements GuidanceComponent {
 
         return undefined;
     }
+
+    registerMcduPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState, speedConstraint?: SpeedConstraintPrediction) {
+        const geometry = this.guidanceController.activeGeometry;
+        const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
+
+        // Find position in flight plan
+        const position = this.pointOnPath(geometry, wptCount, state.distanceFromStart);
+        if (!position) {
+            console.warn(`[FMS/VNAV] Could not place PWP of type ${type}: ${JSON.stringify(state)}`);
+            return;
+        }
+
+        const [_, distanceFromLastFix, alongLegIndex] = position;
+
+        const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix, prediction: this.formatPseudoWaypointPrediction(state, speedConstraint) };
+
+        this.mcduPseudoWaypoints.push(pwp);
+    }
+
+    private formatPseudoWaypointPrediction(state: AircraftState, speedConstraint?: SpeedConstraintPrediction): VerticalPseudoWaypointPrediction {
+        return {
+            distanceFromStart: state.distanceFromStart,
+            altitude: state.altitude,
+            speed: state.speed,
+            time: state.time,
+            speedConstraint,
+        };
+    }
+}
+
+export type SpeedConstraintPrediction = {
+    speed: Knots, isMet: boolean
 }

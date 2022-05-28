@@ -400,6 +400,7 @@ class CDUFlightPlanPage {
                     timeCell,
                     timeColor,
                     fixAnnotation: fixAnnotation ? fixAnnotation : "",
+                    fixAnnotationColor: "white",
                     bearingTrack,
                     isOverfly,
                     slashColor
@@ -484,8 +485,13 @@ class CDUFlightPlanPage {
                 }
 
                 let speed = "---";
+                let speedPrefix = "";
                 if (pwp.prediction) {
                     speed = pwp.prediction.speed < 1 ? formatMachNumber(pwp.prediction.speed) : Math.round(pwp.prediction.speed).toFixed(0);
+
+                    if (pwp.prediction.speedConstraint && pwp.prediction.speedConstraint.speed > 100) {
+                        speedPrefix = pwp.prediction.speedConstraint.isMet ? "{magenta}*{end}" : "{amber}*{end}";
+                    }
                 }
 
                 scrollWindow[rowI] = {
@@ -495,15 +501,16 @@ class CDUFlightPlanPage {
                     color: (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green",
                     distance: pwp.distanceInFP ? Math.round(pwp.distanceInFP).toFixed(0) : "",
                     spdColor: pwp.prediction ? "green" : "white",
-                    speedConstraint: speed,
+                    speedConstraint: speedPrefix + speed,
                     altColor: pwp.prediction ? "green" : "white",
                     altitudeConstraint: { alt: pwp.prediction ? formatAltitudeOrLevel(pwp.prediction.altitude) : "-----", altPrefix: "\xa0" },
                     timeCell,
                     timeColor: color,
-                    fixAnnotation: `{green}${pwp.mcduHeader || ''}{end}`,
+                    fixAnnotation: `${pwp.mcduHeader || ''}`,
+                    fixAnnotationColor: color,
                     bearingTrack: "",
                     isOverfly: false,
-                    slashColor: "green"
+                    slashColor: color,
                 };
 
                 addLskAt(rowI, 0, (value, scratchpadCallback) => {
@@ -786,9 +793,9 @@ function renderFixTableHeader(isFlying) {
 }
 
 function renderFixHeader(rowObj, showNm = false, showDist = true, showFix = true) {
-    const { fixAnnotation, color, distance, bearingTrack } = rowObj;
+    const { fixAnnotation, fixAnnotationColor, color, distance, bearingTrack, } = rowObj;
     return [
-        `${(showFix) ? fixAnnotation.padEnd(7, "\xa0").padStart(8, "\xa0") : ""}`,
+        `${(showFix) ? fixAnnotation.padEnd(7, "\xa0").padStart(8, "\xa0") : ""}[color]${fixAnnotationColor}`,
         `${ showDist ? (showNm ? distance + "NM" : distance) : ''}${'\xa0'.repeat(showNm ? 3 : 5)}[color]${color}`,
         `{${color}}${bearingTrack}{end}\xa0`,
     ];

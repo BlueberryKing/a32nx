@@ -10,7 +10,7 @@ import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegm
 import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/CruiseAndDescentSegment';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { McduPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export enum VerticalSegmentType {
     Unknown = 1,
@@ -79,7 +79,8 @@ export interface AircraftState {
 
 export interface McduPseudoWaypointRequest {
     type: McduPseudoWaypointType,
-    state: AircraftState
+    state: AircraftState,
+    speedConstraint?: SpeedConstraintPrediction
 }
 
 export class ProfileBuilder {

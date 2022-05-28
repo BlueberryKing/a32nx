@@ -1,10 +1,11 @@
+import { Interpolator } from '@fmgc/flightmanagement/vnav/common/Interpolator';
 import { AircraftStateWithPhase, McduPseudoWaypointRequest, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { Geometry } from '@fmgc/guidance/Geometry';
-import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
+import { AltitudeConstraint, AltitudeConstraintType, SpeedConstraint } from '@fmgc/guidance/lnav/legs';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
+import { McduPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { Common } from '@fmgc/guidance/vnav/common';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanManager } from '@shared/flightplan';
@@ -104,7 +105,7 @@ export class VerticalFlightPlan {
 
             totalDistance += totalLegLength;
 
-            const { time, altitude, speed, mach, phase } = this.interpolateEverythingFromStart(checkpoints, totalDistance);
+            const { time, altitude, speed, mach, phase } = Interpolator.interpolateEverythingFromStart(checkpoints, totalDistance);
 
             this.waypointPredictions.set(i, {
                 waypointIndex: i,
@@ -136,6 +137,44 @@ export class VerticalFlightPlan {
 
     private updateMcduPseudoWaypoints(builder: ProfileBuilder) {
         this.mcduPseudoWaypointRequests = builder.mcduPseudoWaypointRequests;
+        this.addSpeedLimitPseudoWaypoints(builder);
+    }
+
+    private addSpeedLimitPseudoWaypoints(builder: ProfileBuilder) {
+        const { climbSpeedLimit, descentSpeedLimit, cruiseAltitude } = this.observer.get();
+
+        if (Number.isFinite(climbSpeedLimit.speed) && Number.isFinite(climbSpeedLimit.underAltitude) && cruiseAltitude >= climbSpeedLimit.underAltitude) {
+            const climbCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Climb).map((state) => ({ ...state, phase: FmgcFlightPhase.Climb }));
+            const distanceToSpeedLimitCrossing = Interpolator.interpolateDistanceAtAltitude(climbCheckpoints, climbSpeedLimit.underAltitude);
+            const speedLimitCrossing = Interpolator.interpolateEverythingFromStart(climbCheckpoints, distanceToSpeedLimitCrossing);
+
+            this.mcduPseudoWaypointRequests.push({
+                type: McduPseudoWaypointType.SpeedLimit,
+                state: speedLimitCrossing,
+                speedConstraint: {
+                    speed: climbSpeedLimit.speed,
+                    isMet: this.isSpeedConstraintMet(speedLimitCrossing.speed, climbSpeedLimit),
+                },
+            });
+        }
+
+        if (Number.isFinite(descentSpeedLimit.speed) && Number.isFinite(descentSpeedLimit.underAltitude) && cruiseAltitude >= descentSpeedLimit.underAltitude) {
+            const descentCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Descent).map((state) => ({ ...state, phase: FmgcFlightPhase.Descent }));
+            const approachCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Approach).map((state) => ({ ...state, phase: FmgcFlightPhase.Approach }));
+            const relevantCheckpoints = [...descentCheckpoints, ...approachCheckpoints];
+
+            const distanceToSpeedLimitCrossing = Interpolator.interpolateDistanceAtAltitude(relevantCheckpoints, descentSpeedLimit.underAltitude, true);
+            const speedLimitCrossing = Interpolator.interpolateEverythingFromStart(relevantCheckpoints, distanceToSpeedLimitCrossing);
+
+            this.mcduPseudoWaypointRequests.push({
+                type: McduPseudoWaypointType.SpeedLimit,
+                state: speedLimitCrossing,
+                speedConstraint: {
+                    speed: descentSpeedLimit.speed,
+                    isMet: this.isSpeedConstraintMet(speedLimitCrossing.speed, descentSpeedLimit),
+                },
+            });
+        }
     }
 
     private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
@@ -158,22 +197,12 @@ export class VerticalFlightPlan {
         }
     }
 
-    private isSpeedConstraintMet(speed: Knots, constraint?: SpeedConstraint): boolean {
+    private isSpeedConstraintMet(speed: Knots, constraint?: { speed: Knots }): boolean {
         if (!constraint) {
             return true;
         }
 
-        switch (constraint.type) {
-        case SpeedConstraintType.at:
-            return Math.abs(speed - constraint.speed) < 5;
-        case SpeedConstraintType.atOrBelow:
-            return speed - constraint.speed < 5;
-        case SpeedConstraintType.atOrAbove:
-            return speed - constraint.speed > -5;
-        default:
-            console.error('Invalid speed constraint type');
-            return null;
-        }
+        return speed - constraint.speed < 5;
     }
 
     private computeAltError(predictedAltitude: Feet, constraint?: AltitudeConstraint): number {
@@ -201,86 +230,6 @@ export class VerticalFlightPlan {
             return 0;
         }
     }
-
-    private interpolateEverythingFromStart(checkpoints: AircraftStateWithPhase[], distanceFromStart: NauticalMiles): AircraftStateWithPhase {
-        if (distanceFromStart <= checkpoints[0].distanceFromStart) {
-            return {
-                distanceFromStart,
-                time: checkpoints[0].time,
-                altitude: checkpoints[0].altitude,
-                weight: checkpoints[0].weight,
-                speed: checkpoints[0].speed,
-                mach: checkpoints[0].mach,
-                trueAirspeed: checkpoints[0].trueAirspeed,
-                config: checkpoints[0].config,
-                phase: checkpoints[0].phase,
-            };
-        }
-
-        for (let i = 0; i < checkpoints.length - 1; i++) {
-            if (distanceFromStart > checkpoints[i].distanceFromStart && distanceFromStart <= checkpoints[i + 1].distanceFromStart) {
-                return {
-                    distanceFromStart,
-                    time: Common.interpolate(
-                        distanceFromStart,
-                        checkpoints[i].distanceFromStart,
-                        checkpoints[i + 1].distanceFromStart,
-                        checkpoints[i].time,
-                        checkpoints[i + 1].time,
-                    ),
-                    altitude: Common.interpolate(
-                        distanceFromStart,
-                        checkpoints[i].distanceFromStart,
-                        checkpoints[i + 1].distanceFromStart,
-                        checkpoints[i].altitude,
-                        checkpoints[i + 1].altitude,
-                    ),
-                    weight: Common.interpolate(
-                        distanceFromStart,
-                        checkpoints[i].distanceFromStart,
-                        checkpoints[i + 1].distanceFromStart,
-                        checkpoints[i].weight,
-                        checkpoints[i + 1].weight,
-                    ),
-                    speed: Common.interpolate(
-                        distanceFromStart,
-                        checkpoints[i].distanceFromStart,
-                        checkpoints[i + 1].distanceFromStart,
-                        checkpoints[i].speed,
-                        checkpoints[i + 1].speed,
-                    ),
-                    trueAirspeed: Common.interpolate(
-                        distanceFromStart,
-                        checkpoints[i].distanceFromStart,
-                        checkpoints[i + 1].distanceFromStart,
-                        checkpoints[i].trueAirspeed,
-                        checkpoints[i + 1].trueAirspeed,
-                    ),
-                    mach: Common.interpolate(
-                        distanceFromStart,
-                        checkpoints[i].distanceFromStart,
-                        checkpoints[i + 1].distanceFromStart,
-                        checkpoints[i].mach,
-                        checkpoints[i + 1].mach,
-                    ),
-                    config: checkpoints[i].config,
-                    phase: checkpoints[i].phase,
-                };
-            }
-        }
-
-        return {
-            distanceFromStart,
-            time: checkpoints[checkpoints.length - 1].time,
-            altitude: checkpoints[checkpoints.length - 1].altitude,
-            weight: checkpoints[checkpoints.length - 1].weight,
-            speed: checkpoints[checkpoints.length - 1].speed,
-            trueAirspeed: checkpoints[checkpoints.length - 1].trueAirspeed,
-            mach: checkpoints[checkpoints.length - 1].mach,
-            config: checkpoints[checkpoints.length - 1].config,
-            phase: checkpoints[checkpoints.length - 1].phase,
-        };
-    }
 }
 
 export interface VerticalWaypointPrediction {
@@ -302,4 +251,5 @@ export interface VerticalPseudoWaypointPrediction {
     altitude: Feet,
     speed: Knots,
     time: Seconds,
+    speedConstraint?: SpeedConstraintPrediction,
 }
