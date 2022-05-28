@@ -85,6 +85,7 @@ export class VerticalFlightPlan {
         this.waypointPredictions.clear();
 
         let totalDistance = 0;
+        const { zeroFuelWeight } = this.observer.get();
 
         for (let i = 0; i < this.flightPlanManager.getWaypointsCount(); i++) {
             const leg = geometry.legs.get(i);
@@ -105,7 +106,7 @@ export class VerticalFlightPlan {
 
             totalDistance += totalLegLength;
 
-            const { time, altitude, speed, mach, phase } = Interpolator.interpolateEverythingFromStart(checkpoints, totalDistance);
+            const { time, altitude, speed, mach, weight, phase } = Interpolator.interpolateEverythingFromStart(checkpoints, totalDistance);
 
             this.waypointPredictions.set(i, {
                 waypointIndex: i,
@@ -113,6 +114,7 @@ export class VerticalFlightPlan {
                 time,
                 altitude,
                 speed: altitude >= this.getCrossoverAltitudeByPhase(phase) ? mach : speed,
+                estimatedFuelOnBoard: weight - zeroFuelWeight,
                 altitudeConstraint: leg.metadata.altitudeConstraint,
                 isAltitudeConstraintMet: this.isAltitudeConstraintMet(altitude, leg.metadata.altitudeConstraint),
                 speedConstraint: leg.metadata.speedConstraint,
@@ -238,6 +240,7 @@ export interface VerticalWaypointPrediction {
     time: Seconds,
     altitude: Feet,
     speed: Knots | Mach,
+    estimatedFuelOnBoard: Pounds,
     altitudeConstraint: AltitudeConstraint,
     speedConstraint: SpeedConstraint,
     isAltitudeConstraintMet: boolean,

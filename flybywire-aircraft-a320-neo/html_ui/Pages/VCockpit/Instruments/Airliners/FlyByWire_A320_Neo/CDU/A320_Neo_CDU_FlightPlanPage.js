@@ -693,8 +693,9 @@ class CDUFlightPlanPage {
                 if (finalState) {
                     destDistCell = Math.round(finalState.distanceFromStart).toFixed(0);
 
-                    if (false && isFinite(destEfob)) {
-                        destEFOBCell = (NXUnits.poundsToUser(destEfob) / 1000).toFixed(1);
+                    const efob = finalState.estimatedFuelOnBoard;
+                    if (efob && isFinite(efob)) {
+                        destEFOBCell = (NXUnits.poundsToUser(efob) / 1000).toFixed(1);
                     }
 
                     const timeRemaining = finalState.time;
