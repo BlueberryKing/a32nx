@@ -2,8 +2,9 @@ import { GeometricPathSegment } from '@fmgc/flightmanagement/vnav/segments/Geome
 import { IdlePathSegment } from '@fmgc/flightmanagement/vnav/segments/IdlePathSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { NodeContext } from '@fmgc/flightmanagement/vnav/segments';
+import { NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class ManagedDescentSegment extends ProfileSegment {
     /**
@@ -46,6 +47,10 @@ export class ManagedDescentSegment extends ProfileSegment {
 
     get repr(): string {
         return 'ManagedDescentSegment';
+    }
+
+    onAfterBuildingChildren(builder: ProfileBuilder): void {
+        builder.requestPseudoWaypoint(McduPseudoWaypointType.TopOfDescent, builder.lastState);
     }
 
     /**
