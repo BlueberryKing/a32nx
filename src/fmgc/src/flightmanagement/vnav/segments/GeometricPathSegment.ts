@@ -34,14 +34,16 @@ export class GeometricPathSegment extends ProfileSegment {
         }
 
         const geometricPathEndPoint = { distanceFromStart: this.lastConstraint.distanceFromStart, altitude: this.lastConstraint.constraint.altitude1 };
-        const plannedSegments = [];
+        const plannedSegments: PlannedGeometricSegment[] = [];
         this.planDescentSegments(state, geometricPathEndPoint, plannedSegments);
 
         for (const plannedSegment of plannedSegments) {
             const fpa = MathUtils.RADIANS_TO_DEGREES * Math.atan(plannedSegment.gradient / 6076.12);
 
             this.children.unshift(
-                new DescentAltitudeConstraintSegment(this.context, this.constraints, plannedSegment.end.distanceFromStart, fpa, this.maxSpeed, this.toAltitude, this.useMachVsCas),
+                new DescentAltitudeConstraintSegment(
+                    this.context, this.constraints, plannedSegment.end.distanceFromStart, fpa, this.maxSpeed, Math.min(this.toAltitude, plannedSegment.end.altitude), this.useMachVsCas,
+                ),
             );
         }
     }
@@ -54,7 +56,7 @@ export class GeometricPathSegment extends ProfileSegment {
         for (let i = 0; i < constraints.length; i++) {
             const constraint = constraints[i];
 
-            if (constraint.distanceFromStart > start.distanceFromStart || constraint.distanceFromStart <= end.distanceFromStart) {
+            if (constraint.distanceFromStart >= start.distanceFromStart || constraint.distanceFromStart < end.distanceFromStart) {
                 continue;
             }
 
