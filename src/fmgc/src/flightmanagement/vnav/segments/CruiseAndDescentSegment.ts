@@ -7,6 +7,7 @@ import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
 
 export class CruiseAndDescentSegment extends ProfileSegment {
     private descentSegment: ManagedDescentSegment;
@@ -21,6 +22,10 @@ export class CruiseAndDescentSegment extends ProfileSegment {
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
+        measurePerformance(() => this.computeInternal(state, builder), (time) => CpuTimer.cruiseAndDescentTime = time);
+    }
+
+    private computeInternal(state: AircraftState, builder: ProfileBuilder): void {
         const initialState = this.getInitialState(this.context, this.constraintReader);
         const temporaryDescentBuilder = new ProfileBuilder(initialState, FmgcFlightPhase.Approach, true);
         const temporaryDescentVisitor = new BuilderVisitor(temporaryDescentBuilder);

@@ -12,6 +12,7 @@ import { Geometry } from '@fmgc/guidance/Geometry';
 import { VerticalFlightPlan, VerticalWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { FlightPlanManager } from '@shared/flightplan';
 import { FmgcFlightPhase } from '@shared/flightphase';
+import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
 
 // Tasks: Compute a vertical profile for different use cases:
 //  - A tactical profile used to display pseudowaypoints such as level off arrows on the ND
@@ -65,9 +66,11 @@ export class VerticalProfileManager {
 
         const builder = new ProfileBuilder(initialState, FmgcFlightPhase.Takeoff);
         const visitor = new BuilderVisitor(builder);
-        const profile = new McduProfile(context, this.constraintReader, this.stepCoordinator);
 
-        profile.accept(visitor);
+        CpuTimer.reset();
+
+        const profile = measurePerformance(() => new McduProfile(context, this.constraintReader, this.stepCoordinator), (time) => CpuTimer.initializationTime = time);
+        measurePerformance(() => profile.accept(visitor), (time) => CpuTimer.visitorTime = time);
 
         if (VnavConfig.DEBUG_PROFILE) {
             console.log(visitor);

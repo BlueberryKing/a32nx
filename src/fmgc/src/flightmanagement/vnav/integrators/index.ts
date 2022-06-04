@@ -1,3 +1,4 @@
+import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
 import { AircraftState, NodeContext, TemporaryStateSequence } from '@fmgc/flightmanagement/vnav/segments';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { AccelFactorMode, Common } from '@fmgc/guidance/vnav/common';
@@ -301,6 +302,13 @@ export type IntegrationPropagator = (state: AircraftState) => AircraftState;
 
 export class Integrator {
     integrate(startingState: AircraftState, endConditions: IntegrationEndCondition[], propagator: IntegrationPropagator): TemporaryStateSequence {
+        return measurePerformance(() => this.integrateInternal(startingState, endConditions, propagator), (time, result) => {
+            CpuTimer.integrationTime += time;
+            CpuTimer.integrationSteps += result.length - 1;
+        });
+    }
+
+    private integrateInternal(startingState: AircraftState, endConditions: IntegrationEndCondition[], propagator: IntegrationPropagator): TemporaryStateSequence {
         const states = new TemporaryStateSequence(startingState);
 
         if (endConditions.some((condition) => condition(startingState))) {
