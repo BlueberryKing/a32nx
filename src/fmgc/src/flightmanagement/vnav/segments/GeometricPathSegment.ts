@@ -82,7 +82,7 @@ export class GeometricPathSegment extends ProfileSegment {
                 this.planDescentSegments(center, end, segments);
 
                 return;
-            } if (constraintType === AltitudeConstraintType.range && constraint.constraint.altitude2 - altAtConstraint > 250 || altAtConstraint - constraint.constraint.altitude1 > 250) {
+            } if (constraintType === AltitudeConstraintType.range && (constraint.constraint.altitude2 - altAtConstraint > 250 || altAtConstraint - constraint.constraint.altitude1 > 250)) {
                 const altitude = Math.min(constraint.constraint.altitude2, Math.max(altAtConstraint, constraint.constraint.altitude1));
                 const center = { distanceFromStart: constraint.distanceFromStart, altitude };
 
