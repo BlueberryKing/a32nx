@@ -7,6 +7,7 @@ import { ApproachFlapSegment } from '@fmgc/flightmanagement/vnav/segments/Approa
 import { FinalApproachSegment } from '@fmgc/flightmanagement/vnav/segments/FinalApproachSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { ApproachInitialDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachInitialDecelerationSegment';
 
 /**
  * This represents a path from the Missed Approach Point to the Decel point, slowing the aircraft from descent speed to Vapp.
@@ -32,7 +33,7 @@ export class ApproachSegment extends ProfileSegment {
         this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_1 }, true));
         this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In flaps 1 */
         this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CLEAN }, true));
-        this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In clean configuration */
+        this.children.push(new ApproachInitialDecelerationSegment(context, constraints)); /* In clean configuration */
     }
 
     onAfterBuildingChildren(builder: ProfileBuilder): void {
