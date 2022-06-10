@@ -1,11 +1,11 @@
-import { accelerationPropagator, IntegrationEndCondition, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
+import { accelerationPropagator, IntegrationEndConditions, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureAccelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 
-    private readonly endConditions: IntegrationEndCondition[] = [];
+    private readonly endConditions: IntegrationEndConditions;
 
     constructor(
         private context: NodeContext,
@@ -17,12 +17,12 @@ export class PureAccelerationSegment extends ProfileSegment {
     ) {
         super();
 
-        this.endConditions = [
-            (state) => state.speed > toSpeed,
-            (state) => state.mach > toMach,
-            (state) => state.altitude > toAltitude,
-            (state) => state.distanceFromStart > maxDistance,
-        ];
+        this.endConditions = {
+            speed: { max: toSpeed },
+            mach: { max: toMach },
+            altitude: { max: toAltitude },
+            distanceFromStart: { max: maxDistance },
+        };
     }
 
     /**

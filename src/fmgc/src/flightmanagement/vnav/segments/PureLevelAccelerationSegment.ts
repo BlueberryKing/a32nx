@@ -1,11 +1,11 @@
-import { FlightPathAnglePitchTarget, IntegrationEndCondition, IntegrationPropagator, Integrator, speedChangePropagator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
+import { FlightPathAnglePitchTarget, IntegrationEndConditions, IntegrationPropagator, Integrator, speedChangePropagator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureLevelAccelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 
-    private readonly endConditions: IntegrationEndCondition[] = [];
+    private readonly endConditions: IntegrationEndConditions;
 
     private propagator: IntegrationPropagator
 
@@ -14,10 +14,10 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
     ) {
         super();
 
-        this.endConditions = [
-            (state) => state.speed > toSpeed,
-            (state) => state.distanceFromStart > toDistance,
-        ];
+        this.endConditions = {
+            speed: { max: toSpeed },
+            distanceFromStart: { max: toDistance },
+        };
 
         const pitchTarget = new FlightPathAnglePitchTarget(0);
 

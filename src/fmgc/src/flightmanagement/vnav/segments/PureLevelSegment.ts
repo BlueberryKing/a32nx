@@ -1,20 +1,18 @@
-import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndCondition, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
+import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
 import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureLevelSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 
-    private readonly endConditions: IntegrationEndCondition[] = [];
+    private readonly endConditions: IntegrationEndConditions;
 
     constructor(
         private context: NodeContext, private toDistance: NauticalMiles,
     ) {
         super();
 
-        this.endConditions = [
-            (state) => state.distanceFromStart > toDistance,
-        ];
+        this.endConditions = { distanceFromStart: { max: toDistance } };
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {

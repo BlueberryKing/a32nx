@@ -1,4 +1,4 @@
-import { constantPitchPropagator, FlightPathAnglePitchTarget, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
+import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
@@ -10,17 +10,17 @@ export class PureApproachConstantSpeedSegment extends ProfileSegment {
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
-        const endConditions = [
-            ({ distanceFromStart }) => distanceFromStart <= this.toDistance,
-            ({ speed }) => speed >= this.toSpeed,
-        ];
+        const endConditions: IntegrationEndConditions = {
+            distanceFromStart: { min: this.toDistance },
+            speed: { max: this.toSpeed },
+        };
 
         const pitchTarget = new FlightPathAnglePitchTarget(this.flightPathAngle);
 
         const descentPath = this.integrator.integrate(
             state,
             endConditions,
-            constantPitchPropagator(pitchTarget, this.context, -0.1),
+            constantPitchPropagator(pitchTarget, this.context, -5),
         );
 
         if (descentPath.length > 1) {

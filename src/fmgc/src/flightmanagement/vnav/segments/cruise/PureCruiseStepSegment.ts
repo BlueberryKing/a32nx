@@ -1,7 +1,7 @@
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { Step } from '@fmgc/guidance/vnav/StepCoordinator';
-import { ClimbThrustSetting, constantPitchPropagator, constantThrustPropagator, IntegrationEndCondition, Integrator, VerticalSpeedPitchTarget } from '@fmgc/flightmanagement/vnav/integrators';
+import { ClimbThrustSetting, constantPitchPropagator, constantThrustPropagator, IntegrationEndConditions, Integrator, VerticalSpeedPitchTarget } from '@fmgc/flightmanagement/vnav/integrators';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 /**
@@ -11,7 +11,7 @@ import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 export class PureCruiseStepSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 
-    private readonly endConditions: IntegrationEndCondition[] = [];
+    private readonly endConditions: IntegrationEndConditions;
 
     propagator: (state: AircraftState) => AircraftState;
 
@@ -27,10 +27,10 @@ export class PureCruiseStepSegment extends ProfileSegment {
             ? constantThrustPropagator(new ClimbThrustSetting(context.atmosphericConditions), context)
             : constantPitchPropagator(new VerticalSpeedPitchTarget(-1000), context);
 
-        this.endConditions = [
-            ({ distanceFromStart }) => distanceFromStart >= maxDistance,
-            ({ altitude }) => (this.isClimbVsDescent ? altitude >= step.toAltitude : altitude <= step.toAltitude),
-        ];
+        this.endConditions = {
+            distanceFromStart: { max: maxDistance },
+            altitude: { min: !this.isClimbVsDescent ? step.toAltitude : undefined, max: this.isClimbVsDescent ? step.toAltitude : undefined },
+        };
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {

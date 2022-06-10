@@ -1,4 +1,4 @@
-import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationPropagator, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
+import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, IntegrationPropagator, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
@@ -17,7 +17,7 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
             new FlightPathAnglePitchTarget(flightPathAngle),
             false,
             context,
-            -0.1,
+            -5,
         );
 
         const { managedDescentSpeedMach } = context.observer.get();
@@ -26,12 +26,12 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
         // The AMM says decel distance is max 20 NM and goes max 6000 higher.
-        const endConditions = [
-            ({ distanceFromStart }) => distanceFromStart <= Math.max(this.toDistance, state.distanceFromStart - 20),
-            ({ altitude }) => altitude >= this.maxAltitude || altitude >= state.altitude + 6000,
-            ({ speed }) => speed >= this.toSpeed,
-            ({ mach }) => mach >= this.managedDescentSpeedMach,
-        ];
+        const endConditions: IntegrationEndConditions = {
+            distanceFromStart: { min: Math.max(this.toDistance, state.distanceFromStart - 20) },
+            altitude: { max: Math.min(this.maxAltitude, state.altitude + 6000) },
+            speed: { max: this.toSpeed },
+            mach: { max: this.managedDescentSpeedMach },
+        };
 
         const decelerationPath = this.integrator.integrate(
             state,

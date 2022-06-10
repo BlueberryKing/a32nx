@@ -7,7 +7,7 @@ import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { MathUtils } from '@shared/MathUtils';
 
-export function constantThrustPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 0.1, useMachVsCas: boolean = false) {
+export function constantThrustPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -51,7 +51,7 @@ export function constantThrustPropagator(thrustSetting: ThrustSetting, context: 
     };
 }
 
-export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext, stepSize: NauticalMiles = 0.1, useMachVsCas: boolean = false) {
+export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -103,7 +103,7 @@ export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext
     };
 }
 
-export function accelerationPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 0.1, useMachVsCas: boolean = false) {
+export function accelerationPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -149,7 +149,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
 }
 
 export function speedChangePropagator(
-    thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, context: NodeContext, stepSize: NauticalMiles = 0.1, useMachVsCas: boolean = false,
+    thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false,
 ) {
     const { tropoPause } = context.observer.get();
 
@@ -297,34 +297,70 @@ export class IdleThrustSetting implements ThrustSetting {
     }
 }
 
-export type IntegrationEndCondition = (state: AircraftState) => boolean;
 export type IntegrationPropagator = (state: AircraftState) => AircraftState;
 
+type MinMax = { min?: number, max?: number };
+export type IntegrationEndConditions = Partial<Record<keyof AircraftState, MinMax>>;
+
 export class Integrator {
-    integrate(startingState: AircraftState, endConditions: IntegrationEndCondition[], propagator: IntegrationPropagator): TemporaryStateSequence {
+    integrate(startingState: AircraftState, endConditions: IntegrationEndConditions, propagator: IntegrationPropagator): TemporaryStateSequence {
         return measurePerformance(() => this.integrateInternal(startingState, endConditions, propagator), (time, result) => {
             CpuTimer.integrationTime += time;
             CpuTimer.integrationSteps += result.length - 1;
         });
     }
 
-    private integrateInternal(startingState: AircraftState, endConditions: IntegrationEndCondition[], propagator: IntegrationPropagator): TemporaryStateSequence {
+    private integrateInternal(startingState: AircraftState, endConditions: IntegrationEndConditions, propagator: IntegrationPropagator): TemporaryStateSequence {
         const states = new TemporaryStateSequence(startingState);
 
-        if (endConditions.some((condition) => condition(startingState))) {
+        if (this.checkEndConditions(startingState, endConditions) !== null) {
             return states;
         }
 
-        let i = 0;
+        for (let i = 0; i < 1000; i++) {
+            const newState = propagator(states.last);
+            const metEndCondition = this.checkEndConditions(newState, endConditions);
 
-        while (i++ < 1000) {
-            states.push(propagator(states.last));
+            if (metEndCondition !== null) {
+                const [key, value] = metEndCondition;
 
-            if (endConditions.some((condition) => condition(states.last))) {
-                return states;
+                const scalingConstant = (value - states.last[key]) / (newState[key] - states.last[key]);
+                this.scaleState(states.last, newState, scalingConstant);
+
+                states.push(newState);
+
+                break;
             }
+
+            states.push(newState);
         }
 
         return states;
     }
+
+    private checkEndConditions(state: AircraftState, endConditions: IntegrationEndConditions): [string, number] | null {
+        for (const [key, limits] of Object.entries(endConditions)) {
+            if (isNumber(limits.min) && state[key] <= limits.min) {
+                return [key, limits.min];
+            } if (isNumber(limits.max) && state[key] >= limits.max) {
+                return [key, limits.max];
+            }
+        }
+
+        return null;
+    }
+
+    private scaleState(secondLastState: AircraftState, state: AircraftState, scalingConstant: number) {
+        state.altitude = (1 - scalingConstant) * secondLastState.altitude + scalingConstant * state.altitude;
+        state.distanceFromStart = (1 - scalingConstant) * secondLastState.distanceFromStart + scalingConstant * state.distanceFromStart;
+        state.mach = (1 - scalingConstant) * secondLastState.mach + scalingConstant * state.mach;
+        state.speed = (1 - scalingConstant) * secondLastState.speed + scalingConstant * state.speed;
+        state.time = (1 - scalingConstant) * secondLastState.time + scalingConstant * state.time;
+        state.trueAirspeed = (1 - scalingConstant) * secondLastState.trueAirspeed + scalingConstant * state.trueAirspeed;
+        state.weight = (1 - scalingConstant) * secondLastState.weight + scalingConstant * state.weight;
+    }
+}
+
+function isNumber(value: number): boolean {
+    return !Number.isNaN(value) && value !== undefined && value !== null;
 }

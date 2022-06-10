@@ -1,19 +1,19 @@
-import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndCondition, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
+import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureApproachDecelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 
-    private endConditions: IntegrationEndCondition[];
+    private endConditions: IntegrationEndConditions;
 
     constructor(private context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles) {
         super();
 
-        this.endConditions = [
-            ({ distanceFromStart }) => distanceFromStart <= toDistance,
-            ({ speed }) => speed >= toSpeed,
-        ];
+        this.endConditions = {
+            distanceFromStart: { min: toDistance },
+            speed: { max: toSpeed },
+        };
     }
 
     get repr(): string {
@@ -26,7 +26,7 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
             new FlightPathAnglePitchTarget(this.flightPathAngle),
             false,
             this.context,
-            -0.1,
+            -5,
         );
 
         const step = this.integrator.integrate(

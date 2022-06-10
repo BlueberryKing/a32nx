@@ -1,7 +1,7 @@
 import {
     constantThrustPropagator,
     IdleThrustSetting,
-    IntegrationEndCondition,
+    IntegrationEndConditions,
     IntegrationPropagator,
     Integrator,
 } from '@fmgc/flightmanagement/vnav/integrators';
@@ -9,7 +9,7 @@ import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanageme
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureIdlePathConstantSpeedSegment extends ProfileSegment {
-    private readonly endConditions: IntegrationEndCondition[] = [];
+    private readonly endConditions: IntegrationEndConditions;
 
     private integrator = new Integrator();
 
@@ -18,15 +18,15 @@ export class PureIdlePathConstantSpeedSegment extends ProfileSegment {
     constructor(context: NodeContext, private toAltitude: Feet, private toDistance: NauticalMiles) {
         super();
 
-        this.endConditions = [
-            ({ altitude }) => altitude >= toAltitude,
-            ({ distanceFromStart }) => distanceFromStart <= toDistance,
-        ];
+        this.endConditions = {
+            altitude: { max: toAltitude },
+            distanceFromStart: { min: toDistance },
+        };
 
         this.idleThrustPropagator = constantThrustPropagator(
             new IdleThrustSetting(context.atmosphericConditions),
             context,
-            -1,
+            -5,
         );
     }
 
