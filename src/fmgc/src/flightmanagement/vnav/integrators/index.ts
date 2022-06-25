@@ -313,23 +313,21 @@ export class Integrator {
     private integrateInternal(startingState: AircraftState, endConditions: IntegrationEndConditions, propagator: IntegrationPropagator): TemporaryStateSequence {
         const states = new TemporaryStateSequence(startingState);
 
-        if (this.checkEndConditions(startingState, endConditions) !== null) {
+        if (!this.checkEndConditions(startingState, endConditions).next().done) {
             return states;
         }
 
-        for (let i = 0; i < 1000; i++) {
+        let isEndConditionMet = false;
+        for (let i = 0; !isEndConditionMet && i < 1000; i++) {
             const newState = propagator(states.last);
-            const metEndCondition = this.checkEndConditions(newState, endConditions);
 
-            if (metEndCondition !== null) {
+            // For all endconditions that are met, we scale to accomodate them and then push the state to the sequence and return.
+            for (const metEndCondition of this.checkEndConditions(newState, endConditions)) {
+                isEndConditionMet = true;
                 const [key, value] = metEndCondition;
 
                 const scalingConstant = (value - states.last[key]) / (newState[key] - states.last[key]);
                 this.scaleState(states.last, newState, scalingConstant);
-
-                states.push(newState);
-
-                break;
             }
 
             states.push(newState);
@@ -338,16 +336,14 @@ export class Integrator {
         return states;
     }
 
-    private checkEndConditions(state: AircraftState, endConditions: IntegrationEndConditions): [string, number] | null {
+    private* checkEndConditions(state: AircraftState, endConditions: IntegrationEndConditions): Generator<[string, number]> {
         for (const [key, limits] of Object.entries(endConditions)) {
             if (isNumber(limits.min) && state[key] <= limits.min) {
-                return [key, limits.min];
+                yield [key, limits.min];
             } if (isNumber(limits.max) && state[key] >= limits.max) {
-                return [key, limits.max];
+                yield [key, limits.max];
             }
         }
-
-        return null;
     }
 
     private scaleState(secondLastState: AircraftState, state: AircraftState, scalingConstant: number) {
