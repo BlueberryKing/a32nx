@@ -231,6 +231,10 @@ export class TemporaryStateSequence {
         return this.states[this.states.length - 1];
     }
 
+    get first(): AircraftState {
+        return this.states[0];
+    }
+
     get length(): number {
         return this.states.length;
     }

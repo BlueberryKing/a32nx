@@ -1,6 +1,8 @@
 import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, IntegrationPropagator, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { GeometricPathPoint } from '@fmgc/flightmanagement/vnav/segments/GeometricPathSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { MathUtils } from '@shared/MathUtils';
 
 export class PureGeometricDecelerationSegment extends ProfileSegment {
     private integrator = new Integrator();
@@ -39,9 +41,48 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
             this.propagator,
         );
 
-        if (decelerationPath.length > 1) {
-            builder.push(decelerationPath.last);
+        if (decelerationPath.length <= 1) {
+            return;
         }
+
+        const achievedGradient = this.calculateGradient(decelerationPath.first, decelerationPath.last);
+        const achievedFpa = MathUtils.RADIANS_TO_DEGREES * Math.atan(achievedGradient / 6076.12);
+
+        // `achievedFpa` and `this.flightPathAngle` are negative
+        if (achievedFpa - this.flightPathAngle > 0.1) {
+            // We didn't make it -> Try with speed brakes
+            console.log(`[FMS/VNAV] (Decel path) Desired path angle of ${this.flightPathAngle}° could not be achieved, actual path angle: ${achievedFpa}°. Trying with speedbrakes`);
+            state.config.speedbrakesExtended = true;
+
+            const decelerationPathWithSpeedBrakes = this.integrator.integrate(
+                state,
+                endConditions,
+                this.propagator,
+            );
+
+            const achievedGradientWithSpeedBrakes = this.calculateGradient(decelerationPathWithSpeedBrakes.first, decelerationPathWithSpeedBrakes.last);
+            const achievedFpaWithSpeedBrakes = MathUtils.RADIANS_TO_DEGREES * Math.atan(achievedGradientWithSpeedBrakes / 6076.12);
+
+            console.log(`[FMS/VNAV] Achieved path angle of ${achievedFpaWithSpeedBrakes} with speedbrakes`);
+
+            if (achievedFpaWithSpeedBrakes - this.flightPathAngle > 0.1) {
+                console.log(`[FMS/VNAV] TOO STEEP PATH: Desired FPA of ${this.flightPathAngle}° but only achieved ${achievedFpaWithSpeedBrakes}°.`);
+                // Insert TOO PATH STEEP
+            }
+
+            if (decelerationPathWithSpeedBrakes.length > 1) {
+                builder.push({ ...decelerationPathWithSpeedBrakes.last, reason: 'FPA decel with speedbrakes' });
+                state.config.speedbrakesExtended = false;
+            }
+        } else {
+            builder.push({ ...decelerationPath.last, reason: 'FPA decel' });
+        }
+    }
+
+    private calculateGradient(start: GeometricPathPoint, end: GeometricPathPoint) {
+        return Math.abs(start.distanceFromStart - end.distanceFromStart) < 1e-12
+            ? 0
+            : (start.altitude - end.altitude) / (start.distanceFromStart - end.distanceFromStart);
     }
 
     get repr(): string {
