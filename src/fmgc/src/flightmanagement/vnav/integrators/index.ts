@@ -172,10 +172,10 @@ export function speedChangePropagator(
 
         const availableGradient: Radians = FlightModel.getAvailableGradient(thrust, drag, state.weight);
 
-        // I don't know if this exists in the real aircraft. I suspect there is, but these are just empricial values.
+        // I don't know if this exists in the real aircraft. I suspect there is, but these are just empirical values.
         const minimumAccelDecel: KnotsPerSecond = desireAccelerationVsDeceleration ? 0.5 : -0.3;
 
-        // The reason this is here is that we might be demanding a patüeh angle which doesn't actually end up accelerating/decelerating the plane.
+        // The reason this is here is that we might be demanding a path angle which doesn't actually end up accelerating/decelerating the plane.
         const pathAngleForMinimumAccelDecel = FlightModel.fpaForGradient(availableGradient, minimumAccelDecel / FlightModel.gravityConstKNS, accelerationFactor);
 
         const targetPathAngle: Radians = pitchTarget.getPathAngle(state);
@@ -338,9 +338,9 @@ export class Integrator {
 
     private* checkEndConditions(state: AircraftState, endConditions: IntegrationEndConditions): Generator<[string, number]> {
         for (const [key, limits] of Object.entries(endConditions)) {
-            if (isNumber(limits.min) && state[key] <= limits.min) {
+            if (isNumber(limits.min) && state[key] - limits.min <= 1e-9) {
                 yield [key, limits.min];
-            } if (isNumber(limits.max) && state[key] >= limits.max) {
+            } if (isNumber(limits.max) && state[key] - limits.max >= -1e-9) {
                 yield [key, limits.max];
             }
         }
