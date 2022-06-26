@@ -40,7 +40,7 @@ export class GeometricPathSegment extends ProfileSegment {
         for (const plannedSegment of plannedSegments) {
             const fpa = MathUtils.RADIANS_TO_DEGREES * Math.atan(plannedSegment.gradient / 6076.12);
 
-            this.children.unshift(
+            this.children.push(
                 new DescentAltitudeConstraintSegment(
                     this.context, this.constraints, plannedSegment.end.distanceFromStart, fpa, this.maxSpeed, Math.min(this.toAltitude, plannedSegment.end.altitude), this.useMachVsCas,
                 ),
@@ -109,7 +109,7 @@ export class GeometricPathSegment extends ProfileSegment {
     }
 }
 
-type GeometricPathPoint = {
+export type GeometricPathPoint = {
     distanceFromStart: NauticalMiles,
     altitude: Feet
 }
