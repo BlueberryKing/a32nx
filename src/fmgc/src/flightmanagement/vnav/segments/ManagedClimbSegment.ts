@@ -1,5 +1,5 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { ClimbThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
+import { ClimbThrustSetting, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { ClimbToAltConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbToAltConstraintSegment';
 import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureAccelerationSegment';
 import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
@@ -7,9 +7,12 @@ import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanag
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { PureLevelAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelAccelerationSegment';
 import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelSegment';
+import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 export class ManagedClimbSegment extends ProfileSegment {
     private climbThrust: ClimbThrustSetting;
+
+    private options: PropagatorOptions = { useMachVsCas: false, stepSize: 5, windProfileType: WindProfileType.Climb };
 
     constructor(private context: SegmentContext, private maxSpeed: Knots, private toAltitude: Feet, private constraints: ConstraintReader) {
         super();
@@ -17,7 +20,7 @@ export class ManagedClimbSegment extends ProfileSegment {
         this.climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
 
         this.children = [
-            new PureClimbToAltitudeSegment(context, this.climbThrust, toAltitude),
+            new PureClimbToAltitudeSegment(context, this.climbThrust, toAltitude, this.options),
         ];
 
         const allConstraints = [...constraints.climbSpeedConstraints, ...constraints.climbAlitudeConstraints];
@@ -38,20 +41,20 @@ export class ManagedClimbSegment extends ProfileSegment {
                 if (currentMaxAltitude < toAltitude) {
                     // The following two segments make sure we get to the next constraint after dealing with `constraint`.
                     // Accelerate in level flight if an upcoming constraint requires it.
-                    this.children.push(new PureLevelAccelerationSegment(context, this.climbThrust, currentMaxSpeed, Infinity));
+                    this.children.push(new PureLevelAccelerationSegment(context, this.climbThrust, currentMaxSpeed, Infinity, this.options));
                     // Accelerate after `constraint`
-                    this.children.push(new PureAccelerationSegment(context, this.climbThrust, currentMaxSpeed, currentMaxAltitude));
+                    this.children.push(new PureAccelerationSegment(context, this.climbThrust, currentMaxSpeed, currentMaxAltitude, this.options));
 
                     // Possibly fly level before reaching `constraint` if there is a constraing altitude constraint
-                    this.children.push(new PureLevelSegment(context, constraint.distanceFromStart));
+                    this.children.push(new PureLevelSegment(context, constraint.distanceFromStart, this.options));
                 }
 
                 // Fly to `constraint` first.
-                this.children.push(new PureClimbToAltitudeSegment(context, this.climbThrust, currentMaxAltitude, false, constraint.distanceFromStart));
+                this.children.push(new PureClimbToAltitudeSegment(context, this.climbThrust, currentMaxAltitude, this.options, constraint.distanceFromStart));
 
                 currentMaxSpeed = Math.min(currentMaxSpeed, constraint.maxSpeed);
             } else if (constraint.maxAltitude <= toAltitude) {
-                this.children.push(new ClimbToAltConstraintSegment(context, this.climbThrust, constraint.maxAltitude, constraint.distanceFromStart));
+                this.children.push(new ClimbToAltConstraintSegment(context, this.climbThrust, constraint.maxAltitude, constraint.distanceFromStart, this.options));
                 currentMaxAltitude = Math.min(currentMaxAltitude, constraint.maxAltitude);
             }
         }
@@ -64,7 +67,7 @@ export class ManagedClimbSegment extends ProfileSegment {
         const maxAltitude = this.computeInitialMaxAltitude(state);
 
         this.children.unshift(
-            new PureAccelerationSegment(this.context, this.climbThrust, maxSpeed, maxAltitude),
+            new PureAccelerationSegment(this.context, this.climbThrust, maxSpeed, maxAltitude, this.options),
         );
     }
 

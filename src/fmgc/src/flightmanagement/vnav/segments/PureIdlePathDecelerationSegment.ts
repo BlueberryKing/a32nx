@@ -3,6 +3,7 @@ import {
     IntegrationEndConditions,
     IntegrationPropagator,
     Integrator,
+    PropagatorOptions,
     speedChangePropagator,
     VerticalSpeedPitchTarget,
 } from '@fmgc/flightmanagement/vnav/integrators';
@@ -16,7 +17,7 @@ export class PureIdlePathDecelerationSegment extends ProfileSegment {
 
     private idleThrustPropagator: IntegrationPropagator;
 
-    constructor(context: SegmentContext, private toAltitude: Feet, private toSpeed: Knots, private toDistance: NauticalMiles) {
+    constructor(context: SegmentContext, private toAltitude: Feet, private toSpeed: Knots, private toDistance: NauticalMiles, options: PropagatorOptions) {
         super();
 
         this.endConditions = {
@@ -27,11 +28,11 @@ export class PureIdlePathDecelerationSegment extends ProfileSegment {
 
         // TODO: The pitch target should not be -500 fpm
         this.idleThrustPropagator = speedChangePropagator(
+            context,
             new IdleThrustSetting(context.atmosphericConditions),
             new VerticalSpeedPitchTarget(-500),
             false,
-            context,
-            -5,
+            options,
         );
     }
 

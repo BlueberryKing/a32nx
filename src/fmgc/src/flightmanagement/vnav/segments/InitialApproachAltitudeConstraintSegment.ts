@@ -6,6 +6,7 @@ import { MathUtils } from '@shared/MathUtils';
 import { PureInitialApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureInitialApproachDecelerationSegment';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class InitialApproachAltitudeConstraintSegment extends ProfileSegment {
     private managedDescentSpeed: Knots;
@@ -17,6 +18,7 @@ export class InitialApproachAltitudeConstraintSegment extends ProfileSegment {
         private constraints: ConstraintReader,
         private constraint: DescentAltitudeConstraint,
         private preferredFlightPathAngle: Degrees,
+        private options: PropagatorOptions,
     ) {
         super();
 
@@ -48,7 +50,7 @@ export class InitialApproachAltitudeConstraintSegment extends ProfileSegment {
             }
 
             this.children.unshift(
-                new PureInitialApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, speedConstraint.distanceFromStart),
+                new PureInitialApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.options),
             );
 
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
@@ -56,7 +58,7 @@ export class InitialApproachAltitudeConstraintSegment extends ProfileSegment {
         }
 
         this.children.unshift(
-            new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, distanceToLastConstraint),
+            new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, distanceToLastConstraint, this.options),
         );
     }
 

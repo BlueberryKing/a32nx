@@ -5,6 +5,8 @@ import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class ManagedDescentSegment extends ProfileSegment {
     /**
@@ -21,16 +23,27 @@ export class ManagedDescentSegment extends ProfileSegment {
         const { managedDescentSpeed, managedDescentSpeedMach, cruiseAltitude, descentSpeedLimit } = context.observer.get();
 
         const crossoverAltitude = context.computeCrossoverAltitude(managedDescentSpeed, managedDescentSpeedMach);
+        const options: Omit<PropagatorOptions, 'useMachVsCas'> = {
+            stepSize: -5,
+            windProfileType: WindProfileType.Descent,
+        };
 
         this.geometricSegments = [
-            new GeometricPathSegment(context, constraints, managedDescentSpeed, Math.min(crossoverAltitude, cruiseAltitude)),
-            new GeometricPathSegment(context, constraints, managedDescentSpeed, cruiseAltitude, true),
+            new GeometricPathSegment(context, constraints, managedDescentSpeed, Math.min(crossoverAltitude, cruiseAltitude), { ...options, useMachVsCas: false }),
+            new GeometricPathSegment(context, constraints, managedDescentSpeed, cruiseAltitude, { ...options, useMachVsCas: true }),
         ];
 
         if (Number.isFinite(descentSpeedLimit.underAltitude) && Number.isFinite(descentSpeedLimit.speed)) {
             this.geometricSegments.unshift(
                 new GeometricPathSegment(
-                    context, constraints, Math.min(descentSpeedLimit.speed, managedDescentSpeed), Math.min(descentSpeedLimit.underAltitude, crossoverAltitude, cruiseAltitude),
+                    context,
+                    constraints,
+                    Math.min(descentSpeedLimit.speed,
+                        managedDescentSpeed),
+                    Math.min(descentSpeedLimit.underAltitude,
+                        crossoverAltitude,
+                        cruiseAltitude),
+                    { ...options, useMachVsCas: false },
                 ),
             );
         }

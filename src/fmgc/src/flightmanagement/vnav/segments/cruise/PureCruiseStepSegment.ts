@@ -1,7 +1,15 @@
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { Step } from '@fmgc/guidance/vnav/StepCoordinator';
-import { ClimbThrustSetting, constantPitchPropagator, constantThrustPropagator, IntegrationEndConditions, Integrator, VerticalSpeedPitchTarget } from '@fmgc/flightmanagement/vnav/integrators';
+import {
+    ClimbThrustSetting,
+    constantPitchPropagator,
+    constantThrustPropagator,
+    IntegrationEndConditions,
+    Integrator,
+    PropagatorOptions,
+    VerticalSpeedPitchTarget,
+} from '@fmgc/flightmanagement/vnav/integrators';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 /**
@@ -17,15 +25,17 @@ export class PureCruiseStepSegment extends ProfileSegment {
 
     private isClimbVsDescent: boolean;
 
-    constructor(context: SegmentContext, private step: Step, private fromAltitude: Feet, private maxDistance: NauticalMiles) {
+    constructor(context: SegmentContext, private step: Step, private fromAltitude: Feet, private maxDistance: NauticalMiles, options: Omit<PropagatorOptions, 'useMachVsCas'>) {
         super();
 
         this.isClimbVsDescent = step.toAltitude > fromAltitude;
 
         // TODO: Figure out whether to use Mach or IAS target
+        const fullOptions = { ...options, useMachVsCas: true };
+
         this.propagator = this.isClimbVsDescent
-            ? constantThrustPropagator(new ClimbThrustSetting(context.atmosphericConditions), context)
-            : constantPitchPropagator(new VerticalSpeedPitchTarget(-1000), context);
+            ? constantThrustPropagator(new ClimbThrustSetting(context.atmosphericConditions), context, fullOptions)
+            : constantPitchPropagator(new VerticalSpeedPitchTarget(-1000), context, fullOptions);
 
         this.endConditions = {
             distanceFromStart: { max: maxDistance },

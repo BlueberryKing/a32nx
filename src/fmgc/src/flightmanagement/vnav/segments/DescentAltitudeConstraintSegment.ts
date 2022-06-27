@@ -3,6 +3,7 @@ import { PureGeometricDecelerationSegment } from '@fmgc/flightmanagement/vnav/se
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class DescentAltitudeConstraintSegment extends ProfileSegment {
     constructor(
@@ -12,7 +13,7 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
         private flightPathAngle: Degrees,
         private maxSpeed: Knots,
         private maxAltitude: Feet,
-        private useMachVsCas: boolean = false,
+        private options: PropagatorOptions,
     ) {
         super();
     }
@@ -26,8 +27,8 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
         let maxSpeed = this.computeMaxSpeedOnSegment();
 
         this.children = [
-            new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, this.toDistance, this.maxAltitude),
-            new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.toDistance, this.maxAltitude, this.useMachVsCas),
+            new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, this.toDistance, this.maxAltitude, this.options),
+            new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, this.toDistance, this.options, this.maxAltitude),
         ];
 
         for (const speedConstraint of this.constraints.descentSpeedConstraints) {
@@ -40,11 +41,11 @@ export class DescentAltitudeConstraintSegment extends ProfileSegment {
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
             this.children.unshift(
-                new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, speedConstraint.distanceFromStart, this.maxAltitude, this.useMachVsCas),
+                new PureConstantFlightPathAngleSegment(this.context, this.flightPathAngle, speedConstraint.distanceFromStart, this.options, this.maxAltitude),
             );
 
             this.children.unshift(
-                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.maxAltitude),
+                new PureGeometricDecelerationSegment(this.context, this.flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.maxAltitude, this.options),
             );
         }
     }

@@ -4,9 +4,10 @@ import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachAltitudeConstraintSegment';
 import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class ApproachFlapSegment extends ProfileSegment {
-    constructor(private context: SegmentContext, private constraints: ConstraintReader, private nextFlapSpeed: Knots) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader, private nextFlapSpeed: Knots, private options: PropagatorOptions) {
         super();
     }
 
@@ -22,6 +23,7 @@ export class ApproachFlapSegment extends ProfileSegment {
                 preferredFlightPathAngle,
                 this.nextFlapSpeed,
                 -Infinity,
+                this.options,
             ),
         ];
 
@@ -40,11 +42,11 @@ export class ApproachFlapSegment extends ProfileSegment {
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
             this.children.unshift(
-                new PureApproachDecelerationSegment(this.context, preferredFlightPathAngle, maxSpeed, speedConstraint.distanceFromStart),
+                new PureApproachDecelerationSegment(this.context, preferredFlightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.options),
             );
 
             this.children.unshift(
-                new PureConstantFlightPathAngleSegment(this.context, preferredFlightPathAngle, speedConstraint.distanceFromStart),
+                new PureConstantFlightPathAngleSegment(this.context, preferredFlightPathAngle, speedConstraint.distanceFromStart, this.options),
             );
         }
 
@@ -54,7 +56,7 @@ export class ApproachFlapSegment extends ProfileSegment {
             }
 
             this.children.unshift(
-                new ApproachAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle, maxSpeed),
+                new ApproachAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle, maxSpeed, this.options),
             );
         }
     }

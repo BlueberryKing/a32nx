@@ -6,15 +6,22 @@ import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { MathUtils } from '@shared/MathUtils';
+import { WindProfileType } from '../../../guidance/vnav/wind/WindProfile';
 
-export function constantThrustPropagator(thrustSetting: ThrustSetting, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
+export interface PropagatorOptions {
+    stepSize: NauticalMiles;
+    useMachVsCas: boolean;
+    windProfileType: WindProfileType;
+}
+
+export function constantThrustPropagator(thrustSetting: ThrustSetting, context: SegmentContext, options: PropagatorOptions) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
         const delta = Common.getDelta(state.altitude, state.altitude > tropoPause);
         const drag = FlightModel.getDrag(state.weight, state.mach, delta, state.config.speedbrakesExtended, state.config.gearExtended, state.config.flapConfig);
 
-        const headwind = context.windProfile.getHeadwindComponent(state.distanceFromStart, state.altitude);
+        const headwind = context.windRepository.getWindProfile(options.windProfileType).getHeadwindComponent(state.distanceFromStart, state.altitude);
         const groundSpeed = state.trueAirspeed - headwind.value;
 
         const accelerationFactor = Common.getAccelerationFactor(
@@ -22,36 +29,36 @@ export function constantThrustPropagator(thrustSetting: ThrustSetting, context: 
             state.altitude,
             context.getIsaDeviation(),
             state.altitude > tropoPause,
-            useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
+            options.useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
         );
 
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
         const pathAngle: Radians = FlightModel.getConstantThrustPathAngle(thrust, state.weight, drag, accelerationFactor);
         const verticalSpeed: FeetPerMinute = 101.268 * state.trueAirspeed * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
+        const stepTime: Seconds = 3600 * options.stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
-        const newCas = useMachVsCas ? Common.machToCas(state.mach, newDelta) : state.speed;
-        const newMach = useMachVsCas ? state.mach : Common.CAStoMach(state.speed, newDelta);
+        const newCas = options.useMachVsCas ? Common.machToCas(state.mach, newDelta) : state.speed;
+        const newMach = options.useMachVsCas ? state.mach : Common.CAStoMach(state.speed, newDelta);
 
         return {
-            distanceFromStart: state.distanceFromStart + stepSize,
+            distanceFromStart: state.distanceFromStart + options.stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
             speed: newCas,
-            trueAirspeed: useMachVsCas ? Common.machToTAS(newMach, newTheta) : Common.CAStoTAS(newCas, newTheta, newDelta),
+            trueAirspeed: options.useMachVsCas ? Common.machToTAS(newMach, newTheta) : Common.CAStoTAS(newCas, newTheta, newDelta),
             mach: newMach,
             config: state.config,
         };
     };
 }
 
-export function constantPitchPropagator(pitch: PitchTarget, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
+export function constantPitchPropagator(pitch: PitchTarget, context: SegmentContext, options: PropagatorOptions) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -61,7 +68,7 @@ export function constantPitchPropagator(pitch: PitchTarget, context: SegmentCont
         const delta2 = Common.getDelta2(delta, state.mach);
         const theta2 = Common.getTheta2(theta, state.mach);
 
-        const headwind = context.windProfile.getHeadwindComponent(state.distanceFromStart, state.altitude);
+        const headwind = context.windRepository.getWindProfile(options.windProfileType).getHeadwindComponent(state.distanceFromStart, state.altitude);
         const groundSpeed = state.trueAirspeed - headwind.value;
 
         const accelerationFactor = Common.getAccelerationFactor(
@@ -69,7 +76,7 @@ export function constantPitchPropagator(pitch: PitchTarget, context: SegmentCont
             state.altitude,
             context.getIsaDeviation(),
             state.altitude > tropoPause,
-            useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
+            options.useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
         );
 
         const pathAngle: Radians = pitch.getPathAngle(state);
@@ -80,37 +87,37 @@ export function constantPitchPropagator(pitch: PitchTarget, context: SegmentCont
         const fuelFlow = EngineModel.getCorrectedFuelFlow(correctedN1, state.mach, state.altitude) * 2;
 
         const verticalSpeed: FeetPerMinute = 101.268 * state.trueAirspeed * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
+        const stepTime: Seconds = 3600 * options.stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
         const newDelta = Common.getDelta(newAltitude, newAltitude > tropoPause);
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
-        const newCas = useMachVsCas ? Common.machToCas(state.mach, newDelta) : state.speed;
-        const newMach = useMachVsCas ? state.mach : Common.CAStoMach(state.speed, newDelta);
+        const newCas = options.useMachVsCas ? Common.machToCas(state.mach, newDelta) : state.speed;
+        const newMach = options.useMachVsCas ? state.mach : Common.CAStoMach(state.speed, newDelta);
 
         return {
-            distanceFromStart: state.distanceFromStart + stepSize,
+            distanceFromStart: state.distanceFromStart + options.stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
             speed: newCas,
-            trueAirspeed: useMachVsCas ? Common.machToTAS(newMach, newTheta) : Common.CAStoTAS(newCas, newTheta, newDelta),
+            trueAirspeed: options.useMachVsCas ? Common.machToTAS(newMach, newTheta) : Common.CAStoTAS(newCas, newTheta, newDelta),
             mach: newMach,
             config: state.config,
         };
     };
 }
 
-export function accelerationPropagator(thrustSetting: ThrustSetting, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
+export function accelerationPropagator(thrustSetting: ThrustSetting, context: SegmentContext, options: PropagatorOptions) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
         const delta = Common.getDelta(state.altitude, state.altitude > tropoPause);
         const drag = FlightModel.getDrag(state.weight, state.mach, delta, state.config.speedbrakesExtended, state.config.gearExtended, state.config.flapConfig);
 
-        const headwind = context.windProfile.getHeadwindComponent(state.distanceFromStart, state.altitude);
+        const headwind = context.windRepository.getWindProfile(options.windProfileType).getHeadwindComponent(state.distanceFromStart, state.altitude);
         const groundSpeed = state.trueAirspeed - headwind.value;
 
         const accelerationFactor = Common.getAccelerationFactor(
@@ -118,7 +125,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: Se
             state.altitude,
             context.getIsaDeviation(),
             state.altitude > tropoPause,
-            useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
+            options.useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
         );
 
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
@@ -127,7 +134,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: Se
         const pathAngle: Radians = FlightModel.getSpeedChangePathAngle(thrust, state.weight, drag);
         const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
         const verticalSpeed: FeetPerMinute = 101.268 * state.trueAirspeed * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
+        const stepTime: Seconds = 3600 * options.stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
@@ -136,7 +143,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: Se
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
         return {
-            distanceFromStart: state.distanceFromStart + stepSize,
+            distanceFromStart: state.distanceFromStart + options.stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,
@@ -148,16 +155,14 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: Se
     };
 }
 
-export function speedChangePropagator(
-    thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false,
-) {
+export function speedChangePropagator(context: SegmentContext, thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, options: PropagatorOptions) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
         const delta = Common.getDelta(state.altitude, state.altitude > tropoPause);
         const drag = FlightModel.getDrag(state.weight, state.mach, delta, state.config.speedbrakesExtended, state.config.gearExtended, state.config.flapConfig);
 
-        const headwind = context.windProfile.getHeadwindComponent(state.distanceFromStart, state.altitude);
+        const headwind = context.windRepository.getWindProfile(options.windProfileType).getHeadwindComponent(state.distanceFromStart, state.altitude);
         const groundSpeed = state.trueAirspeed - headwind.value;
 
         const accelerationFactor = Common.getAccelerationFactor(
@@ -165,7 +170,7 @@ export function speedChangePropagator(
             state.altitude,
             context.getIsaDeviation(),
             state.altitude > tropoPause,
-            useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
+            options.useMachVsCas ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
         );
 
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
@@ -185,7 +190,7 @@ export function speedChangePropagator(
 
         const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
         const verticalSpeed: FeetPerMinute = 101.268 * state.trueAirspeed * Math.sin(pathAngle);
-        const stepTime: Seconds = 3600 * stepSize / groundSpeed;
+        const stepTime: Seconds = 3600 * options.stepSize / groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
 
         const newAltitude = state.altitude + stepTime / 60 * verticalSpeed;
@@ -194,7 +199,7 @@ export function speedChangePropagator(
         const newTheta = Common.getTheta(newAltitude, context.getIsaDeviation());
 
         return {
-            distanceFromStart: state.distanceFromStart + stepSize,
+            distanceFromStart: state.distanceFromStart + options.stepSize,
             altitude: state.altitude + stepTime / 60 * verticalSpeed,
             time: state.time + stepTime,
             weight: state.weight - fuelBurned,

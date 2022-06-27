@@ -13,6 +13,7 @@ import { VerticalFlightPlan, VerticalWaypointPrediction } from '@fmgc/flightmana
 import { FlightPlanManager } from '@shared/flightplan';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
+import { HeadwindRepository } from '@fmgc/guidance/vnav/wind/HeadwindRepository';
 
 // Tasks: Compute a vertical profile for different use cases:
 //  - A tactical profile used to display pseudowaypoints such as level off arrows on the ND
@@ -41,10 +42,16 @@ export class VerticalProfileManager {
     }
 
     private computeFlightPlanProfile(): ProfileBuilder {
+        const windRepository = new HeadwindRepository(
+            new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile),
+            new HeadwindProfile(this.windProfileFactory.getCruiseWinds(), this.headingProfile),
+            new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
+        );
+
         const context = new SegmentContext(
             this.atmosphericConditions,
             this.observer,
-            new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile),
+            windRepository,
         );
 
         const { v2Speed, originAirfieldElevation } = this.observer.get();

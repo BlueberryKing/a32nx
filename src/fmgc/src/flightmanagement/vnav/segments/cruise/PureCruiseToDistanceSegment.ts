@@ -1,6 +1,6 @@
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
+import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class PureCruiseToDistanceSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
@@ -9,7 +9,7 @@ export class PureCruiseToDistanceSegment extends ProfileSegment {
 
     propagator: (state: AircraftState) => AircraftState;
 
-    constructor(context: SegmentContext, private toDistance: NauticalMiles, altitude: Feet) {
+    constructor(context: SegmentContext, private toDistance: NauticalMiles, altitude: Feet, options: Omit<PropagatorOptions, 'useMachVsCas'>) {
         super();
 
         this.endConditions = { distanceFromStart: { max: toDistance } };
@@ -17,9 +17,7 @@ export class PureCruiseToDistanceSegment extends ProfileSegment {
         // 1. The reason we pass in an altiude instead of using the cruise altiude is
         // because it is possible that there is a cruise step before this segment which steps away from the programmed cruise altitude
         // 2. The >25000 part is specified by a reference. TODO: Add to ref book
-        const useMachVsCas = altitude > 25000;
-
-        this.propagator = constantPitchPropagator(new FlightPathAnglePitchTarget(0), context, 5, useMachVsCas);
+        this.propagator = constantPitchPropagator(new FlightPathAnglePitchTarget(0), context, { ...options, useMachVsCas: altitude > 25000 });
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {

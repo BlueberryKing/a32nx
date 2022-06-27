@@ -1,4 +1,13 @@
-import { constantPitchPropagator, constantThrustPropagator, FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, IntegrationPropagator, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
+import {
+    constantPitchPropagator,
+    constantThrustPropagator,
+    FlightPathAnglePitchTarget,
+    IdleThrustSetting,
+    IntegrationEndConditions,
+    IntegrationPropagator,
+    Integrator,
+    PropagatorOptions,
+} from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { GeometricPathPoint } from '@fmgc/flightmanagement/vnav/segments/GeometricPathSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
@@ -24,8 +33,8 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
         context: SegmentContext,
         private flightPathAngle: Degrees,
         private toDistance: NauticalMiles,
+        options: PropagatorOptions,
         private maxAltiude: Feet = context.observer.get().cruiseAltitude,
-        useMachVsCas: boolean = false,
     ) {
         super();
 
@@ -34,8 +43,8 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
             altitude: { max: this.maxAltiude },
         };
 
-        this.fpaPropagator = constantPitchPropagator(new FlightPathAnglePitchTarget(flightPathAngle), context, -5, useMachVsCas);
-        this.idlePropagator = constantThrustPropagator(new IdleThrustSetting(context.atmosphericConditions), context, -5, useMachVsCas);
+        this.fpaPropagator = constantPitchPropagator(new FlightPathAnglePitchTarget(flightPathAngle), context, options);
+        this.idlePropagator = constantThrustPropagator(new IdleThrustSetting(context.atmosphericConditions), context, options);
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {

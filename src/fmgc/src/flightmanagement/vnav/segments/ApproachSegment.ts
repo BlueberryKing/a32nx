@@ -8,6 +8,8 @@ import { FinalApproachSegment } from '@fmgc/flightmanagement/vnav/segments/Final
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { ApproachInitialDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachInitialDecelerationSegment';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
+import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 /**
  * This represents a path from the Missed Approach Point to the Decel point, slowing the aircraft from descent speed to Vapp.
@@ -17,23 +19,28 @@ export class ApproachSegment extends ProfileSegment {
         super();
 
         const { cleanSpeed, slatRetractionSpeed, flapRetractionSpeed, approachSpeed, isFlaps3Landing } = context.observer.get();
+        const options: PropagatorOptions = {
+            useMachVsCas: false,
+            stepSize: -5,
+            windProfileType: WindProfileType.Descent,
+        };
 
         this.children = [
-            new FinalApproachSegment(context),
+            new FinalApproachSegment(context, options),
         ];
 
         if (!isFlaps3Landing) {
-            this.children.push(new ApproachFlapSegment(context, constraints, (flapRetractionSpeed + approachSpeed) / 2));
+            this.children.push(new ApproachFlapSegment(context, constraints, (flapRetractionSpeed + approachSpeed) / 2, options));
             this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_3 }));
         }
 
-        this.children.push(new ApproachFlapSegment(context, constraints, flapRetractionSpeed)); /* In flaps 3 */
+        this.children.push(new ApproachFlapSegment(context, constraints, flapRetractionSpeed, options)); /* In flaps 3 */
         this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_2, gearExtended: false }));
-        this.children.push(new ApproachFlapSegment(context, constraints, slatRetractionSpeed)); /* In flaps 2 */
+        this.children.push(new ApproachFlapSegment(context, constraints, slatRetractionSpeed, options)); /* In flaps 2 */
         this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CONF_1 }, true));
-        this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed)); /* In flaps 1 */
+        this.children.push(new ApproachFlapSegment(context, constraints, cleanSpeed, options)); /* In flaps 1 */
         this.children.push(new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CLEAN }, true));
-        this.children.push(new ApproachInitialDecelerationSegment(context, constraints)); /* In clean configuration */
+        this.children.push(new ApproachInitialDecelerationSegment(context, constraints, options)); /* In clean configuration */
     }
 
     onAfterBuildingChildren(builder: ProfileBuilder): void {

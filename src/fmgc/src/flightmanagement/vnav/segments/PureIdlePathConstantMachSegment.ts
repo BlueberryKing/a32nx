@@ -7,6 +7,7 @@ import {
 } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 export class PureIdlePathConstantMachSegment extends ProfileSegment {
     private readonly endConditions: IntegrationEndConditions;
@@ -26,8 +27,11 @@ export class PureIdlePathConstantMachSegment extends ProfileSegment {
         this.idleThrustPropagator = constantThrustPropagator(
             new IdleThrustSetting(context.atmosphericConditions),
             context,
-            -5,
-            true,
+            {
+                stepSize: -5,
+                windProfileType: WindProfileType.Descent,
+                useMachVsCas: true,
+            },
         );
     }
 

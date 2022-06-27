@@ -1,4 +1,4 @@
-import { accelerationPropagator, IntegrationEndConditions, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
+import { accelerationPropagator, IntegrationEndConditions, Integrator, PropagatorOptions, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
@@ -12,6 +12,7 @@ export class PureAccelerationSegment extends ProfileSegment {
         private thrustSetting: ThrustSetting,
         private toSpeed: Knots,
         private toAltitude: Feet,
+        private options: PropagatorOptions,
         maxDistance: NauticalMiles = Infinity,
         toMach: Mach = 0.82,
     ) {
@@ -31,8 +32,9 @@ export class PureAccelerationSegment extends ProfileSegment {
     static toMach(
         context: SegmentContext,
         thrustSetting: ThrustSetting,
-        toMach: Mach = 0.82,
+        toMach: Mach,
         toAltitude: Feet,
+        options: PropagatorOptions,
         maxDistance: NauticalMiles = Infinity,
     ): PureAccelerationSegment {
         return new PureAccelerationSegment(
@@ -40,6 +42,7 @@ export class PureAccelerationSegment extends ProfileSegment {
             thrustSetting,
             340, // Just use VMO for this since we really want to constraint the Mach number
             toAltitude,
+            options,
             maxDistance,
             toMach,
         );
@@ -48,7 +51,7 @@ export class PureAccelerationSegment extends ProfileSegment {
     override compute(state: AircraftState, builder: ProfileBuilder) {
         const step = this.integrator.integrate(state,
             this.endConditions,
-            accelerationPropagator(this.thrustSetting, this.context));
+            accelerationPropagator(this.thrustSetting, this.context, this.options));
 
         // Only add the new state if there was a significant change
         if (step.length > 1) {

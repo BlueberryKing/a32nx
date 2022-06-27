@@ -3,7 +3,6 @@ import { Common } from '@fmgc/guidance/vnav/common';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
-import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/TakeoffSegment';
 import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
@@ -11,6 +10,7 @@ import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/Cr
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { HeadwindRepository } from '@fmgc/guidance/vnav/wind/HeadwindRepository';
 
 export enum VerticalSegmentType {
     Unknown = 1,
@@ -207,7 +207,7 @@ export interface SymbolBuilder {
 }
 
 export class SegmentContext {
-    constructor(public atmosphericConditions: AtmosphericConditions, public observer: VerticalProfileComputationParametersObserver, public windProfile: HeadwindProfile) {
+    constructor(public atmosphericConditions: AtmosphericConditions, public observer: VerticalProfileComputationParametersObserver, public windRepository: HeadwindRepository) {
 
     }
 

@@ -1,4 +1,12 @@
-import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
+import {
+    FlightPathAnglePitchTarget,
+    IdleThrustSetting,
+    IntegrationEndConditions,
+    IntegrationPropagator,
+    Integrator,
+    PropagatorOptions,
+    speedChangePropagator,
+} from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
@@ -7,13 +15,23 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
 
     private endConditions: IntegrationEndConditions;
 
-    constructor(private context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles) {
+    private propagator: IntegrationPropagator;
+
+    constructor(private context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles, options: PropagatorOptions) {
         super();
 
         this.endConditions = {
             distanceFromStart: { min: toDistance },
             speed: { max: toSpeed },
         };
+
+        this.propagator = speedChangePropagator(
+            context,
+            new IdleThrustSetting(this.context.atmosphericConditions),
+            new FlightPathAnglePitchTarget(this.flightPathAngle),
+            false,
+            options,
+        );
     }
 
     get repr(): string {
@@ -21,18 +39,10 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
-        const propagator = speedChangePropagator(
-            new IdleThrustSetting(this.context.atmosphericConditions),
-            new FlightPathAnglePitchTarget(this.flightPathAngle),
-            false,
-            this.context,
-            -5,
-        );
-
         const step = this.integrator.integrate(
             state,
             this.endConditions,
-            propagator,
+            this.propagator,
         );
 
         if (step.length > 1) {

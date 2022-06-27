@@ -4,6 +4,7 @@ import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { PureInitialApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureInitialApproachDecelerationSegment';
 import { InitialApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/InitialApproachAltitudeConstraintSegment';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 /**
  * This segment represents the deceleration from whatever the descent speed is to green dot speed.
@@ -14,7 +15,7 @@ export class ApproachInitialDecelerationSegment extends ProfileSegment {
 
     private descentSpeedLimit: SpeedLimit;
 
-    constructor(private context: SegmentContext, private constraints: ConstraintReader) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader, private options: PropagatorOptions) {
         super();
 
         const { managedDescentSpeed, descentSpeedLimit } = context.observer.get();
@@ -37,6 +38,7 @@ export class ApproachInitialDecelerationSegment extends ProfileSegment {
                 preferredFlightPathAngle,
                 maxSpeed,
                 this.constraints.descentSpeedConstraints.length > 0 ? this.constraints.descentSpeedConstraints[0].distanceFromStart : Infinity,
+                this.options,
             ),
         ];
 
@@ -48,7 +50,7 @@ export class ApproachInitialDecelerationSegment extends ProfileSegment {
 
             // Decelerate to the descent speed if we're past this constraint
             this.children.unshift(
-                new PureInitialApproachDecelerationSegment(this.context, preferredFlightPathAngle, maxSpeed, speedConstraint.distanceFromStart),
+                new PureInitialApproachDecelerationSegment(this.context, preferredFlightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.options),
             );
 
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
@@ -60,7 +62,7 @@ export class ApproachInitialDecelerationSegment extends ProfileSegment {
             }
 
             this.children.unshift(
-                new InitialApproachAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle),
+                new InitialApproachAltitudeConstraintSegment(this.context, this.constraints, constraint, preferredFlightPathAngle, this.options),
             );
         }
     }

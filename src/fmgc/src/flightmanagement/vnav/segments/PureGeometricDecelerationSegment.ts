@@ -1,4 +1,12 @@
-import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, IntegrationPropagator, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
+import {
+    FlightPathAnglePitchTarget,
+    IdleThrustSetting,
+    IntegrationEndConditions,
+    IntegrationPropagator,
+    Integrator,
+    PropagatorOptions,
+    speedChangePropagator,
+} from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { GeometricPathPoint } from '@fmgc/flightmanagement/vnav/segments/GeometricPathSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
@@ -11,15 +19,15 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
 
     private managedDescentSpeedMach: Mach = 0.82;
 
-    constructor(context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles, private maxAltitude: Knots) {
+    constructor(context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles, private maxAltitude: Knots, options: PropagatorOptions) {
         super();
 
         this.propagator = speedChangePropagator(
+            context,
             new IdleThrustSetting(context.atmosphericConditions),
             new FlightPathAnglePitchTarget(flightPathAngle),
             false,
-            context,
-            -5,
+            options,
         );
 
         const { managedDescentSpeedMach } = context.observer.get();

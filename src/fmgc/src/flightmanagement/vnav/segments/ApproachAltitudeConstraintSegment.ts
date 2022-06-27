@@ -5,6 +5,7 @@ import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
 import { MathUtils } from '@shared/MathUtils';
 import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
+import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class ApproachAltitudeConstraintSegment extends ProfileSegment {
     constructor(
@@ -13,6 +14,7 @@ export class ApproachAltitudeConstraintSegment extends ProfileSegment {
         private constraint: DescentAltitudeConstraint,
         private preferredFlightPathAngle: Degrees,
         private maxSpeed: Knots,
+        private options: PropagatorOptions,
     ) {
         super();
     }
@@ -29,7 +31,7 @@ export class ApproachAltitudeConstraintSegment extends ProfileSegment {
         let maxSpeed = this.maxSpeed;
 
         this.children = [
-            new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, this.constraint.distanceFromStart),
+            new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, this.constraint.distanceFromStart, this.options),
         ];
 
         for (const speedConstraint of this.constraints.descentSpeedConstraints) {
@@ -43,11 +45,11 @@ export class ApproachAltitudeConstraintSegment extends ProfileSegment {
 
             // This makes sure to fly to the speed constraint, as we will need to pass it to all further "acceleration" to the flap speed.
             this.children.unshift(
-                new PureConstantFlightPathAngleSegment(this.context, flightPathAngle, speedConstraint.distanceFromStart),
+                new PureConstantFlightPathAngleSegment(this.context, flightPathAngle, speedConstraint.distanceFromStart, this.options),
             );
 
             this.children.unshift(
-                new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, speedConstraint.distanceFromStart),
+                new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.options),
             );
         }
     }
