@@ -1,11 +1,11 @@
 import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureApproachConstantSpeedSegment extends ProfileSegment {
     private integrator = new Integrator();
 
-    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toDistance: NauticalMiles, private toSpeed: Knots) {
+    constructor(private context: SegmentContext, private flightPathAngle: Degrees, private toDistance: NauticalMiles, private toSpeed: Knots) {
         super();
     }
 

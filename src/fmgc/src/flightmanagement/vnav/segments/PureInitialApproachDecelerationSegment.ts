@@ -1,5 +1,5 @@
 import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureInitialApproachDecelerationSegment extends ProfileSegment {
@@ -8,7 +8,7 @@ export class PureInitialApproachDecelerationSegment extends ProfileSegment {
     private endConditions: IntegrationEndConditions;
 
     // This segment is only relevant if we are past a certain speed constraint already. It does nothing otherwise.
-    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private minDistance: NauticalMiles) {
+    constructor(private context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private minDistance: NauticalMiles) {
         super();
 
         this.endConditions = { speed: { max: this.toSpeed } };

@@ -1,5 +1,5 @@
 import { constantThrustPropagator, IntegrationEndConditions, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
+import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureClimbToAltitudeSegment extends ProfileSegment {
@@ -8,7 +8,7 @@ export class PureClimbToAltitudeSegment extends ProfileSegment {
     private readonly endConditions: IntegrationEndConditions;
 
     constructor(
-        private context: NodeContext, private thrustSetting: ThrustSetting, private toAltitude: Feet, private useMachVsCas: boolean = false, maxDistance: NauticalMiles = Infinity,
+        private context: SegmentContext, private thrustSetting: ThrustSetting, private toAltitude: Feet, private useMachVsCas: boolean = false, maxDistance: NauticalMiles = Infinity,
     ) {
         super();
 

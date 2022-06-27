@@ -1,4 +1,4 @@
-import { AircraftState, BuilderVisitor, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, BuilderVisitor, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { CruiseSegment } from '@fmgc/flightmanagement/vnav/segments/cruise/CruiseSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { ManagedDescentSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedDescentSegment';
@@ -14,7 +14,7 @@ export class CruiseAndDescentSegment extends ProfileSegment {
 
     private approachSegment: ApproachSegment;
 
-    constructor(private context: NodeContext, private constraintReader: ConstraintReader, private stepCoordinator: StepCoordinator) {
+    constructor(private context: SegmentContext, private constraintReader: ConstraintReader, private stepCoordinator: StepCoordinator) {
         super();
 
         this.approachSegment = new ApproachSegment(context, constraintReader);
@@ -66,7 +66,7 @@ export class CruiseAndDescentSegment extends ProfileSegment {
         return 'CruiseAndDescentSegment';
     }
 
-    private getInitialState(context: NodeContext, constraintReader: ConstraintReader): AircraftState {
+    private getInitialState(context: SegmentContext, constraintReader: ConstraintReader): AircraftState {
         const { destinationAirfieldElevation, approachSpeed, zeroFuelWeight, isFlaps3Landing } = context.observer.get();
 
         return {

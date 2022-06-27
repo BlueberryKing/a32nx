@@ -1,11 +1,11 @@
 import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class ConfigurationChangeSegment extends ProfileSegment {
-    constructor(_context: NodeContext, private config: Partial<AircraftConfiguration>, private emitFlapPseudoWaypoint: boolean = false) {
+    constructor(_context: SegmentContext, private config: Partial<AircraftConfiguration>, private emitFlapPseudoWaypoint: boolean = false) {
         super();
     }
 

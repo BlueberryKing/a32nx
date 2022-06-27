@@ -1,5 +1,5 @@
 import { FlightPathAnglePitchTarget, IntegrationEndConditions, IntegrationPropagator, Integrator, speedChangePropagator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureLevelAccelerationSegment extends ProfileSegment {
@@ -10,7 +10,7 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
     private propagator: IntegrationPropagator
 
     constructor(
-        private context: NodeContext, thrustSetting: ThrustSetting, private toSpeed: Knots, private toDistance: NauticalMiles,
+        private context: SegmentContext, thrustSetting: ThrustSetting, private toSpeed: Knots, private toDistance: NauticalMiles,
     ) {
         super();
 

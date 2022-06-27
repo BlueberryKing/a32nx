@@ -1,5 +1,5 @@
 import { constantPitchPropagator, constantThrustPropagator, FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, IntegrationPropagator, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { GeometricPathPoint } from '@fmgc/flightmanagement/vnav/segments/GeometricPathSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { MathUtils } from '@shared/MathUtils';
@@ -21,7 +21,7 @@ export class PureConstantFlightPathAngleSegment extends ProfileSegment {
      * @param maxAltiude
      */
     constructor(
-        context: NodeContext,
+        context: SegmentContext,
         private flightPathAngle: Degrees,
         private toDistance: NauticalMiles,
         private maxAltiude: Feet = context.observer.get().cruiseAltitude,

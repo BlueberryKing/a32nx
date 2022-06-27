@@ -1,12 +1,12 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { PureIdlePathConstantMachSegment } from '@fmgc/flightmanagement/vnav/segments/PureIdlePathConstantMachSegment';
 import { PureIdlePathDecelerationSegment } from './PureIdlePathDecelerationSegment';
 import { PureIdlePathConstantSpeedSegment } from './PureIdlePathConstantSpeedSegment';
 
 export class IdlePathSegment extends ProfileSegment {
-    constructor(context: NodeContext, constraints: ConstraintReader, toAltitude: Feet) {
+    constructor(context: SegmentContext, constraints: ConstraintReader, toAltitude: Feet) {
         super();
 
         const { descentSpeedLimit, managedDescentSpeed, managedDescentSpeedMach } = context.observer.get();
@@ -26,7 +26,7 @@ export class IdlePathSegment extends ProfileSegment {
 }
 
 export class IdlePathToAltitudeSegment extends ProfileSegment {
-    constructor(private context: NodeContext, private constraints: ConstraintReader, private toAltitude: Feet, private maxSpeed: Knots) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader, private toAltitude: Feet, private maxSpeed: Knots) {
         super();
     }
 

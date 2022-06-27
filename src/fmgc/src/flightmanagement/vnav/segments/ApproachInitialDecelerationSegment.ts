@@ -1,4 +1,4 @@
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
@@ -14,7 +14,7 @@ export class ApproachInitialDecelerationSegment extends ProfileSegment {
 
     private descentSpeedLimit: SpeedLimit;
 
-    constructor(private context: NodeContext, private constraints: ConstraintReader) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader) {
         super();
 
         const { managedDescentSpeed, descentSpeedLimit } = context.observer.get();

@@ -1,4 +1,4 @@
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -13,7 +13,7 @@ export class InitialApproachAltitudeConstraintSegment extends ProfileSegment {
     private descentSpeedLimit: SpeedLimit;
 
     constructor(
-        private context: NodeContext,
+        private context: SegmentContext,
         private constraints: ConstraintReader,
         private constraint: DescentAltitudeConstraint,
         private preferredFlightPathAngle: Degrees,

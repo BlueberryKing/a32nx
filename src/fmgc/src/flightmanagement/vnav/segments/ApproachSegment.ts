@@ -1,4 +1,4 @@
-import { NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ConfigurationChangeSegment } from '@fmgc/flightmanagement/vnav/segments/ConfigurationChangeSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
@@ -13,7 +13,7 @@ import { ApproachInitialDecelerationSegment } from '@fmgc/flightmanagement/vnav/
  * This represents a path from the Missed Approach Point to the Decel point, slowing the aircraft from descent speed to Vapp.
  */
 export class ApproachSegment extends ProfileSegment {
-    constructor(context: NodeContext, constraints: ConstraintReader) {
+    constructor(context: SegmentContext, constraints: ConstraintReader) {
         super();
 
         const { cleanSpeed, slatRetractionSpeed, flapRetractionSpeed, approachSpeed, isFlaps3Landing } = context.observer.get();

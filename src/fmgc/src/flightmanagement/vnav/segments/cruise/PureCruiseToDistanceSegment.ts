@@ -1,4 +1,4 @@
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
 
@@ -9,7 +9,7 @@ export class PureCruiseToDistanceSegment extends ProfileSegment {
 
     propagator: (state: AircraftState) => AircraftState;
 
-    constructor(context: NodeContext, private toDistance: NauticalMiles, altitude: Feet) {
+    constructor(context: SegmentContext, private toDistance: NauticalMiles, altitude: Feet) {
         super();
 
         this.endConditions = { distanceFromStart: { max: toDistance } };

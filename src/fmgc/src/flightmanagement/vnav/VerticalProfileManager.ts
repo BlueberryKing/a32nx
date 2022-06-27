@@ -1,7 +1,7 @@
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { AircraftState, BuilderVisitor, McduProfile, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, BuilderVisitor, McduProfile, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -41,7 +41,7 @@ export class VerticalProfileManager {
     }
 
     private computeFlightPlanProfile(): ProfileBuilder {
-        const context = new NodeContext(
+        const context = new SegmentContext(
             this.atmosphericConditions,
             this.observer,
             new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile),

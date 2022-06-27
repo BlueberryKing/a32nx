@@ -1,5 +1,5 @@
 import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
-import { AircraftState, NodeContext, TemporaryStateSequence } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, TemporaryStateSequence } from '@fmgc/flightmanagement/vnav/segments';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { AccelFactorMode, Common } from '@fmgc/guidance/vnav/common';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
@@ -7,7 +7,7 @@ import { FlightModel } from '@fmgc/guidance/vnav/FlightModel';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { MathUtils } from '@shared/MathUtils';
 
-export function constantThrustPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
+export function constantThrustPropagator(thrustSetting: ThrustSetting, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -51,7 +51,7 @@ export function constantThrustPropagator(thrustSetting: ThrustSetting, context: 
     };
 }
 
-export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
+export function constantPitchPropagator(pitch: PitchTarget, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -103,7 +103,7 @@ export function constantPitchPropagator(pitch: PitchTarget, context: NodeContext
     };
 }
 
-export function accelerationPropagator(thrustSetting: ThrustSetting, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
+export function accelerationPropagator(thrustSetting: ThrustSetting, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false) {
     const { tropoPause } = context.observer.get();
 
     return (state: AircraftState): AircraftState => {
@@ -149,7 +149,7 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: No
 }
 
 export function speedChangePropagator(
-    thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, context: NodeContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false,
+    thrustSetting: ThrustSetting, pitchTarget: PitchTarget, desireAccelerationVsDeceleration: boolean, context: SegmentContext, stepSize: NauticalMiles = 5, useMachVsCas: boolean = false,
 ) {
     const { tropoPause } = context.observer.get();
 

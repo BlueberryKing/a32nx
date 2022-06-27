@@ -1,5 +1,5 @@
 import { accelerationPropagator, IntegrationEndConditions, Integrator, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { NodeContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureAccelerationSegment extends ProfileSegment {
@@ -8,7 +8,7 @@ export class PureAccelerationSegment extends ProfileSegment {
     private readonly endConditions: IntegrationEndConditions;
 
     constructor(
-        private context: NodeContext,
+        private context: SegmentContext,
         private thrustSetting: ThrustSetting,
         private toSpeed: Knots,
         private toAltitude: Feet,
@@ -29,7 +29,7 @@ export class PureAccelerationSegment extends ProfileSegment {
      * A helper function to initialize a PureAccelerationSegment to accelerate to a mach target
      */
     static toMach(
-        context: NodeContext,
+        context: SegmentContext,
         thrustSetting: ThrustSetting,
         toMach: Mach = 0.82,
         toAltitude: Feet,

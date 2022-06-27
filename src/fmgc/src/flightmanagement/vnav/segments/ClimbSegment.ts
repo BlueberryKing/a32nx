@@ -1,13 +1,13 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbMachSegment';
 import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbSegment';
-import { NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
+import { SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class ClimbSegment extends ProfileSegment {
-    constructor(context: NodeContext, constraints: ConstraintReader) {
+    constructor(context: SegmentContext, constraints: ConstraintReader) {
         super();
 
         const { cruiseAltitude, climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();

@@ -1,5 +1,5 @@
 import { FlightPathAnglePitchTarget, IdleThrustSetting, IntegrationEndConditions, Integrator, speedChangePropagator } from '@fmgc/flightmanagement/vnav/integrators';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class PureApproachDecelerationSegment extends ProfileSegment {
@@ -7,7 +7,7 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
 
     private endConditions: IntegrationEndConditions;
 
-    constructor(private context: NodeContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles) {
+    constructor(private context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private toDistance: NauticalMiles) {
         super();
 
         this.endConditions = {

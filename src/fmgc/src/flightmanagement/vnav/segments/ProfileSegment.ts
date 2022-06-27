@@ -18,7 +18,7 @@ export abstract class ProfileSegment {
     }
 
     get repr(): string {
-        return 'Unknown node';
+        return 'Unknown segment';
     }
 
     get type(): VerticalSegmentType {

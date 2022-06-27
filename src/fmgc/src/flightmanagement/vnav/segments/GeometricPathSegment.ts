@@ -1,7 +1,7 @@
 import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
 import { MathUtils } from '@shared/MathUtils';
 import { DescentAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/DescentAltitudeConstraintSegment';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 
@@ -18,7 +18,7 @@ export class GeometricPathSegment extends ProfileSegment {
      * @param maxSpeed
      * @param toAltitude This is used to implement the speed limit.
      */
-    constructor(private context: NodeContext, private constraints: ConstraintReader, private maxSpeed: Knots, private toAltitude: Feet, private useMachVsCas: boolean = false) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader, private maxSpeed: Knots, private toAltitude: Feet, private useMachVsCas: boolean = false) {
         super();
     }
 

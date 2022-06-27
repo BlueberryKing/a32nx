@@ -1,4 +1,4 @@
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { Step } from '@fmgc/guidance/vnav/StepCoordinator';
 import { ClimbThrustSetting, constantPitchPropagator, constantThrustPropagator, IntegrationEndConditions, Integrator, VerticalSpeedPitchTarget } from '@fmgc/flightmanagement/vnav/integrators';
@@ -17,7 +17,7 @@ export class PureCruiseStepSegment extends ProfileSegment {
 
     private isClimbVsDescent: boolean;
 
-    constructor(context: NodeContext, private step: Step, private fromAltitude: Feet, private maxDistance: NauticalMiles) {
+    constructor(context: SegmentContext, private step: Step, private fromAltitude: Feet, private maxDistance: NauticalMiles) {
         super();
 
         this.isClimbVsDescent = step.toAltitude > fromAltitude;

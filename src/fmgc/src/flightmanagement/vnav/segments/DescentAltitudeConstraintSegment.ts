@@ -1,12 +1,12 @@
 import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
 import { PureGeometricDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureGeometricDecelerationSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 
 export class DescentAltitudeConstraintSegment extends ProfileSegment {
     constructor(
-        private context: NodeContext,
+        private context: SegmentContext,
         private constraints: ConstraintReader,
         private toDistance: NauticalMiles,
         private flightPathAngle: Degrees,

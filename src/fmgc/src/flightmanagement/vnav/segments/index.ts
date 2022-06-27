@@ -22,27 +22,27 @@ export enum VerticalSegmentType {
 }
 
 export interface Visitor {
-    visitBeforeChildren(node: ProfileSegment, context: VisitorContext): void;
-    visitAfterChildren(node: ProfileSegment, context: VisitorContext): void;
+    visitBeforeChildren(segment: ProfileSegment, context: VisitorContext): void;
+    visitAfterChildren(segment: ProfileSegment, context: VisitorContext): void;
 }
 
 export class PrinterVisitor implements Visitor {
-    visitBeforeChildren(node: ProfileSegment, context: VisitorContext): void {
-        console.log(`${'  '.repeat(context.depth)} - ${node.repr}`);
+    visitBeforeChildren(segment: ProfileSegment, context: VisitorContext): void {
+        console.log(`${'  '.repeat(context.depth)} - ${segment.repr}`);
     }
 
-    visitAfterChildren(node: ProfileSegment, context: VisitorContext) { }
+    visitAfterChildren(segment: ProfileSegment, context: VisitorContext) { }
 }
 
 export class BuilderVisitor implements Visitor {
     constructor(private builder: ProfileBuilder) {}
 
-    visitBeforeChildren(node: ProfileSegment): void {
-        node.compute(this.builder.lastState, this.builder);
+    visitBeforeChildren(segment: ProfileSegment): void {
+        segment.compute(this.builder.lastState, this.builder);
     }
 
-    visitAfterChildren(node: ProfileSegment, context: VisitorContext) {
-        node.onAfterBuildingChildren(this.builder);
+    visitAfterChildren(segment: ProfileSegment, context: VisitorContext) {
+        segment.onAfterBuildingChildren(this.builder);
     }
 }
 
@@ -51,7 +51,7 @@ export interface VisitorContext {
 }
 
 export class McduProfile extends ProfileSegment {
-    constructor(context: NodeContext, constraints: ConstraintReader, stepCoordinator: StepCoordinator) {
+    constructor(context: SegmentContext, constraints: ConstraintReader, stepCoordinator: StepCoordinator) {
         super();
 
         this.children = [
@@ -206,7 +206,7 @@ export interface SymbolBuilder {
     push(): void;
 }
 
-export class NodeContext {
+export class SegmentContext {
     constructor(public atmosphericConditions: AtmosphericConditions, public observer: VerticalProfileComputationParametersObserver, public windProfile: HeadwindProfile) {
 
     }

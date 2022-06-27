@@ -3,7 +3,7 @@ import { ClimbThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { ClimbToAltConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbToAltConstraintSegment';
 import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureAccelerationSegment';
 import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { PureLevelAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelAccelerationSegment';
 import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelSegment';
@@ -11,7 +11,7 @@ import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevel
 export class ManagedClimbSegment extends ProfileSegment {
     private climbThrust: ClimbThrustSetting;
 
-    constructor(private context: NodeContext, private maxSpeed: Knots, private toAltitude: Feet, private constraints: ConstraintReader) {
+    constructor(private context: SegmentContext, private maxSpeed: Knots, private toAltitude: Feet, private constraints: ConstraintReader) {
         super();
 
         this.climbThrust = new ClimbThrustSetting(context.atmosphericConditions);

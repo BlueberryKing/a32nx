@@ -1,4 +1,4 @@
-import { AircraftState, NodeContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -6,7 +6,7 @@ import { ApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/s
 import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
 
 export class ApproachFlapSegment extends ProfileSegment {
-    constructor(private context: NodeContext, private constraints: ConstraintReader, private nextFlapSpeed: Knots) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader, private nextFlapSpeed: Knots) {
         super();
     }
 
