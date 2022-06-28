@@ -4,7 +4,6 @@ import { Geometry } from '@fmgc/guidance/Geometry';
 import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
 import { FlightPlans, WaypointConstraintType } from '@fmgc/flightplanning/FlightPlanManager';
 import { AltitudeDescriptor } from '@fmgc/types/fstypes/FSEnums';
-import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 
 export class ConstraintReader {
@@ -100,6 +99,38 @@ export class ConstraintReader {
                 }
             } else if (waypoint.additionalData.constraintType === WaypointConstraintType.DES) {
                 if (this.hasValidDescentAltitudeConstraint(leg)) {
+                    // Check if this constraint conflicts with a previous constraint. I.e it forces a climb during the descent phase
+                    switch (waypoint.legAltitudeDescription) {
+                    case AltitudeDescriptor.At:
+                        maxDescentAltitude = Math.min(maxDescentAltitude, Math.round(waypoint.legAltitude1));
+
+                        if (Math.round(waypoint.legAltitude1) > maxDescentAltitude) {
+                            continue;
+                        }
+
+                        break;
+                    case AltitudeDescriptor.AtOrBelow:
+                        maxDescentAltitude = Math.min(maxDescentAltitude, Math.round(waypoint.legAltitude1));
+                        break;
+                    case AltitudeDescriptor.Between:
+                        maxDescentAltitude = Math.min(maxDescentAltitude, Math.round(waypoint.legAltitude1));
+
+                        if (Math.round(waypoint.legAltitude2) > maxDescentAltitude) {
+                            continue;
+                        }
+
+                        break;
+                    case AltitudeDescriptor.AtOrAbove:
+                        if (Math.round(waypoint.legAltitude1) > maxDescentAltitude) {
+                            continue;
+                        }
+
+                        break;
+                    default:
+                        break;
+                        // not constraining
+                    }
+
                     this.descentAltitudeConstraints.push({
                         distanceFromStart: this.totalFlightPlanDistance,
                         constraint: leg.metadata.altitudeConstraint,
