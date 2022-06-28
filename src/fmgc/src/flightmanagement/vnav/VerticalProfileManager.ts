@@ -54,24 +54,7 @@ export class VerticalProfileManager {
             windRepository,
         );
 
-        const { v2Speed, originAirfieldElevation } = this.observer.get();
-
-        const initialState: AircraftState = {
-            altitude: originAirfieldElevation,
-            distanceFromStart: 0,
-            time: 0,
-            weight: this.observer.get().fuelOnBoard + this.observer.get().zeroFuelWeight,
-            speed: v2Speed + 10,
-            mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation, v2Speed + 10),
-            trueAirspeed: this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10),
-            config: {
-                flapConfig: FlapConf.CONF_1,
-                speedbrakesExtended: false,
-                gearExtended: false,
-            },
-        };
-
-        const builder = new ProfileBuilder(initialState, FmgcFlightPhase.Takeoff);
+        const builder = new ProfileBuilder(this.getInitialStateForMcduProfile(), FmgcFlightPhase.Takeoff);
         const visitor = new BuilderVisitor(builder);
 
         CpuTimer.reset();
@@ -84,6 +67,42 @@ export class VerticalProfileManager {
         }
 
         return builder;
+    }
+
+    private getInitialStateForMcduProfile(): AircraftState {
+        const { v2Speed, originAirfieldElevation, flightPhase, presentPosition, fuelOnBoard, zeroFuelWeight, takeoffFlapsSetting } = this.observer.get();
+
+        if (flightPhase <= FmgcFlightPhase.Takeoff) {
+            return {
+                altitude: originAirfieldElevation,
+                distanceFromStart: 0,
+                time: 0,
+                weight: fuelOnBoard + zeroFuelWeight,
+                speed: v2Speed + 10,
+                mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation, v2Speed + 10),
+                trueAirspeed: this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10),
+                config: {
+                    flapConfig: takeoffFlapsSetting,
+                    speedbrakesExtended: false,
+                    gearExtended: true,
+                },
+            };
+        }
+
+        return {
+            altitude: presentPosition.alt,
+            distanceFromStart: this.constraintReader.distanceToPresentPosition,
+            time: 0,
+            weight: fuelOnBoard + zeroFuelWeight,
+            speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
+            mach: SimVar.GetSimVarValue('AIRSPEED MACH', 'number'),
+            trueAirspeed: SimVar.GetSimVarValue('AIRSPEED TRUE', 'knots'),
+            config: {
+                flapConfig: FlapConf.CLEAN, // TODO: Take current flaps setting for this
+                speedbrakesExtended: false,
+                gearExtended: false,
+            },
+        };
     }
 
     getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {
