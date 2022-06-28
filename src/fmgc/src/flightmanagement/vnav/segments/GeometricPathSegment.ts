@@ -43,7 +43,7 @@ export class GeometricPathSegment extends ProfileSegment {
 
             this.children.push(
                 new DescentAltitudeConstraintSegment(
-                    this.context, this.constraints, plannedSegment.end.distanceFromStart, fpa, this.maxSpeed, Math.min(this.toAltitude, plannedSegment.end.altitude), this.options,
+                    this.context, this.constraints, plannedSegment.end.distanceFromStart, fpa, this.maxSpeed, this.toAltitude, this.options,
                 ),
             );
         }
