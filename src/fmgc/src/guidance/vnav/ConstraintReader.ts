@@ -119,10 +119,6 @@ export class ConstraintReader {
                 });
             }
         }
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            console.log(`[FMS/VNAV] Total distance: ${this.totalFlightPlanDistance}`);
-        }
     }
 
     private hasValidSpeedConstraint(leg: Leg): boolean {
