@@ -143,9 +143,12 @@ export class VerticalFlightPlan {
     }
 
     private addSpeedLimitPseudoWaypoints(builder: ProfileBuilder) {
-        const { climbSpeedLimit, descentSpeedLimit, cruiseAltitude } = this.observer.get();
+        const { climbSpeedLimit, descentSpeedLimit, cruiseAltitude, presentPosition, flightPhase } = this.observer.get();
 
-        if (Number.isFinite(climbSpeedLimit.speed) && Number.isFinite(climbSpeedLimit.underAltitude) && cruiseAltitude >= climbSpeedLimit.underAltitude) {
+        if (
+            Number.isFinite(climbSpeedLimit.speed) && Number.isFinite(climbSpeedLimit.underAltitude) && cruiseAltitude >= climbSpeedLimit.underAltitude
+            && flightPhase <= FmgcFlightPhase.Climb && presentPosition.alt <= climbSpeedLimit.underAltitude
+        ) {
             const climbCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Climb).map((state) => ({ ...state, phase: FmgcFlightPhase.Climb }));
             const distanceToSpeedLimitCrossing = Interpolator.interpolateDistanceAtAltitude(climbCheckpoints, climbSpeedLimit.underAltitude);
             const speedLimitCrossing = Interpolator.interpolateEverythingFromStart(climbCheckpoints, distanceToSpeedLimitCrossing);
@@ -160,7 +163,10 @@ export class VerticalFlightPlan {
             });
         }
 
-        if (Number.isFinite(descentSpeedLimit.speed) && Number.isFinite(descentSpeedLimit.underAltitude) && cruiseAltitude >= descentSpeedLimit.underAltitude) {
+        if (
+            Number.isFinite(descentSpeedLimit.speed) && Number.isFinite(descentSpeedLimit.underAltitude) && cruiseAltitude >= descentSpeedLimit.underAltitude
+            && flightPhase <= FmgcFlightPhase.Approach && presentPosition.alt >= descentSpeedLimit.underAltitude
+        ) {
             const descentCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Descent).map((state) => ({ ...state, phase: FmgcFlightPhase.Descent }));
             const approachCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Approach).map((state) => ({ ...state, phase: FmgcFlightPhase.Approach }));
             const relevantCheckpoints = [...descentCheckpoints, ...approachCheckpoints];
