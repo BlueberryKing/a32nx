@@ -39,7 +39,7 @@ export class PureIdlePathConstantSpeedSegment extends ProfileSegment {
         );
 
         if (step.length > 1) {
-            builder.push(step.last);
+            builder.push(...step.allButFirst());
         }
     }
 

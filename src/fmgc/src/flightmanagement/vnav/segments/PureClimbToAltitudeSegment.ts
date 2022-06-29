@@ -29,7 +29,7 @@ export class PureClimbToAltitudeSegment extends ProfileSegment {
 
         // Only add the new state if there was a significant change
         if (step.length > 1) {
-            builder.push(step.last);
+            builder.push(...step.allButFirst());
         }
     }
 

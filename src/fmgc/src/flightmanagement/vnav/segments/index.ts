@@ -257,6 +257,10 @@ export class TemporaryStateSequence {
         );
     }
 
+    allButFirst(): AircraftState[] {
+        return this.states.slice(1);
+    }
+
     interpolateEverythingFromStart(distanceFromStart: NauticalMiles): Partial<AircraftState> {
         if (distanceFromStart <= this.states[0].distanceFromStart) {
             return {
