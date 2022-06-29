@@ -2,11 +2,12 @@ import { GeometricPathSegment } from '@fmgc/flightmanagement/vnav/segments/Geome
 import { IdlePathSegment } from '@fmgc/flightmanagement/vnav/segments/IdlePathSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export class ManagedDescentSegment extends ProfileSegment {
     /**
@@ -17,7 +18,7 @@ export class ManagedDescentSegment extends ProfileSegment {
 
     private idleSegment: IdlePathSegment;
 
-    constructor(context: SegmentContext, private constraints: ConstraintReader) {
+    constructor(private context: SegmentContext, private constraints: ConstraintReader) {
         super();
 
         const { managedDescentSpeed, managedDescentSpeedMach, cruiseAltitude, descentSpeedLimit } = context.observer.get();
@@ -60,6 +61,14 @@ export class ManagedDescentSegment extends ProfileSegment {
 
     get repr(): string {
         return 'ManagedDescentSegment';
+    }
+
+    shouldCompute(_state: AircraftState, _builder: ProfileBuilder): boolean {
+        return this.context.observer.get().flightPhase <= FmgcFlightPhase.Descent;
+    }
+
+    compute(_state: AircraftState, builder: ProfileBuilder): void {
+        builder.changePhase(FmgcFlightPhase.Descent);
     }
 
     onAfterBuildingChildren(builder: ProfileBuilder): void {

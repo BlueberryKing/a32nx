@@ -1,12 +1,13 @@
-import { SegmentContext } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, ProfileBuilder, SegmentContext } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { PureCruiseToDistanceSegment } from './PureCruiseToDistanceSegment';
 import { PureCruiseStepSegment } from './PureCruiseStepSegment';
 
 export class CruiseSegment extends ProfileSegment {
-    constructor(context: SegmentContext, private steps: StepCoordinator, private fromDistance: NauticalMiles, private toDistance: NauticalMiles) {
+    constructor(private context: SegmentContext, private steps: StepCoordinator, private fromDistance: NauticalMiles, private toDistance: NauticalMiles) {
         super();
 
         const { cruiseAltitude } = context.observer.get();
@@ -31,6 +32,14 @@ export class CruiseSegment extends ProfileSegment {
         this.children.push(
             new PureCruiseToDistanceSegment(context, toDistance, altitude, options),
         );
+    }
+
+    shouldCompute(_state: AircraftState, _builder: ProfileBuilder): boolean {
+        return this.context.observer.get().flightPhase <= FmgcFlightPhase.Cruise;
+    }
+
+    compute(_state: AircraftState, builder: ProfileBuilder): void {
+        builder.changePhase(FmgcFlightPhase.Cruise);
     }
 
     get repr(): string {

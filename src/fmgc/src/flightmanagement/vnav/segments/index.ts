@@ -38,11 +38,15 @@ export class BuilderVisitor implements Visitor {
     constructor(private builder: ProfileBuilder) {}
 
     visitBeforeChildren(segment: ProfileSegment): void {
-        segment.compute(this.builder.lastState, this.builder);
+        if (segment.shouldCompute(this.builder.lastState, this.builder)) {
+            segment.compute(this.builder.lastState, this.builder);
+        }
     }
 
     visitAfterChildren(segment: ProfileSegment, context: VisitorContext) {
-        segment.onAfterBuildingChildren(this.builder);
+        if (segment.shouldCompute(this.builder.lastState, this.builder)) {
+            segment.onAfterBuildingChildren(this.builder);
+        }
     }
 }
 
@@ -178,6 +182,10 @@ export class ProfileBuilder {
     }
 
     checkpointsOfPhase(phase: FmgcFlightPhase): AircraftState[] {
+        if (!this.phases.has(phase)) {
+            return [];
+        }
+
         return this.phases.get(phase);
     }
 

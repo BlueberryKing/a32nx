@@ -1,4 +1,4 @@
-import { SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 import { ConfigurationChangeSegment } from '@fmgc/flightmanagement/vnav/segments/ConfigurationChangeSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
@@ -43,9 +43,12 @@ export class ApproachSegment extends ProfileSegment {
         this.children.push(new ApproachInitialDecelerationSegment(context, constraints, options)); /* In clean configuration */
     }
 
+    compute(_state: AircraftState, builder: ProfileBuilder): void {
+        builder.changePhase(FmgcFlightPhase.Approach);
+    }
+
     onAfterBuildingChildren(builder: ProfileBuilder): void {
         builder.requestPseudoWaypoint(McduPseudoWaypointType.Decel, builder.lastState);
-        builder.changePhase(FmgcFlightPhase.Descent);
     }
 
     get repr(): string {

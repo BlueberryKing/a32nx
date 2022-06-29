@@ -1,13 +1,13 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbMachSegment';
 import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbSegment';
-import { SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
+import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class ClimbSegment extends ProfileSegment {
-    constructor(context: SegmentContext, constraints: ConstraintReader) {
+    constructor(private context: SegmentContext, constraints: ConstraintReader) {
         super();
 
         const { cruiseAltitude, climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();
@@ -20,9 +20,16 @@ export class ClimbSegment extends ProfileSegment {
         ];
     }
 
+    shouldCompute(_state: AircraftState, _builder: ProfileBuilder): boolean {
+        return this.context.observer.get().flightPhase <= FmgcFlightPhase.Climb;
+    }
+
+    compute(_state: AircraftState, builder: ProfileBuilder): void {
+        builder.changePhase(FmgcFlightPhase.Climb);
+    }
+
     onAfterBuildingChildren(builder: ProfileBuilder): void {
         builder.requestPseudoWaypoint(McduPseudoWaypointType.TopOfClimb, builder.lastState);
-        builder.changePhase(FmgcFlightPhase.Cruise);
     }
 
     get repr() {

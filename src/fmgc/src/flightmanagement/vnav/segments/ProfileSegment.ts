@@ -3,6 +3,10 @@ import { AircraftState, ProfileBuilder, Visitor, VisitorContext, VerticalSegment
 export abstract class ProfileSegment {
     protected children: ProfileSegment[] = [];
 
+    shouldCompute(_state: AircraftState, _builder: ProfileBuilder): boolean {
+        return true;
+    }
+
     compute(_state: AircraftState, _builder: ProfileBuilder) { }
 
     onAfterBuildingChildren(_builder: ProfileBuilder) { }
