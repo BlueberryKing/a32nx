@@ -59,7 +59,6 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
         // `achievedFpa` and `this.flightPathAngle` are negative
         if (achievedFpa - this.flightPathAngle > 0.1) {
             // We didn't make it -> Try with speed brakes
-            console.log(`[FMS/VNAV] (Decel path) Desired path angle of ${this.flightPathAngle}° could not be achieved, actual path angle: ${achievedFpa}°. Trying with speedbrakes`);
             state.config.speedbrakesExtended = true;
 
             const decelerationPathWithSpeedBrakes = this.integrator.integrate(
@@ -70,8 +69,6 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
 
             const achievedGradientWithSpeedBrakes = this.calculateGradient(decelerationPathWithSpeedBrakes.first, decelerationPathWithSpeedBrakes.last);
             const achievedFpaWithSpeedBrakes = MathUtils.RADIANS_TO_DEGREES * Math.atan(achievedGradientWithSpeedBrakes / 6076.12);
-
-            console.log(`[FMS/VNAV] Achieved path angle of ${achievedFpaWithSpeedBrakes} with speedbrakes`);
 
             if (achievedFpaWithSpeedBrakes - this.flightPathAngle > 0.1) {
                 console.log(`[FMS/VNAV] TOO STEEP PATH: Desired FPA of ${this.flightPathAngle}° but only achieved ${achievedFpaWithSpeedBrakes}°.`);
