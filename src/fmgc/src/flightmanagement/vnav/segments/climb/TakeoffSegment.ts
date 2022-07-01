@@ -1,7 +1,7 @@
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { ClimbThrustSetting, PropagatorOptions, TakeoffThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { ConfigurationChangeSegment } from '@fmgc/flightmanagement/vnav/segments/ConfigurationChangeSegment';
-import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
+import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureClimbToAltitudeSegment';
 import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';

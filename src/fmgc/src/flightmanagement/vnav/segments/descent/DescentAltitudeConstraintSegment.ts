@@ -1,5 +1,5 @@
-import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
-import { PureGeometricDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureGeometricDecelerationSegment';
+import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/descent/PureConstantFlightPathAngleSegment';
+import { PureGeometricDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/descent/PureGeometricDecelerationSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';

@@ -8,7 +8,7 @@ import {
     speedChangePropagator,
 } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
-import { GeometricPathPoint } from '@fmgc/flightmanagement/vnav/segments/GeometricPathSegment';
+import { GeometricPathPoint } from '@fmgc/flightmanagement/vnav/segments/descent/GeometricPathSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { MathUtils } from '@shared/MathUtils';
 

@@ -1,6 +1,6 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbMachSegment';
-import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedClimbSegment';
+import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/climb/ManagedClimbMachSegment';
+import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/climb/ManagedClimbSegment';
 import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';

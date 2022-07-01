@@ -1,8 +1,8 @@
 import { ClimbThrustSetting, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { SegmentContext } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureAccelerationSegment';
-import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
+import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureAccelerationSegment';
+import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureClimbToAltitudeSegment';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 export class ManagedClimbMachSegment extends ProfileSegment {

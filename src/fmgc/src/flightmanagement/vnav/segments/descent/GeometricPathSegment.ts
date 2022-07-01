@@ -1,6 +1,6 @@
 import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
 import { MathUtils } from '@shared/MathUtils';
-import { DescentAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/DescentAltitudeConstraintSegment';
+import { DescentAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/descent/DescentAltitudeConstraintSegment';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';

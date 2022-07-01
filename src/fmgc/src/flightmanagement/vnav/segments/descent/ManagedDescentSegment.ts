@@ -1,5 +1,5 @@
-import { GeometricPathSegment } from '@fmgc/flightmanagement/vnav/segments/GeometricPathSegment';
-import { IdlePathSegment } from '@fmgc/flightmanagement/vnav/segments/IdlePathSegment';
+import { GeometricPathSegment } from '@fmgc/flightmanagement/vnav/segments/descent/GeometricPathSegment';
+import { IdlePathSegment } from '@fmgc/flightmanagement/vnav/segments/descent/IdlePathSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments';

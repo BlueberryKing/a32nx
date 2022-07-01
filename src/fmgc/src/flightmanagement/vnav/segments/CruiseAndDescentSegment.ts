@@ -1,13 +1,13 @@
 import { AircraftState, BuilderVisitor, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { CruiseSegment } from '@fmgc/flightmanagement/vnav/segments/cruise/CruiseSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { ManagedDescentSegment } from '@fmgc/flightmanagement/vnav/segments/ManagedDescentSegment';
-import { ApproachSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachSegment';
+import { ManagedDescentSegment } from '@fmgc/flightmanagement/vnav/segments/descent/ManagedDescentSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
+import { ApproachSegment } from '@fmgc/flightmanagement/vnav/segments/approach/ApproachSegment';
 
 export class CruiseAndDescentSegment extends ProfileSegment {
     private descentSegment: ManagedDescentSegment;

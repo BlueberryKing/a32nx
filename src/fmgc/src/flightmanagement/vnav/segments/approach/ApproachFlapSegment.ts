@@ -1,9 +1,9 @@
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
+import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/descent/PureConstantFlightPathAngleSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { ApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachAltitudeConstraintSegment';
-import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
+import { ApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/approach/ApproachAltitudeConstraintSegment';
+import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/approach/PureApproachDecelerationSegment';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 export class ApproachFlapSegment extends ProfileSegment {

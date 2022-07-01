@@ -1,7 +1,7 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SegmentContext } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { PureIdlePathConstantMachSegment } from '@fmgc/flightmanagement/vnav/segments/PureIdlePathConstantMachSegment';
+import { PureIdlePathConstantMachSegment } from '@fmgc/flightmanagement/vnav/segments/descent/PureIdlePathConstantMachSegment';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 import { IdlePathToAltitudeSegment } from './IdlePathToAltitudeSegment';

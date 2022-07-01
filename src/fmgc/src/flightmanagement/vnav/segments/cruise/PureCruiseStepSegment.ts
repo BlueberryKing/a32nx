@@ -15,7 +15,6 @@ import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 /**
  * A step climb or descent
  */
-
 export class PureCruiseStepSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 

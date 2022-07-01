@@ -1,10 +1,9 @@
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { Common } from '@fmgc/guidance/vnav/common';
+import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
-import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/TakeoffSegment';
-import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbSegment';
+import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/climb/TakeoffSegment';
+import { ClimbSegment } from '@fmgc/flightmanagement/vnav/segments/climb/ClimbSegment';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/CruiseAndDescentSegment';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
@@ -26,14 +25,6 @@ export interface Visitor {
     visitAfterChildren(segment: ProfileSegment, context: VisitorContext): void;
 }
 
-export class PrinterVisitor implements Visitor {
-    visitBeforeChildren(segment: ProfileSegment, context: VisitorContext): void {
-        console.log(`${'  '.repeat(context.depth)} - ${segment.repr}`);
-    }
-
-    visitAfterChildren(segment: ProfileSegment, context: VisitorContext) { }
-}
-
 export class BuilderVisitor implements Visitor {
     constructor(private builder: ProfileBuilder) {}
 
@@ -43,7 +34,7 @@ export class BuilderVisitor implements Visitor {
         }
     }
 
-    visitAfterChildren(segment: ProfileSegment, context: VisitorContext) {
+    visitAfterChildren(segment: ProfileSegment, _context: VisitorContext) {
         if (segment.shouldCompute(this.builder.lastState, this.builder)) {
             segment.onAfterBuildingChildren(this.builder);
         }
@@ -70,6 +61,12 @@ export class McduProfile extends ProfileSegment {
     }
 }
 
+export interface AircraftConfiguration {
+    flapConfig: FlapConf
+    speedbrakesExtended: boolean
+    gearExtended: boolean
+}
+
 export interface AircraftState {
     distanceFromStart: NauticalMiles,
     altitude: Feet,
@@ -79,6 +76,7 @@ export interface AircraftState {
     mach: Mach,
     config: AircraftConfiguration,
     weight: Pounds,
+    reason?: string
 }
 
 export interface McduPseudoWaypointRequest {

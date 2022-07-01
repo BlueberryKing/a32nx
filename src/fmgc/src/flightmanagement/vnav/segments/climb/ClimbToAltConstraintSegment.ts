@@ -1,8 +1,8 @@
 import { PropagatorOptions, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelSegment';
+import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureLevelSegment';
 import { SegmentContext } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
+import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureClimbToAltitudeSegment';
 
 export class ClimbToAltConstraintSegment extends ProfileSegment {
     constructor(context: SegmentContext, thrustSetting: ThrustSetting, private toAltitude: Feet, private toDistance: NauticalMiles, options: PropagatorOptions) {

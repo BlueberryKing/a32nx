@@ -3,13 +3,13 @@ import { ConfigurationChangeSegment } from '@fmgc/flightmanagement/vnav/segments
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { ApproachFlapSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachFlapSegment';
-import { FinalApproachSegment } from '@fmgc/flightmanagement/vnav/segments/FinalApproachSegment';
+import { FinalApproachSegment } from '@fmgc/flightmanagement/vnav/segments/approach/FinalApproachSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
-import { ApproachInitialDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/ApproachInitialDecelerationSegment';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
+import { ApproachFlapSegment } from '@fmgc/flightmanagement/vnav/segments/approach/ApproachFlapSegment';
+import { ApproachInitialDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/approach/ApproachInitialDecelerationSegment';
 
 /**
  * This represents a path from the Missed Approach Point to the Decel point, slowing the aircraft from descent speed to Vapp.

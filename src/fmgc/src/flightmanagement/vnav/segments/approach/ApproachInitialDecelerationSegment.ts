@@ -2,8 +2,8 @@ import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanag
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
-import { PureInitialApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureInitialApproachDecelerationSegment';
-import { InitialApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/InitialApproachAltitudeConstraintSegment';
+import { PureInitialApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/approach/PureInitialApproachDecelerationSegment';
+import { InitialApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/approach/InitialApproachAltitudeConstraintSegment';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
 /**

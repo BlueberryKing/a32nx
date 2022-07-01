@@ -1,13 +1,13 @@
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ClimbThrustSetting, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
-import { ClimbToAltConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/ClimbToAltConstraintSegment';
-import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureAccelerationSegment';
-import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/PureClimbToAltitudeSegment';
+import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureAccelerationSegment';
+import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureClimbToAltitudeSegment';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { PureLevelAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelAccelerationSegment';
-import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/PureLevelSegment';
+import { PureLevelAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureLevelAccelerationSegment';
+import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureLevelSegment';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
+import { ClimbToAltConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/climb/ClimbToAltConstraintSegment';
 
 export class ManagedClimbSegment extends ProfileSegment {
     private climbThrust: ClimbThrustSetting;

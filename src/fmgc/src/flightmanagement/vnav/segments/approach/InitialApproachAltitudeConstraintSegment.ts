@@ -1,56 +1,83 @@
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { PureConstantFlightPathAngleSegment } from '@fmgc/flightmanagement/vnav/segments/PureConstantFlightPathAngleSegment';
 import { AltitudeConstraintType } from '@fmgc/guidance/lnav/legs';
 import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
 import { MathUtils } from '@shared/MathUtils';
-import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/PureApproachDecelerationSegment';
+import { PureInitialApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/approach/PureInitialApproachDecelerationSegment';
+import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
+import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/approach/PureApproachDecelerationSegment';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
-export class ApproachAltitudeConstraintSegment extends ProfileSegment {
+export class InitialApproachAltitudeConstraintSegment extends ProfileSegment {
+    private managedDescentSpeed: Knots;
+
+    private descentSpeedLimit: SpeedLimit;
+
     constructor(
         private context: SegmentContext,
         private constraints: ConstraintReader,
         private constraint: DescentAltitudeConstraint,
         private preferredFlightPathAngle: Degrees,
-        private maxSpeed: Knots,
         private options: PropagatorOptions,
     ) {
         super();
+
+        const { managedDescentSpeed, descentSpeedLimit } = context.observer.get();
+
+        this.managedDescentSpeed = managedDescentSpeed;
+        this.descentSpeedLimit = descentSpeedLimit;
     }
 
     get repr(): string {
-        return 'ApproachAltitudeConstraintSegment';
+        return 'InitialApproachAltitudeConstraintSegment';
     }
 
     compute(state: AircraftState, _builder: ProfileBuilder): void {
+        this.children = [];
+
         // TODO: Try get FPA from previous segment to minimize pitch changes.
         const [minAngle, maxAngle] = this.getFlightPathAngleRange(state, this.constraint);
         const flightPathAngle = Math.max(minAngle, Math.min(maxAngle, this.preferredFlightPathAngle));
 
-        let maxSpeed = this.maxSpeed;
+        let maxSpeed = this.descentSpeedWithSpeedLimit(state.altitude);
+        let distanceToLastConstraint = this.constraint.distanceFromStart;
 
-        this.children = [
-            new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, this.constraint.distanceFromStart, this.options),
-        ];
+        for (const speedConstraint of this.constrainingSpeedConstraints(state)) {
+            if (speedConstraint.distanceFromStart < this.constraint.distanceFromStart || speedConstraint.maxSpeed > maxSpeed) {
+                maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
-        for (const speedConstraint of this.constraints.descentSpeedConstraints) {
-            if (speedConstraint.distanceFromStart < this.constraint.distanceFromStart || speedConstraint.maxSpeed > this.maxSpeed) {
                 continue;
-            } else if (speedConstraint.distanceFromStart > state.distanceFromStart) {
+            }
+
+            this.children.unshift(
+                new PureInitialApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.options),
+            );
+
+            maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
+            distanceToLastConstraint = Math.max(distanceToLastConstraint, speedConstraint.distanceFromStart);
+        }
+
+        this.children.unshift(
+            new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, distanceToLastConstraint, this.options),
+        );
+    }
+
+    private descentSpeedWithSpeedLimit(altitude: Feet): Knots {
+        let maxSpeed = this.managedDescentSpeed;
+        if (Number.isFinite(this.descentSpeedLimit.speed) && Number.isFinite(this.descentSpeedLimit.underAltitude) && altitude < this.descentSpeedLimit.underAltitude) {
+            maxSpeed = Math.min(maxSpeed, this.descentSpeedLimit.speed);
+        }
+
+        return maxSpeed;
+    }
+
+    private* constrainingSpeedConstraints(state: AircraftState) {
+        for (const speedConstraint of this.constraints.descentSpeedConstraints) {
+            if (speedConstraint.distanceFromStart > state.distanceFromStart) {
                 break;
             }
 
-            maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
-
-            // This makes sure to fly to the speed constraint, as we will need to pass it to all further "acceleration" to the flap speed.
-            this.children.unshift(
-                new PureConstantFlightPathAngleSegment(this.context, flightPathAngle, speedConstraint.distanceFromStart, this.options),
-            );
-
-            this.children.unshift(
-                new PureApproachDecelerationSegment(this.context, flightPathAngle, maxSpeed, speedConstraint.distanceFromStart, this.options),
-            );
+            yield speedConstraint;
         }
     }
 
