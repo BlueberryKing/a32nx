@@ -1,5 +1,4 @@
-import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { SegmentContext, AircraftState, ProfileBuilder, AircraftConfiguration } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
