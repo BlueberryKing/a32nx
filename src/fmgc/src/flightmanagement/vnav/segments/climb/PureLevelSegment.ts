@@ -32,6 +32,6 @@ export class PureLevelSegment extends ProfileSegment {
     }
 
     get repr() {
-        return `PureLevelSegmentNode - Fly level to ${this.toDistance} NM`;
+        return `PureLevelSegmentSegment - Fly level to ${this.toDistance} NM`;
     }
 }

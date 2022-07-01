@@ -34,6 +34,6 @@ export class PureClimbToAltitudeSegment extends ProfileSegment {
     }
 
     get repr() {
-        return `PureClimbToAltitudeNode - Climb to ${this.toAltitude} ft`;
+        return `PureClimbToAltitudeSegment - Climb to ${this.toAltitude} ft`;
     }
 }

@@ -25,6 +25,6 @@ export class ConfigurationChangeSegment extends ProfileSegment {
     }
 
     get repr(): string {
-        return `ConfigurationChangeNode - Change to ${JSON.stringify(this.config)}`;
+        return `ConfigurationChangeSegment - Change to ${JSON.stringify(this.config)}`;
     }
 }

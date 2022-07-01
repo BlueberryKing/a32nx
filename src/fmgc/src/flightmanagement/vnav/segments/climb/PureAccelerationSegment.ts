@@ -60,6 +60,6 @@ export class PureAccelerationSegment extends ProfileSegment {
     }
 
     get repr() {
-        return `PureAccelerationNode - Accelerate to ${this.toSpeed} kts, stay below ${this.toAltitude} ft`;
+        return `PureAccelerationSegment - Accelerate to ${this.toSpeed} kts, stay below ${this.toAltitude} ft`;
     }
 }

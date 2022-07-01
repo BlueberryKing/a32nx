@@ -30,6 +30,6 @@ export class TakeoffSegment extends ProfileSegment {
     }
 
     get repr() {
-        return 'TakeoffNode';
+        return 'TakeoffSegment';
     }
 }

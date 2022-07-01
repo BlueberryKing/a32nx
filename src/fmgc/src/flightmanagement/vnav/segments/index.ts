@@ -57,7 +57,7 @@ export class McduProfile extends ProfileSegment {
     }
 
     get repr() {
-        return 'McduProfileNode';
+        return 'McduProfile';
     }
 }
 
