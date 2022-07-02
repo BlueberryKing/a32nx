@@ -84,7 +84,8 @@ export function constantPitchPropagator(pitch: PitchTarget, context: SegmentCont
         const correctedThrust = (thrust / delta2) / 2;
         const n1 = EngineModel.reverseTableInterpolation(EngineModel.table1506, state.mach, (correctedThrust / EngineModel.maxThrust));
         const correctedN1 = EngineModel.getCorrectedN1(n1, theta2);
-        const fuelFlow = EngineModel.getCorrectedFuelFlow(correctedN1, state.mach, state.altitude) * 2;
+        const correctedFuelFlow = EngineModel.getCorrectedFuelFlow(correctedN1, state.mach, state.altitude) * 2;
+        const fuelFlow = EngineModel.getUncorrectedFuelFlow(correctedFuelFlow, delta2, theta2);
 
         const verticalSpeed: FeetPerMinute = 101.268 * state.trueAirspeed * Math.sin(pathAngle);
         const stepTime: Seconds = 3600 * options.stepSize / groundSpeed;
@@ -253,7 +254,7 @@ export class ClimbThrustSetting implements ThrustSetting {
 
         return [
             EngineModel.getUncorrectedThrust(correctedThrust, delta2), // in lbf
-            EngineModel.getCorrectedFuelFlow(correctedN1, mach, altitude) * 2,
+            EngineModel.getUncorrectedFuelFlow(EngineModel.getCorrectedFuelFlow(correctedN1, mach, altitude) * 2, delta2, theta2),
         ];
     }
 }
@@ -275,7 +276,7 @@ export class TakeoffThrustSetting implements ThrustSetting {
 
         return [
             EngineModel.getUncorrectedThrust(correctedThrust, delta2), // in lbf
-            EngineModel.getCorrectedFuelFlow(correctedN1, mach, altitude) * 2,
+            EngineModel.getUncorrectedFuelFlow(EngineModel.getCorrectedFuelFlow(correctedN1, mach, altitude) * 2, delta2, theta2),
         ];
     }
 }
@@ -297,7 +298,7 @@ export class IdleThrustSetting implements ThrustSetting {
 
         return [
             EngineModel.getUncorrectedThrust(correctedThrust, delta2), // in lbf
-            EngineModel.getCorrectedFuelFlow(correctedN1, mach, altitude) * 2,
+            EngineModel.getUncorrectedFuelFlow(EngineModel.getCorrectedFuelFlow(correctedN1, mach, altitude) * 2, delta2, theta2),
         ];
     }
 }
