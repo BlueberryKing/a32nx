@@ -363,7 +363,7 @@ class CDUVerticalRevisionPage {
     }
 
     // constraints can be set directly by LSK on f-pln page
-    static setConstraints(mcdu, waypoint, value, scratchpadCallback, offset = 0) {
+    static setConstraints(mcdu, waypoint, verticalWaypoint, value, scratchpadCallback, offset = 0) {
         const matchResult = value.match(/^(([0-9]{1,3})\/?)?(\/([+-])?(((FL)?([0-9]{1,3}))|([0-9]{4,5})))?$/);
         if (matchResult === null) {
             mcdu.setScratchpadMessage(NXSystemMessages.formatError);

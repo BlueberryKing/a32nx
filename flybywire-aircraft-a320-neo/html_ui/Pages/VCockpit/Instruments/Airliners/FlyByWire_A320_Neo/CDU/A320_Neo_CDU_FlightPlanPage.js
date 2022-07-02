@@ -468,7 +468,7 @@ class CDUFlightPlanPage {
                         } else if (value === FMCMainDisplay.clrValue) {
                             mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
                         } else {
-                            CDUVerticalRevisionPage.setConstraints(mcdu, wp, value, scratchpadCallback, offset);
+                            CDUVerticalRevisionPage.setConstraints(mcdu, wp, verticalWaypoint, value, scratchpadCallback, offset);
                         }
                     });
 
