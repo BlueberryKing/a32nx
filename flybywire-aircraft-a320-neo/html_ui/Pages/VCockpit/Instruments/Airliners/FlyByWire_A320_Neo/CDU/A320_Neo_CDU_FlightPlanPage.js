@@ -99,16 +99,20 @@ class CDUFlightPlanPage {
 
         // In this loop, we insert pseudowaypoints between regular waypoints and compute the distances between the previous and next (pseudo-)waypoint.
         for (let i = first; i < fpm.getWaypointsCount(); i++) {
-            const pseudoWaypointsOnLeg = fmsPseudoWaypoints.filter((it) => it.alongLegIndex === i);
-            pseudoWaypointsOnLeg.sort((a, b) => a.distanceFromLastFix - b.distanceFromLastFix);
+            // Do not show PWP on temporary flight plan
+            if (!fpm.isCurrentFlightPlanTemporary()) {
 
-            for (const pwp of pseudoWaypointsOnLeg) {
-                pwp.distanceInFP = pwp.prediction.distanceFromStart - cumulativeDistance;
-                cumulativeDistance = pwp.prediction.distanceFromStart;
-            }
+                const pseudoWaypointsOnLeg = fmsPseudoWaypoints.filter((it) => it.alongLegIndex === i);
+                pseudoWaypointsOnLeg.sort((a, b) => a.distanceFromLastFix - b.distanceFromLastFix);
 
-            if (pseudoWaypointsOnLeg) {
-                waypointsAndMarkers.push(...pseudoWaypointsOnLeg.map((pwp) => ({ pwp, fpIndex: i })));
+                for (const pwp of pseudoWaypointsOnLeg) {
+                    pwp.distanceInFP = pwp.prediction.distanceFromStart - cumulativeDistance;
+                    cumulativeDistance = pwp.prediction.distanceFromStart;
+                }
+
+                if (pseudoWaypointsOnLeg) {
+                    waypointsAndMarkers.push(...pseudoWaypointsOnLeg.map((pwp) => ({ pwp, fpIndex: i })));
+                }
             }
 
             const wp = fpm.getWaypoint(i);
@@ -216,7 +220,7 @@ class CDUFlightPlanPage {
                 // Time
                 let timeCell = "----[s-text]";
                 let timeColor = "white";
-                if (verticalWaypoint && isFinite(verticalWaypoint.time)) {
+                if (!fpm.isCurrentFlightPlanTemporary() && verticalWaypoint && isFinite(verticalWaypoint.time)) {
                     const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                     timeCell = isFlying
@@ -303,7 +307,7 @@ class CDUFlightPlanPage {
                 let speedConstraint = "---";
                 let speedPrefix = "";
 
-                if (verticalWaypoint && verticalWaypoint.speed) {
+                if (!fpm.isCurrentFlightPlanTemporary() && verticalWaypoint && verticalWaypoint.speed) {
                     speedConstraint = verticalWaypoint.speed < 1 ? formatMachNumber(verticalWaypoint.speed) : Math.round(verticalWaypoint.speed);
 
                     if (wp.speedConstraint > 10) {
@@ -337,7 +341,7 @@ class CDUFlightPlanPage {
                         altColor = color;
                     }
                     altitudeConstraint = altitudeConstraint.padStart(5,"\xa0");
-                } else {
+                } else if (!fpm.isCurrentFlightPlanTemporary()) {
                     let altitudeToFormat = wp.legAltitude1;
 
                     if (hasAltConstraint && ident !== "(DECEL)") {
@@ -473,7 +477,7 @@ class CDUFlightPlanPage {
                     });
 
             } else if (pwp) {
-                const color = (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green";
+                const color = "green";
 
                 let timeCell = "----[s-text]";
                 if (pwp.prediction && isFinite(pwp.prediction.time)) {
@@ -498,7 +502,7 @@ class CDUFlightPlanPage {
                     fpIndex: fpIndex,
                     active: false,
                     ident: pwp.mcduIdent,
-                    color: (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green",
+                    color,
                     distance: pwp.distanceInFP ? Math.round(pwp.distanceInFP).toFixed(0) : "",
                     spdColor: pwp.prediction ? "green" : "white",
                     speedConstraint: speedPrefix + speed,
