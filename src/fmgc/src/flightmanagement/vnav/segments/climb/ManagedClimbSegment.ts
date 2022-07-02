@@ -17,6 +17,7 @@ export class ManagedClimbSegment extends ProfileSegment {
 
         this.children = [
             new PureClimbToAltitudeSegment(context, climbThrust, toAltitude, options),
+            new PureAccelerationSegment(context, climbThrust, maxSpeed, toAltitude, options),
         ];
 
         const allConstraints = [...constraints.climbSpeedConstraints, ...constraints.climbAlitudeConstraints];
@@ -34,17 +35,12 @@ export class ManagedClimbSegment extends ProfileSegment {
 
                 // We only need to do this if we're below `toAltitude` because if we're above it, we can let the next `ManagedClimbSegment` take care of them
                 if (currentMaxAltitude < toAltitude) {
-                    // The following two segments make sure we get to the next constraint after dealing with `constraint`.
-                    // Accelerate in level flight if an upcoming constraint requires it.
-                    this.children.push(new PureLevelAccelerationSegment(context, climbThrust, currentMaxSpeed, Infinity, options));
-                    // Accelerate after `constraint`
-                    this.children.push(new PureAccelerationSegment(context, climbThrust, currentMaxSpeed, currentMaxAltitude, options));
-
                     // Possibly fly level before reaching `constraint` if there is a constraining altitude constraint
                     this.children.push(new PureLevelSegment(context, constraint.distanceFromStart, options));
+                    // Accelerate in level flight if an upcoming constraint requires it.
+                    this.children.push(new PureLevelAccelerationSegment(context, climbThrust, constraint.maxSpeed, constraint.distanceFromStart, options));
                 }
 
-                // Fly to `constraint` first.
                 this.children.push(new PureClimbToAltitudeSegment(context, climbThrust, currentMaxAltitude, options, constraint.distanceFromStart));
                 this.children.push(new PureAccelerationSegment(context, climbThrust, constraint.maxSpeed, currentMaxAltitude, options, constraint.distanceFromStart));
 
