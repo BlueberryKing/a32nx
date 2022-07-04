@@ -1,4 +1,3 @@
-import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { AircraftState, BuilderVisitor, McduProfile, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
@@ -61,10 +60,6 @@ export class VerticalProfileManager {
 
         const profile = measurePerformance(() => new McduProfile(context, this.constraintReader, this.stepCoordinator), (time) => CpuTimer.initializationTime = time);
         measurePerformance(() => profile.accept(visitor), (time) => CpuTimer.visitorTime = time);
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            console.log(visitor);
-        }
 
         return builder;
     }
