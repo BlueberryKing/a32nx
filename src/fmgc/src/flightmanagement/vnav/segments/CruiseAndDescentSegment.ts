@@ -33,7 +33,10 @@ export class CruiseAndDescentSegment extends ProfileSegment {
         const temporaryCruiseBuilder = new ProfileBuilder(state, FmgcFlightPhase.Cruise);
         const temporaryCruiseVisitor = new BuilderVisitor(temporaryCruiseBuilder);
 
-        for (let i = 0; i < 4; i++) {
+        let weightError = Infinity;
+        let timeError = Infinity;
+
+        for (let i = 0; i < 4 && Math.abs(weightError) > 1 && Math.abs(timeError) > 1; i++) {
             if (temporaryDescentBuilder.currentPhase === FmgcFlightPhase.Descent) {
                 temporaryDescentBuilder.resetPseudoWaypoints().resetPhase().changePhase(FmgcFlightPhase.Approach).resetPhaseUpToInitialState();
             }
@@ -46,8 +49,11 @@ export class CruiseAndDescentSegment extends ProfileSegment {
             const cruiseSegment = new CruiseSegment(this.context, this.stepCoordinator, state.distanceFromStart, temporaryDescentBuilder.lastState.distanceFromStart);
             cruiseSegment.accept(temporaryCruiseVisitor);
 
-            initialState.weight += temporaryCruiseBuilder.lastState.weight - temporaryDescentBuilder.lastState.weight;
-            initialState.time += temporaryCruiseBuilder.lastState.time - temporaryDescentBuilder.lastState.time;
+            weightError = temporaryCruiseBuilder.lastState.weight - temporaryDescentBuilder.lastState.weight;
+            timeError = temporaryCruiseBuilder.lastState.time - temporaryDescentBuilder.lastState.time;
+
+            initialState.weight += weightError;
+            initialState.time += timeError;
         }
 
         builder.changePhase(FmgcFlightPhase.Cruise).push(...temporaryCruiseBuilder.checkpointsOfPhase(FmgcFlightPhase.Cruise));
@@ -70,7 +76,7 @@ export class CruiseAndDescentSegment extends ProfileSegment {
             altitude: destinationAirfieldElevation + 50,
             distanceFromStart: constraintReader.totalFlightPlanDistance,
             time: 0,
-            weight: zeroFuelWeight + 2500,
+            weight: zeroFuelWeight + 6000, // zeroFuelWeight + Initial guess for the amount of fuel on board when landing
             speed: approachSpeed,
             mach: context.atmosphericConditions.computeMachFromCas(destinationAirfieldElevation + 50, approachSpeed),
             trueAirspeed: context.atmosphericConditions.computeTasFromCas(destinationAirfieldElevation + 50, approachSpeed),
