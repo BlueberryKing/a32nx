@@ -43,7 +43,7 @@ export class ApproachAltitudeConstraintSegment extends ProfileSegment {
 
             maxSpeed = Math.min(maxSpeed, speedConstraint.maxSpeed);
 
-            // This makes sure to fly to the speed constraint, as we will need to pass it to all further "acceleration" to the flap speed.
+            // This makes sure to fly to the speed constraint, as we will need to pass it to allow further "acceleration" to the flap speed.
             this.children.unshift(
                 new PureConstantFlightPathAngleSegment(this.context, flightPathAngle, speedConstraint.distanceFromStart, this.options),
             );

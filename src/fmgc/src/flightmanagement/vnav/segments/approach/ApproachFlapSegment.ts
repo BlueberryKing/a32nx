@@ -6,6 +6,10 @@ import { ApproachAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/s
 import { PureApproachDecelerationSegment } from '@fmgc/flightmanagement/vnav/segments/approach/PureApproachDecelerationSegment';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 
+/**
+ * This type of segment is all about decelerating to `nextFlapSpeed`. If this is not possible due to a speed constraint, the aircraft
+ * flies a constant speed to the constraint before it continues to decelerate.
+ */
 export class ApproachFlapSegment extends ProfileSegment {
     constructor(private context: SegmentContext, private constraints: ConstraintReader, private nextFlapSpeed: Knots, private options: PropagatorOptions) {
         super();

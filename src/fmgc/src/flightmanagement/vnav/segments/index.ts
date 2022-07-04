@@ -92,6 +92,7 @@ export class ProfileBuilder {
 
     mcduPseudoWaypointRequests: McduPseudoWaypointRequest[] = []
 
+    // TODO: `buildInReverse` should probably actually call `unshift` to build in reverse
     constructor(initialState: AircraftState, phase: FmgcFlightPhase, private buildInReverse: boolean = false) {
         this.currentFlightPhase = phase;
 
@@ -267,13 +268,17 @@ export class TemporaryStateSequence {
         return this.states.slice(1);
     }
 
-    interpolateEverythingFromStart(distanceFromStart: NauticalMiles): Partial<AircraftState> {
+    interpolateEverythingFromStart(distanceFromStart: NauticalMiles): AircraftState {
         if (distanceFromStart <= this.states[0].distanceFromStart) {
             return {
                 distanceFromStart,
                 altitude: this.states[0].altitude,
                 speed: this.states[0].speed,
                 mach: this.states[0].mach,
+                trueAirspeed: this.states[0].trueAirspeed,
+                time: this.states[0].time,
+                config: this.states[0].config,
+                weight: this.states[0].weight,
             };
         }
 
@@ -302,6 +307,28 @@ export class TemporaryStateSequence {
                         this.states[i].mach,
                         this.states[i + 1].mach,
                     ),
+                    trueAirspeed: Common.interpolate(
+                        distanceFromStart,
+                        this.states[i].distanceFromStart,
+                        this.states[i + 1].distanceFromStart,
+                        this.states[i].trueAirspeed,
+                        this.states[i + 1].trueAirspeed,
+                    ),
+                    time: Common.interpolate(
+                        distanceFromStart,
+                        this.states[i].distanceFromStart,
+                        this.states[i + 1].distanceFromStart,
+                        this.states[i].time,
+                        this.states[i + 1].time,
+                    ),
+                    config: this.states[i].config,
+                    weight: Common.interpolate(
+                        distanceFromStart,
+                        this.states[i].distanceFromStart,
+                        this.states[i + 1].distanceFromStart,
+                        this.states[i].weight,
+                        this.states[i + 1].weight,
+                    ),
                 };
             }
         }
@@ -311,6 +338,10 @@ export class TemporaryStateSequence {
             altitude: this.last.altitude,
             speed: this.last.speed,
             mach: this.last.mach,
+            trueAirspeed: this.last.trueAirspeed,
+            time: this.last.time,
+            config: this.last.config,
+            weight: this.last.weight,
         };
     }
 }
