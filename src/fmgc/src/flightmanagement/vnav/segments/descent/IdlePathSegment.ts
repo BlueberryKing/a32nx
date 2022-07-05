@@ -7,12 +7,11 @@ import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 import { IdlePathToAltitudeSegment } from './IdlePathToAltitudeSegment';
 
 export class IdlePathSegment extends ProfileSegment {
-    constructor(context: SegmentContext, constraints: ConstraintReader, toAltitude: Feet) {
+    constructor(context: SegmentContext, constraints: ConstraintReader, crossoverAltitude: Feet, toAltitude: Feet) {
         super();
 
-        const { descentSpeedLimit, managedDescentSpeed, managedDescentSpeedMach } = context.observer.get();
+        const { descentSpeedLimit, managedDescentSpeed } = context.observer.get();
 
-        const crossoverAltitude = context.computeCrossoverAltitude(managedDescentSpeed, managedDescentSpeedMach);
         const options: PropagatorOptions = {
             stepSize: -5,
             windProfileType: WindProfileType.Descent,

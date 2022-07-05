@@ -1,4 +1,4 @@
-import { ConstraintReader, DescentAltitudeConstraint } from '@fmgc/guidance/vnav/ConstraintReader';
+import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { MathUtils } from '@shared/MathUtils';
 import { DescentAltitudeConstraintSegment } from '@fmgc/flightmanagement/vnav/segments/descent/DescentAltitudeConstraintSegment';
 import { AircraftState, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
@@ -10,7 +10,7 @@ export class GeometricPathSegment extends ProfileSegment {
     /**
      * The `lastConstraint` is the first constraint encountered along the lateral track.
      */
-    private lastConstraint?: DescentAltitudeConstraint = null;
+    private geometricPathPoint?: AircraftState = null;
 
     /**
      *
@@ -23,20 +23,23 @@ export class GeometricPathSegment extends ProfileSegment {
         super();
     }
 
-    setLastConstraint(constraint: DescentAltitudeConstraint) {
-        this.lastConstraint = constraint;
+    /**
+     * The geometric path point is the point separating the idle path from the geometric path
+     * @param geometricPathPoint
+     */
+    setGeometricPathPoint(geometricPathPoint: AircraftState) {
+        this.geometricPathPoint = geometricPathPoint;
     }
 
     compute(state: AircraftState, _builder: ProfileBuilder): void {
         this.children = [];
 
-        if (this.lastConstraint === null) {
+        if (this.geometricPathPoint === null) {
             return;
         }
 
-        const geometricPathEndPoint = { distanceFromStart: this.lastConstraint.distanceFromStart, altitude: this.lastConstraint.constraint.altitude1 };
         const plannedSegments: PlannedGeometricSegment[] = [];
-        this.planDescentSegments(state, geometricPathEndPoint, plannedSegments);
+        this.planDescentSegments(state, this.geometricPathPoint, plannedSegments);
 
         for (const plannedSegment of plannedSegments) {
             const fpa = MathUtils.RADIANS_TO_DEGREES * Math.atan(plannedSegment.gradient / 6076.12);
