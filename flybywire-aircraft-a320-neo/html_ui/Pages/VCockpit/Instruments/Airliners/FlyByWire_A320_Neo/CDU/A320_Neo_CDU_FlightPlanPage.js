@@ -307,11 +307,17 @@ class CDUFlightPlanPage {
                 let speedConstraint = "---";
                 let speedPrefix = "";
 
-                if (!fpm.isCurrentFlightPlanTemporary() && verticalWaypoint && verticalWaypoint.speed) {
-                    speedConstraint = verticalWaypoint.speed < 1 ? formatMachNumber(verticalWaypoint.speed) : Math.round(verticalWaypoint.speed);
+                if (!fpm.isCurrentFlightPlanTemporary()) {
+                    if (verticalWaypoint && verticalWaypoint.speed) {
+                        speedConstraint = verticalWaypoint.speed < 1 ? formatMachNumber(verticalWaypoint.speed) : Math.round(verticalWaypoint.speed);
 
-                    if (wp.speedConstraint > 10) {
-                        speedPrefix = verticalWaypoint.isSpeedConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
+                        if (wp.speedConstraint > 10) {
+                            speedPrefix = verticalWaypoint.isSpeedConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
+                        }
+                    } else if (wp.speedConstraint > 10) {
+                        speedConstraint = Math.round(wp.speedConstraint);
+                        spdColor = "magenta";
+                        slashColor = "magenta";
                     }
                 }
 
