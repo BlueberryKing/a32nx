@@ -235,4 +235,8 @@ export class VnavDriver implements GuidanceComponent {
     getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {
         return this.profileManager.getWaypointPrediction(waypointIndex);
     }
+
+    getDestinationPrediction(): VerticalWaypointPrediction | null {
+        return this.profileManager.getWaypointPrediction(this.flightPlanManager.getDestinationIndex());
+    }
 }

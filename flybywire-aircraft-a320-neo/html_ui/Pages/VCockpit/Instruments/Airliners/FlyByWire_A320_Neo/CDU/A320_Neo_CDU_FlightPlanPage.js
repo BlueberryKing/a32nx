@@ -825,7 +825,7 @@ function renderFixContent(rowObj, spdRepeat = false, altRepeat = false) {
 function emptyFplnPage() {
     return [
         ["", "SPD/ALT", "TIME{sp}{sp}{sp}{sp}"],
-        ["PPOS[color]green", "---/ -----", "----{sp}{sp}{sp}{sp}"],
+        ["PPOS[color]green", "{sp}{sp}{sp}/ -----", "----{sp}{sp}{sp}{sp}"],
         [""],
         ["---F-PLN DISCONTINUITY---"],
         [""],
@@ -834,8 +834,8 @@ function emptyFplnPage() {
         ["-----NO ALTN F-PLN-------"],
         [""],
         [""],
-        ["\xa0DEST", "DIST EFOB", "TIME{sp}{sp}{sp}{sp}"],
-        ["------", "---- ----", "----{sp}{sp}{sp}{sp}"]
+        ["\xa0DEST", "DIST  EFOB", "TIME{sp}{sp}{sp}{sp}"],
+        ["-------", "---- ---.-", "----{sp}{sp}{sp}{sp}"]
     ];
 }
 

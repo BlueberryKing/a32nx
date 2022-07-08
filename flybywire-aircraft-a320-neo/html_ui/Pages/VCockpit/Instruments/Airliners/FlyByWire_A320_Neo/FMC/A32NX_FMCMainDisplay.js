@@ -75,14 +75,17 @@ class FMCMainDisplay extends BaseAirliners {
         this._debug = undefined;
         this._checkFlightPlan = undefined;
         this.thrustReductionAltitude = undefined;
-        this.thrustReductionAltitudeGoaround = undefined;
         this.thrustReductionAltitudeIsPilotEntered = undefined;
+        this.thrustReductionAltitudeGoaround = undefined;
+        this.thrustReductionAltitudeGoaroundIsPilotEntered = undefined;
         this.accelerationAltitude = undefined;
-        this.accelerationAltitudeGoaround = undefined;
+        this.accelerationAltitudeIsPilotEntered = undefined;
+        this.accelerationAltitudeGoaroundIsPilotEntered = undefined;
         this.accelerationAltitudeIsPilotEntered = undefined;
         this.engineOutAccelerationAltitude = undefined;
-        this.engineOutAccelerationAltitudeGoaround = undefined;
         this.engineOutAccelerationAltitudeIsPilotEntered = undefined;
+        this.engineOutAccelerationAltitudeGoaround = undefined;
+        this.engineOutAccelerationAltitudeGoaroundIsPilotEntered = undefined;
         this._windDirections = undefined;
         this._fuelPlanningPhases = undefined;
         this._zeroFuelWeightZFWCGEntered = undefined;
@@ -183,6 +186,8 @@ class FMCMainDisplay extends BaseAirliners {
         this.efisSymbols = undefined;
         this.groundTempAuto = undefined;
         this.groundTempPilot = undefined;
+        this.desCabinRate = undefined;
+        this.desCabinRateIsPilotEntered = undefined;
 
         // ATSU data
         this.atsu = undefined;
@@ -357,15 +362,17 @@ class FMCMainDisplay extends BaseAirliners {
         this._debug = 0;
         this._checkFlightPlan = 0;
         this.thrustReductionAltitude = NaN;
-        this.thrustReductionAltitudeGoaround = NaN;
         this.thrustReductionAltitudeIsPilotEntered = false;
+        this.thrustReductionAltitudeGoaround = NaN;
+        this.thrustReductionAltitudeGoaroundIsPilotEntered = false;
         this.accelerationAltitude = NaN;
-        this.accelerationAltitudeGoaround = NaN;
         this.accelerationAltitudeIsPilotEntered = false;
+        this.accelerationAltitudeGoaround = NaN;
         this.accelerationAltitudeGoaroundIsPilotEntered = false;
         this.engineOutAccelerationAltitude = NaN;
-        this.engineOutAccelerationAltitudeGoaround = NaN;
         this.engineOutAccelerationAltitudeIsPilotEntered = false;
+        this.engineOutAccelerationAltitudeGoaround = NaN;
+        this.engineOutAccelerationAltitudeGoaroundIsPilotEntered = false;
         this._windDirections = {
             TAILWIND : "TL",
             HEADWIND : "HD"
@@ -521,6 +528,9 @@ class FMCMainDisplay extends BaseAirliners {
         this.speedLimitExceeded = false;
         this.groundTempAuto = undefined;
         this.groundTempPilot = undefined;
+        this.desCabinRate = -350;
+        this.desCabinRateIsPilotEntered = false;
+
         this.onAirport = () => { };
 
         if (this.navigation) {
@@ -2957,10 +2967,12 @@ class FMCMainDisplay extends BaseAirliners {
         if ((isFinite(thrRed) || isFinite(accAlt)) && thrRed <= accAlt) {
             if (isFinite(thrRed)) {
                 this.thrustReductionAltitudeGoaround = thrRed;
+                this.thrustReductionAltitudeGoaroundIsPilotEntered = true;
                 SimVar.SetSimVarValue("L:AIRLINER_THR_RED_ALT_GOAROUND", "Number", this.thrustReductionAltitudeGoaround);
             }
             if (isFinite(accAlt)) {
                 this.accelerationAltitudeGoaround = accAlt;
+                this.accelerationAltitudeGoaroundIsPilotEntered = true;
                 SimVar.SetSimVarValue("L:AIRLINER_ACC_ALT_GOAROUND", "Number", this.accelerationAltitudeGoaround);
             }
             return true;
@@ -2973,6 +2985,7 @@ class FMCMainDisplay extends BaseAirliners {
         const engOutAcc = parseInt(s);
         if (isFinite(engOutAcc)) {
             this.engineOutAccelerationAltitudeGoaround = engOutAcc;
+            this.engineOutAccelerationAltitudeGoaroundIsPilotEntered = true;
             SimVar.SetSimVarValue("L:AIRLINER_ENG_OUT_ACC_ALT_GOAROUND", "Number", this.engineOutAccelerationAltitudeGoaround);
             return true;
         }
