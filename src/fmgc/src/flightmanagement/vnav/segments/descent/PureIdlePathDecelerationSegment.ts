@@ -17,12 +17,12 @@ export class PureIdlePathDecelerationSegment extends ProfileSegment {
 
     private idleThrustPropagator: IntegrationPropagator;
 
-    constructor(context: SegmentContext, private toAltitude: Feet, private toSpeed: Knots, private toDistance: NauticalMiles, options: PropagatorOptions) {
+    constructor(context: SegmentContext, toAltitude: Feet, toSpeed: Knots, toDistance: NauticalMiles, options: PropagatorOptions) {
         super();
 
         this.endConditions = {
             altitude: { max: toAltitude },
-            speed: { max: toSpeed },
+            calibratedAirspeed: { max: toSpeed },
             distanceFromStart: { min: toDistance },
         };
 

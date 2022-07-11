@@ -39,7 +39,7 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
         const endConditions: IntegrationEndConditions = {
             distanceFromStart: { min: Math.max(this.toDistance, state.distanceFromStart - 20) },
             altitude: { max: Math.min(this.maxAltitude, state.altitude + 6000) },
-            speed: { max: this.toSpeed },
+            calibratedAirspeed: { max: this.toSpeed },
             mach: { max: this.managedDescentSpeedMach },
         };
 

@@ -12,7 +12,7 @@ export class TakeoffSegment extends ProfileSegment {
         super();
 
         const { thrustReductionAltitude, accelerationAltitude } = context.observer.get();
-        const options: PropagatorOptions = { useMachVsCas: false, stepSize: 5, windProfileType: WindProfileType.Climb };
+        const options: PropagatorOptions = { stepSize: 5, windProfileType: WindProfileType.Climb };
 
         this.children = [
             new PureClimbToAltitudeSegment(context, new TakeoffThrustSetting(context.atmosphericConditions), thrustReductionAltitude, options),

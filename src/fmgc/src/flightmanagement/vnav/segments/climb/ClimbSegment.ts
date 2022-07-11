@@ -11,7 +11,7 @@ export class ClimbSegment extends ProfileSegment {
         super();
 
         const { cruiseAltitude, climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();
-        const crossoverAltitude = context.atmosphericConditions.crossoverAltitude(managedClimbSpeed, managedClimbSpeedMach);
+        const crossoverAltitude = context.computeCrossoverAltitude(managedClimbSpeed, managedClimbSpeedMach);
 
         this.children = [
             new ManagedClimbSegment(context, climbSpeedLimit.speed, Math.min(climbSpeedLimit.underAltitude, cruiseAltitude, crossoverAltitude), constraints),

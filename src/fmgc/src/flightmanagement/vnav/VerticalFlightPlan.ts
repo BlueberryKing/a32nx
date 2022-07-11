@@ -6,6 +6,7 @@ import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { McduPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
+import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanManager } from '@shared/flightplan';
@@ -21,12 +22,6 @@ export class VerticalFlightPlan {
 
     private waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
-    private climbCrossoverAltitude: Feet = 25000;
-
-    private cruiseCrossoverAltitude: Feet = 25000;
-
-    private descentCrossoverAltitude: Feet = 25000;
-
     mcduPseudoWaypointRequests: McduPseudoWaypointRequest[] = []
 
     constructor(private flightPlanManager: FlightPlanManager, private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions) {
@@ -40,19 +35,10 @@ export class VerticalFlightPlan {
     update(builder: ProfileBuilder, geometry: Geometry) {
         this.state = VerticalFlightPlanState.InComputation;
 
-        this.updateCrossoverAltitudes();
         this.computePredictionsAtWaypoints(builder.allCheckpointsWithPhase, geometry);
         this.updateMcduPseudoWaypoints(builder);
 
         this.state = VerticalFlightPlanState.AfterComputation;
-    }
-
-    private updateCrossoverAltitudes() {
-        const { managedClimbSpeed, managedClimbSpeedMach, managedCruiseSpeed, managedCruiseSpeedMach, managedDescentSpeed, managedDescentSpeedMach } = this.observer.get();
-
-        this.climbCrossoverAltitude = this.atmosphericConditions.crossoverAltitude(managedClimbSpeed, managedClimbSpeedMach);
-        this.cruiseCrossoverAltitude = this.atmosphericConditions.crossoverAltitude(managedCruiseSpeed, managedCruiseSpeedMach);
-        this.descentCrossoverAltitude = this.atmosphericConditions.crossoverAltitude(managedDescentSpeed, managedDescentSpeedMach);
     }
 
     getWaypointPrediction(index: number): VerticalWaypointPrediction | null {
@@ -61,24 +47,6 @@ export class VerticalFlightPlan {
         }
 
         return this.waypointPredictions.get(index);
-    }
-
-    private getCrossoverAltitudeByPhase(phase: FmgcFlightPhase): Mach {
-        switch (phase) {
-        case FmgcFlightPhase.Preflight:
-        case FmgcFlightPhase.Takeoff:
-        case FmgcFlightPhase.Climb:
-        case FmgcFlightPhase.GoAround:
-            return this.climbCrossoverAltitude;
-        case FmgcFlightPhase.Cruise:
-            return this.cruiseCrossoverAltitude;
-        case FmgcFlightPhase.Descent:
-        case FmgcFlightPhase.Approach:
-        case FmgcFlightPhase.Done:
-            return this.descentCrossoverAltitude;
-        default:
-            return 0.78; // This is here so eslint is happy
-        }
     }
 
     private computePredictionsAtWaypoints(checkpoints: AircraftStateWithPhase[], geometry: Geometry) {
@@ -106,19 +74,19 @@ export class VerticalFlightPlan {
 
             totalDistance += totalLegLength;
 
-            const { time, altitude, speed, mach, weight, phase } = Interpolator.interpolateEverythingFromStart(checkpoints, totalDistance);
+            const { time, altitude, speeds, weight } = Interpolator.interpolateEverythingFromStart(checkpoints, totalDistance);
 
             this.waypointPredictions.set(i, {
                 waypointIndex: i,
                 distanceFromStart: totalDistance,
                 time,
                 altitude,
-                speed: altitude >= this.getCrossoverAltitudeByPhase(phase) ? mach : speed,
+                speed: speeds.speedTargetType === AccelFactorMode.CONSTANT_MACH ? speeds.mach : speeds.calibratedAirspeed,
                 estimatedFuelOnBoard: weight - zeroFuelWeight,
                 altitudeConstraint: leg.metadata.altitudeConstraint,
                 isAltitudeConstraintMet: this.isAltitudeConstraintMet(altitude, leg.metadata.altitudeConstraint),
                 speedConstraint: leg.metadata.speedConstraint,
-                isSpeedConstraintMet: this.isSpeedConstraintMet(speed, leg.metadata.speedConstraint),
+                isSpeedConstraintMet: this.isSpeedConstraintMet(speeds.calibratedAirspeed, leg.metadata.speedConstraint),
                 altError: this.computeAltError(altitude, leg.metadata.altitudeConstraint),
                 distanceToTopOfDescent: null, // TODO
             });
@@ -151,14 +119,14 @@ export class VerticalFlightPlan {
         ) {
             const climbCheckpoints = builder.checkpointsOfPhase(FmgcFlightPhase.Climb).map((state) => ({ ...state, phase: FmgcFlightPhase.Climb }));
             const distanceToSpeedLimitCrossing = Interpolator.interpolateDistanceAtAltitude(climbCheckpoints, climbSpeedLimit.underAltitude);
-            const speedLimitCrossing = Interpolator.interpolateEverythingFromStart(climbCheckpoints, distanceToSpeedLimitCrossing);
+            const stateAtSpeedLimitAlt = Interpolator.interpolateEverythingFromStart(climbCheckpoints, distanceToSpeedLimitCrossing);
 
             this.mcduPseudoWaypointRequests.push({
                 type: McduPseudoWaypointType.SpeedLimit,
-                state: speedLimitCrossing,
+                state: stateAtSpeedLimitAlt,
                 speedConstraint: {
                     speed: climbSpeedLimit.speed,
-                    isMet: this.isSpeedConstraintMet(speedLimitCrossing.speed, climbSpeedLimit),
+                    isMet: this.isSpeedConstraintMet(stateAtSpeedLimitAlt.speeds.calibratedAirspeed, climbSpeedLimit),
                 },
             });
         }
@@ -172,14 +140,14 @@ export class VerticalFlightPlan {
             const relevantCheckpoints = [...descentCheckpoints, ...approachCheckpoints];
 
             const distanceToSpeedLimitCrossing = Interpolator.interpolateDistanceAtAltitude(relevantCheckpoints, descentSpeedLimit.underAltitude, true);
-            const speedLimitCrossing = Interpolator.interpolateEverythingFromStart(relevantCheckpoints, distanceToSpeedLimitCrossing);
+            const stateAtSpeedLimitAlt = Interpolator.interpolateEverythingFromStart(relevantCheckpoints, distanceToSpeedLimitCrossing);
 
             this.mcduPseudoWaypointRequests.push({
                 type: McduPseudoWaypointType.SpeedLimit,
-                state: speedLimitCrossing,
+                state: stateAtSpeedLimitAlt,
                 speedConstraint: {
                     speed: descentSpeedLimit.speed,
-                    isMet: this.isSpeedConstraintMet(speedLimitCrossing.speed, descentSpeedLimit),
+                    isMet: this.isSpeedConstraintMet(stateAtSpeedLimitAlt.speeds.calibratedAirspeed, descentSpeedLimit),
                 },
             });
         }

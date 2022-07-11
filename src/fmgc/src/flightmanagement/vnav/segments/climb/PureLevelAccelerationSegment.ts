@@ -23,7 +23,7 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
         super();
 
         this.endConditions = {
-            speed: { max: toSpeed },
+            calibratedAirspeed: { max: toSpeed },
             distanceFromStart: { max: toDistance },
         };
 

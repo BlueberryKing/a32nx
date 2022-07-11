@@ -56,12 +56,17 @@ export class Interpolator {
         if (distanceFromStart <= states[0].distanceFromStart) {
             return {
                 distanceFromStart,
-                time: states[0].time,
                 altitude: states[0].altitude,
+                time: states[0].time,
+                speeds: {
+                    calibratedAirspeed: states[0].speeds.calibratedAirspeed,
+                    mach: states[0].speeds.mach,
+                    trueAirspeed: states[0].speeds.trueAirspeed,
+                    groundSpeed: states[0].speeds.groundSpeed,
+                    speedTarget: states[0].speeds.speedTarget,
+                    speedTargetType: states[0].speeds.speedTargetType,
+                },
                 weight: states[0].weight,
-                speed: states[0].speed,
-                mach: states[0].mach,
-                trueAirspeed: states[0].trueAirspeed,
                 config: states[0].config,
                 phase: states[0].phase,
             };
@@ -71,13 +76,6 @@ export class Interpolator {
             if (distanceFromStart > states[i].distanceFromStart && distanceFromStart <= states[i + 1].distanceFromStart) {
                 return {
                     distanceFromStart,
-                    time: Common.interpolate(
-                        distanceFromStart,
-                        states[i].distanceFromStart,
-                        states[i + 1].distanceFromStart,
-                        states[i].time,
-                        states[i + 1].time,
-                    ),
                     altitude: Common.interpolate(
                         distanceFromStart,
                         states[i].distanceFromStart,
@@ -85,33 +83,51 @@ export class Interpolator {
                         states[i].altitude,
                         states[i + 1].altitude,
                     ),
+                    time: Common.interpolate(
+                        distanceFromStart,
+                        states[i].distanceFromStart,
+                        states[i + 1].distanceFromStart,
+                        states[i].time,
+                        states[i + 1].time,
+                    ),
+                    speeds: {
+                        calibratedAirspeed: Common.interpolate(
+                            distanceFromStart,
+                            states[i].distanceFromStart,
+                            states[i + 1].distanceFromStart,
+                            states[i].speeds.calibratedAirspeed,
+                            states[i + 1].speeds.calibratedAirspeed,
+                        ),
+                        mach: Common.interpolate(
+                            distanceFromStart,
+                            states[i].distanceFromStart,
+                            states[i + 1].distanceFromStart,
+                            states[i].speeds.mach,
+                            states[i + 1].speeds.mach,
+                        ),
+                        trueAirspeed: Common.interpolate(
+                            distanceFromStart,
+                            states[i].distanceFromStart,
+                            states[i + 1].distanceFromStart,
+                            states[i].speeds.trueAirspeed,
+                            states[i + 1].speeds.trueAirspeed,
+                        ),
+                        groundSpeed: Common.interpolate(
+                            distanceFromStart,
+                            states[i].distanceFromStart,
+                            states[i + 1].distanceFromStart,
+                            states[i].speeds.groundSpeed,
+                            states[i + 1].speeds.groundSpeed,
+                        ),
+                        speedTarget: states[i + 1].speeds.speedTarget,
+                        speedTargetType: states[i + 1].speeds.speedTargetType,
+                    },
                     weight: Common.interpolate(
                         distanceFromStart,
                         states[i].distanceFromStart,
                         states[i + 1].distanceFromStart,
                         states[i].weight,
                         states[i + 1].weight,
-                    ),
-                    speed: Common.interpolate(
-                        distanceFromStart,
-                        states[i].distanceFromStart,
-                        states[i + 1].distanceFromStart,
-                        states[i].speed,
-                        states[i + 1].speed,
-                    ),
-                    trueAirspeed: Common.interpolate(
-                        distanceFromStart,
-                        states[i].distanceFromStart,
-                        states[i + 1].distanceFromStart,
-                        states[i].trueAirspeed,
-                        states[i + 1].trueAirspeed,
-                    ),
-                    mach: Common.interpolate(
-                        distanceFromStart,
-                        states[i].distanceFromStart,
-                        states[i + 1].distanceFromStart,
-                        states[i].mach,
-                        states[i + 1].mach,
                     ),
                     config: states[i].config,
                     phase: states[i].phase,
@@ -121,12 +137,17 @@ export class Interpolator {
 
         return {
             distanceFromStart,
-            time: states[states.length - 1].time,
             altitude: states[states.length - 1].altitude,
+            time: states[states.length - 1].time,
+            speeds: {
+                calibratedAirspeed: states[states.length - 1].speeds.calibratedAirspeed,
+                mach: states[states.length - 1].speeds.mach,
+                trueAirspeed: states[states.length - 1].speeds.trueAirspeed,
+                groundSpeed: states[states.length - 1].speeds.groundSpeed,
+                speedTarget: states[states.length - 1].speeds.speedTarget,
+                speedTargetType: states[states.length - 1].speeds.speedTargetType,
+            },
             weight: states[states.length - 1].weight,
-            speed: states[states.length - 1].speed,
-            trueAirspeed: states[states.length - 1].trueAirspeed,
-            mach: states[states.length - 1].mach,
             config: states[states.length - 1].config,
             phase: states[states.length - 1].phase,
         };

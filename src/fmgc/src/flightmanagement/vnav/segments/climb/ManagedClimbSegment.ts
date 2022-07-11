@@ -13,7 +13,7 @@ export class ManagedClimbSegment extends ProfileSegment {
         super();
 
         const climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
-        const options = { useMachVsCas: false, stepSize: 5, windProfileType: WindProfileType.Climb };
+        const options = { stepSize: 5, windProfileType: WindProfileType.Climb };
 
         this.children = [
             new PureClimbToAltitudeSegment(context, climbThrust, toAltitude, options),

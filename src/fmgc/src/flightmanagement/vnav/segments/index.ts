@@ -1,5 +1,5 @@
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
+import { AccelFactorMode, Common, FlapConf } from '@fmgc/guidance/vnav/common';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { TakeoffSegment } from '@fmgc/flightmanagement/vnav/segments/climb/TakeoffSegment';
@@ -67,13 +67,20 @@ export interface AircraftConfiguration {
     gearExtended: boolean
 }
 
+export interface SpeedComplex {
+    calibratedAirspeed: Knots,
+    mach: Mach,
+    trueAirspeed: Knots,
+    groundSpeed: Knots,
+    speedTargetType: AccelFactorMode,
+    speedTarget: Knots | Mach
+}
+
 export interface AircraftState {
     distanceFromStart: NauticalMiles,
     altitude: Feet,
     time: Seconds,
-    speed: Knots,
-    trueAirspeed: Knots,
-    mach: Mach,
+    speeds: SpeedComplex,
     config: AircraftConfiguration,
     weight: Pounds,
     reason?: string
@@ -273,10 +280,15 @@ export class TemporaryStateSequence {
             return {
                 distanceFromStart,
                 altitude: this.states[0].altitude,
-                speed: this.states[0].speed,
-                mach: this.states[0].mach,
-                trueAirspeed: this.states[0].trueAirspeed,
                 time: this.states[0].time,
+                speeds: {
+                    calibratedAirspeed: this.states[0].speeds.calibratedAirspeed,
+                    mach: this.states[0].speeds.mach,
+                    trueAirspeed: this.states[0].speeds.trueAirspeed,
+                    groundSpeed: this.states[0].speeds.groundSpeed,
+                    speedTarget: this.states[0].speeds.speedTarget,
+                    speedTargetType: this.states[0].speeds.speedTargetType,
+                },
                 config: this.states[0].config,
                 weight: this.states[0].weight,
             };
@@ -293,27 +305,6 @@ export class TemporaryStateSequence {
                         this.states[i].altitude,
                         this.states[i + 1].altitude,
                     ),
-                    speed: Common.interpolate(
-                        distanceFromStart,
-                        this.states[i].distanceFromStart,
-                        this.states[i + 1].distanceFromStart,
-                        this.states[i].speed,
-                        this.states[i + 1].speed,
-                    ),
-                    mach: Common.interpolate(
-                        distanceFromStart,
-                        this.states[i].distanceFromStart,
-                        this.states[i + 1].distanceFromStart,
-                        this.states[i].mach,
-                        this.states[i + 1].mach,
-                    ),
-                    trueAirspeed: Common.interpolate(
-                        distanceFromStart,
-                        this.states[i].distanceFromStart,
-                        this.states[i + 1].distanceFromStart,
-                        this.states[i].trueAirspeed,
-                        this.states[i + 1].trueAirspeed,
-                    ),
                     time: Common.interpolate(
                         distanceFromStart,
                         this.states[i].distanceFromStart,
@@ -321,6 +312,38 @@ export class TemporaryStateSequence {
                         this.states[i].time,
                         this.states[i + 1].time,
                     ),
+                    speeds: {
+                        calibratedAirspeed: Common.interpolate(
+                            distanceFromStart,
+                            this.states[i].distanceFromStart,
+                            this.states[i + 1].distanceFromStart,
+                            this.states[i].speeds.calibratedAirspeed,
+                            this.states[i + 1].speeds.calibratedAirspeed,
+                        ),
+                        mach: Common.interpolate(
+                            distanceFromStart,
+                            this.states[i].distanceFromStart,
+                            this.states[i + 1].distanceFromStart,
+                            this.states[i].speeds.mach,
+                            this.states[i + 1].speeds.mach,
+                        ),
+                        trueAirspeed: Common.interpolate(
+                            distanceFromStart,
+                            this.states[i].distanceFromStart,
+                            this.states[i + 1].distanceFromStart,
+                            this.states[i].speeds.trueAirspeed,
+                            this.states[i + 1].speeds.trueAirspeed,
+                        ),
+                        groundSpeed: Common.interpolate(
+                            distanceFromStart,
+                            this.states[i].distanceFromStart,
+                            this.states[i + 1].distanceFromStart,
+                            this.states[i].speeds.groundSpeed,
+                            this.states[i + 1].speeds.groundSpeed,
+                        ),
+                        speedTarget: this.states[i + 1].speeds.speedTarget,
+                        speedTargetType: this.states[i + 1].speeds.speedTargetType,
+                    },
                     config: this.states[i].config,
                     weight: Common.interpolate(
                         distanceFromStart,
@@ -336,10 +359,15 @@ export class TemporaryStateSequence {
         return {
             distanceFromStart,
             altitude: this.last.altitude,
-            speed: this.last.speed,
-            mach: this.last.mach,
-            trueAirspeed: this.last.trueAirspeed,
             time: this.last.time,
+            speeds: {
+                calibratedAirspeed: this.last.speeds.calibratedAirspeed,
+                mach: this.last.speeds.mach,
+                trueAirspeed: this.last.speeds.trueAirspeed,
+                groundSpeed: this.last.speeds.groundSpeed,
+                speedTarget: this.last.speeds.speedTarget,
+                speedTargetType: this.last.speeds.speedTargetType,
+            },
             config: this.last.config,
             weight: this.last.weight,
         };

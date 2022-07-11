@@ -24,17 +24,14 @@ export class PureCruiseStepSegment extends ProfileSegment {
 
     private isClimbVsDescent: boolean;
 
-    constructor(context: SegmentContext, private step: Step, private fromAltitude: Feet, private maxDistance: NauticalMiles, options: Omit<PropagatorOptions, 'useMachVsCas'>) {
+    constructor(context: SegmentContext, private step: Step, private fromAltitude: Feet, private maxDistance: NauticalMiles, options: PropagatorOptions) {
         super();
 
         this.isClimbVsDescent = step.toAltitude > fromAltitude;
 
-        // TODO: Figure out whether to use Mach or IAS target
-        const fullOptions = { ...options, useMachVsCas: true };
-
         this.propagator = this.isClimbVsDescent
-            ? constantThrustPropagator(new ClimbThrustSetting(context.atmosphericConditions), context, fullOptions)
-            : constantPitchPropagator(new VerticalSpeedPitchTarget(-1000), context, fullOptions);
+            ? constantThrustPropagator(new ClimbThrustSetting(context.atmosphericConditions), context, options)
+            : constantPitchPropagator(new VerticalSpeedPitchTarget(-1000), context, options);
 
         this.endConditions = {
             distanceFromStart: { max: maxDistance },

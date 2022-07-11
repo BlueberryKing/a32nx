@@ -15,7 +15,6 @@ export class IdlePathSegment extends ProfileSegment {
         const options: PropagatorOptions = {
             stepSize: -5,
             windProfileType: WindProfileType.Descent,
-            useMachVsCas: false,
         };
 
         this.children = [

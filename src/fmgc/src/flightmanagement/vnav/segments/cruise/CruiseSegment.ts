@@ -24,13 +24,13 @@ export class CruiseSegment extends ProfileSegment {
         const stepsInCruise = this.steps.steps.filter(({ distanceFromStart }) => distanceFromStart > fromDistance && distanceFromStart < toDistance);
         for (const step of stepsInCruise) {
             this.children.push(new PureCruiseStepSegment(context, step, altitude, toDistance, options));
-            this.children.push(new PureCruiseToDistanceSegment(context, toDistance, step.toAltitude, options));
+            this.children.push(new PureCruiseToDistanceSegment(context, toDistance, options));
 
             altitude = step.toAltitude;
         }
 
         this.children.push(
-            new PureCruiseToDistanceSegment(context, toDistance, altitude, options),
+            new PureCruiseToDistanceSegment(context, toDistance, options),
         );
     }
 

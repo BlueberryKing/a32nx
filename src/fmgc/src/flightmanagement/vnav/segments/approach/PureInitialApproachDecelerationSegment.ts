@@ -11,7 +11,7 @@ export class PureInitialApproachDecelerationSegment extends ProfileSegment {
     constructor(private context: SegmentContext, private flightPathAngle: Degrees, private toSpeed: Knots, private minDistance: NauticalMiles, private options: PropagatorOptions) {
         super();
 
-        this.endConditions = { speed: { max: this.toSpeed } };
+        this.endConditions = { calibratedAirspeed: { max: this.toSpeed } };
     }
 
     get repr(): string {

@@ -25,14 +25,14 @@ export class ManagedDescentSegment extends ProfileSegment {
         const { managedDescentSpeed, managedDescentSpeedMach, cruiseAltitude, descentSpeedLimit } = context.observer.get();
         const crossoverAltitude = context.computeCrossoverAltitude(managedDescentSpeed, managedDescentSpeedMach);
 
-        const options: Omit<PropagatorOptions, 'useMachVsCas'> = {
+        const options: PropagatorOptions = {
             stepSize: -5,
             windProfileType: WindProfileType.Descent,
         };
 
         this.geometricSegments = [
-            new GeometricPathSegment(context, constraints, managedDescentSpeed, Math.min(crossoverAltitude, cruiseAltitude), { ...options, useMachVsCas: false }),
-            new GeometricPathSegment(context, constraints, managedDescentSpeed, cruiseAltitude, { ...options, useMachVsCas: true }),
+            new GeometricPathSegment(context, constraints, managedDescentSpeed, Math.min(crossoverAltitude, cruiseAltitude), options),
+            new GeometricPathSegment(context, constraints, managedDescentSpeed, cruiseAltitude, options),
         ];
 
         if (Number.isFinite(descentSpeedLimit.underAltitude) && Number.isFinite(descentSpeedLimit.speed) && descentSpeedLimit.speed < managedDescentSpeed) {
@@ -41,10 +41,8 @@ export class ManagedDescentSegment extends ProfileSegment {
                     context,
                     constraints,
                     descentSpeedLimit.speed,
-                    Math.min(descentSpeedLimit.underAltitude,
-                        crossoverAltitude,
-                        cruiseAltitude),
-                    { ...options, useMachVsCas: false },
+                    Math.min(descentSpeedLimit.underAltitude, crossoverAltitude, cruiseAltitude),
+                    options,
                 ),
             );
         }

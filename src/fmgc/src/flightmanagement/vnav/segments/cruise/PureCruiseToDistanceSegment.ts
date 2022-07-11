@@ -9,15 +9,12 @@ export class PureCruiseToDistanceSegment extends ProfileSegment {
 
     propagator: (state: AircraftState) => AircraftState;
 
-    constructor(context: SegmentContext, private toDistance: NauticalMiles, altitude: Feet, options: Omit<PropagatorOptions, 'useMachVsCas'>) {
+    constructor(context: SegmentContext, toDistance: NauticalMiles, options: PropagatorOptions) {
         super();
 
         this.endConditions = { distanceFromStart: { max: toDistance } };
 
-        // 1. The reason we pass in an altiude instead of using the cruise altiude is
-        // because it is possible that there is a cruise step before this segment which steps away from the programmed cruise altitude
-        // 2. The >25000 part is specified by a reference. TODO: Add to ref book
-        this.propagator = constantPitchPropagator(new FlightPathAnglePitchTarget(0), context, { ...options, useMachVsCas: altitude > 25000 });
+        this.propagator = constantPitchPropagator(new FlightPathAnglePitchTarget(0), context, options);
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {

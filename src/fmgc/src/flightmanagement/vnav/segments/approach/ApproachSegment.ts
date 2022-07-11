@@ -20,7 +20,6 @@ export class ApproachSegment extends ProfileSegment {
 
         const { cleanSpeed, slatRetractionSpeed, flapRetractionSpeed, approachSpeed, isFlaps3Landing } = context.observer.get();
         const options: PropagatorOptions = {
-            useMachVsCas: false,
             stepSize: -5,
             windProfileType: WindProfileType.Descent,
         };

@@ -22,7 +22,7 @@ export class PureApproachDecelerationSegment extends ProfileSegment {
 
         this.endConditions = {
             distanceFromStart: { min: toDistance },
-            speed: { max: toSpeed },
+            calibratedAirspeed: { max: toSpeed },
         };
 
         this.propagator = speedChangePropagator(

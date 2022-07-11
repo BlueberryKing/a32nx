@@ -1,4 +1,4 @@
-import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { AccelFactorMode, FlapConf } from '@fmgc/guidance/vnav/common';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { AircraftState, BuilderVisitor, McduProfile, SegmentContext, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
@@ -41,8 +41,10 @@ export class VerticalProfileManager {
     }
 
     private computeFlightPlanProfile(): ProfileBuilder {
+        const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
+
         const windRepository = new HeadwindRepository(
-            new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile),
+            climbWinds,
             new HeadwindProfile(this.windProfileFactory.getCruiseWinds(), this.headingProfile),
             new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
         );
@@ -53,7 +55,7 @@ export class VerticalProfileManager {
             windRepository,
         );
 
-        const builder = new ProfileBuilder(this.getInitialStateForMcduProfile(), FmgcFlightPhase.Takeoff);
+        const builder = new ProfileBuilder(this.getInitialStateForMcduProfile(climbWinds), FmgcFlightPhase.Takeoff);
         const visitor = new BuilderVisitor(builder);
 
         CpuTimer.reset();
@@ -64,18 +66,26 @@ export class VerticalProfileManager {
         return builder;
     }
 
-    private getInitialStateForMcduProfile(): AircraftState {
+    private getInitialStateForMcduProfile(climbWinds: HeadwindProfile): AircraftState {
         const { v2Speed, originAirfieldElevation, flightPhase, presentPosition, fuelOnBoard, zeroFuelWeight, takeoffFlapsSetting } = this.observer.get();
+
+        const takeoffTas = this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10);
+        const headwind = climbWinds.getHeadwindComponent(0, originAirfieldElevation);
 
         if (flightPhase <= FmgcFlightPhase.Takeoff) {
             return {
                 altitude: originAirfieldElevation,
                 distanceFromStart: 0,
                 time: 0,
+                speeds: {
+                    calibratedAirspeed: v2Speed + 10,
+                    mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation, v2Speed + 10),
+                    trueAirspeed: takeoffTas,
+                    groundSpeed: takeoffTas - headwind.value,
+                    speedTarget: v2Speed + 10,
+                    speedTargetType: AccelFactorMode.CONSTANT_CAS,
+                },
                 weight: fuelOnBoard + zeroFuelWeight,
-                speed: v2Speed + 10,
-                mach: this.atmosphericConditions.computeMachFromCas(originAirfieldElevation, v2Speed + 10),
-                trueAirspeed: this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10),
                 config: {
                     flapConfig: takeoffFlapsSetting,
                     speedbrakesExtended: false,
@@ -84,14 +94,24 @@ export class VerticalProfileManager {
             };
         }
 
+        const speedTarget = Simplane.getAutoPilotAirspeedSelected()
+            ? SimVar.GetSimVarValue('A32NX_AUTOPILOT_SPEED_SELECTED', 'knots')
+            : SimVar.GetSimVarValue('A32NX_SPEEDS_MANAGED_ATHR', 'knots');
+
         return {
             altitude: presentPosition.alt,
             distanceFromStart: this.constraintReader.distanceToPresentPosition,
             time: 0,
+            speeds: {
+                // TODO: Take vars from FMGC instead of simvars
+                calibratedAirspeed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
+                mach: SimVar.GetSimVarValue('AIRSPEED MACH', 'number'),
+                trueAirspeed: SimVar.GetSimVarValue('AIRSPEED TRUE', 'knots'),
+                groundSpeed: SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots'),
+                speedTarget,
+                speedTargetType: speedTarget < 1 ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS,
+            },
             weight: fuelOnBoard + zeroFuelWeight,
-            speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
-            mach: SimVar.GetSimVarValue('AIRSPEED MACH', 'number'),
-            trueAirspeed: SimVar.GetSimVarValue('AIRSPEED TRUE', 'knots'),
             config: {
                 flapConfig: FlapConf.CLEAN, // TODO: Take current flaps setting for this
                 speedbrakesExtended: false,

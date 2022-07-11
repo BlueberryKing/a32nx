@@ -15,6 +15,7 @@ import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalFlightPlan, VerticalPseudoWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
+import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 
 type McduPseudoWaypointTemplate = {
     readonly type: McduPseudoWaypointType,
@@ -284,7 +285,7 @@ export class PseudoWaypoints implements GuidanceComponent {
         return {
             distanceFromStart: state.distanceFromStart,
             altitude: state.altitude,
-            speed: state.speed,
+            speed: state.speeds.speedTargetType === AccelFactorMode.CONSTANT_MACH ? state.speeds.mach : state.speeds.calibratedAirspeed,
             time: state.time,
             speedConstraint,
         };

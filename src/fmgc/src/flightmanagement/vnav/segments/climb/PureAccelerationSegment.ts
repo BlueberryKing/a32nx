@@ -1,11 +1,14 @@
 import { accelerationPropagator, IntegrationEndConditions, Integrator, PropagatorOptions, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 
 export class PureAccelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
 
     private readonly endConditions: IntegrationEndConditions;
+
+    private useMachTarget: boolean = false;
 
     constructor(
         private context: SegmentContext,
@@ -19,7 +22,7 @@ export class PureAccelerationSegment extends ProfileSegment {
         super();
 
         this.endConditions = {
-            speed: { max: toSpeed },
+            calibratedAirspeed: { max: toSpeed },
             mach: { max: toMach },
             altitude: { max: toAltitude },
             distanceFromStart: { max: maxDistance },
@@ -37,7 +40,7 @@ export class PureAccelerationSegment extends ProfileSegment {
         options: PropagatorOptions,
         maxDistance: NauticalMiles = Infinity,
     ): PureAccelerationSegment {
-        return new PureAccelerationSegment(
+        const segment = new PureAccelerationSegment(
             context,
             thrustSetting,
             340, // Just use VMO for this since we really want to constraint the Mach number
@@ -46,6 +49,9 @@ export class PureAccelerationSegment extends ProfileSegment {
             maxDistance,
             toMach,
         );
+
+        segment.useMachTarget = true;
+        return segment;
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {
@@ -53,9 +59,16 @@ export class PureAccelerationSegment extends ProfileSegment {
             this.endConditions,
             accelerationPropagator(this.thrustSetting, this.context, this.options));
 
-        // Only add the new state if there was a significant change
+        // We need to set a state here with Mach speedtarget, so the propagators building off of this state take the correct target
+        // However, we only want to do this if we're above crossover altitude.
         if (step.length > 1) {
+            step.last.speeds.speedTargetType = this.useMachTarget ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS;
             builder.push(step.last);
+        } else if (state.speeds.mach > this.endConditions.mach.max) {
+            const copyOfLastState = { ...builder.lastState };
+            copyOfLastState.speeds.speedTargetType = this.useMachTarget ? AccelFactorMode.CONSTANT_MACH : AccelFactorMode.CONSTANT_CAS;
+
+            builder.push(copyOfLastState);
         }
     }
 

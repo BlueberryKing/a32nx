@@ -3,11 +3,12 @@ import { CruiseSegment } from '@fmgc/flightmanagement/vnav/segments/cruise/Cruis
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { ManagedDescentSegment } from '@fmgc/flightmanagement/vnav/segments/descent/ManagedDescentSegment';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
-import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { AccelFactorMode, FlapConf } from '@fmgc/guidance/vnav/common';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
 import { ApproachSegment } from '@fmgc/flightmanagement/vnav/segments/approach/ApproachSegment';
+import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 export class CruiseAndDescentSegment extends ProfileSegment {
     private descentSegment: ManagedDescentSegment;
@@ -72,14 +73,23 @@ export class CruiseAndDescentSegment extends ProfileSegment {
     private getInitialState(context: SegmentContext, constraintReader: ConstraintReader): AircraftState {
         const { destinationAirfieldElevation, approachSpeed, zeroFuelWeight, isFlaps3Landing } = context.observer.get();
 
+        const headwindAtDestination = context.windRepository.getWindProfile(WindProfileType.Descent)
+            .getHeadwindComponent(constraintReader.totalFlightPlanDistance, destinationAirfieldElevation + 50);
+        const tasAtDestination = context.atmosphericConditions.computeTasFromCas(destinationAirfieldElevation + 50, approachSpeed);
+
         return {
             altitude: destinationAirfieldElevation + 50,
             distanceFromStart: constraintReader.totalFlightPlanDistance,
             time: 0,
+            speeds: {
+                calibratedAirspeed: approachSpeed,
+                mach: context.atmosphericConditions.computeMachFromCas(destinationAirfieldElevation + 50, approachSpeed),
+                trueAirspeed: tasAtDestination,
+                groundSpeed: tasAtDestination - headwindAtDestination.value,
+                speedTarget: approachSpeed,
+                speedTargetType: AccelFactorMode.CONSTANT_CAS,
+            },
             weight: zeroFuelWeight + 6000, // zeroFuelWeight + Initial guess for the amount of fuel on board when landing
-            speed: approachSpeed,
-            mach: context.atmosphericConditions.computeMachFromCas(destinationAirfieldElevation + 50, approachSpeed),
-            trueAirspeed: context.atmosphericConditions.computeTasFromCas(destinationAirfieldElevation + 50, approachSpeed),
             config: {
                 flapConfig: isFlaps3Landing ? FlapConf.CONF_3 : FlapConf.CONF_FULL,
                 speedbrakesExtended: false,
