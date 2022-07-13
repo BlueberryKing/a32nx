@@ -95,8 +95,8 @@ export class VerticalProfileManager {
         }
 
         const speedTarget = Simplane.getAutoPilotAirspeedSelected()
-            ? SimVar.GetSimVarValue('A32NX_AUTOPILOT_SPEED_SELECTED', 'knots')
-            : SimVar.GetSimVarValue('A32NX_SPEEDS_MANAGED_ATHR', 'knots');
+            ? SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_SPEED_SELECTED', 'number')
+            : SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'number');
 
         return {
             altitude: presentPosition.alt,
