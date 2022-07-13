@@ -131,19 +131,11 @@ export function accelerationPropagator(thrustSetting: ThrustSetting, context: Se
         const delta = Common.getDelta(state.altitude, state.altitude > tropoPause);
         const drag = FlightModel.getDrag(state.weight, state.speeds.mach, delta, state.config.speedbrakesExtended, state.config.gearExtended, state.config.flapConfig);
 
-        const accelerationFactor = Common.getAccelerationFactor(
-            state.speeds.mach,
-            state.altitude,
-            context.getIsaDeviation(),
-            state.altitude > tropoPause,
-            state.speeds.speedTargetType,
-        );
-
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
 
         const availableGradient: Radians = FlightModel.getAvailableGradient(thrust, drag, state.weight);
         const pathAngle: Radians = FlightModel.getSpeedChangePathAngle(thrust, state.weight, drag);
-        const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
+        const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle);
         const verticalSpeed: FeetPerMinute = 101.268 * state.speeds.trueAirspeed * Math.sin(pathAngle);
         const stepTime: Seconds = 3600 * options.stepSize / state.speeds.groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;
@@ -184,14 +176,6 @@ export function speedChangePropagator(context: SegmentContext, thrustSetting: Th
         const delta = Common.getDelta(state.altitude, state.altitude > tropoPause);
         const drag = FlightModel.getDrag(state.weight, state.speeds.mach, delta, state.config.speedbrakesExtended, state.config.gearExtended, state.config.flapConfig);
 
-        const accelerationFactor = Common.getAccelerationFactor(
-            state.speeds.mach,
-            state.altitude,
-            context.getIsaDeviation(),
-            state.altitude > tropoPause,
-            state.speeds.speedTargetType,
-        );
-
         const [thrust, fuelFlow] = thrustSetting.getThrustAndFuelFlow(state);
 
         const availableGradient: Radians = FlightModel.getAvailableGradient(thrust, drag, state.weight);
@@ -200,14 +184,14 @@ export function speedChangePropagator(context: SegmentContext, thrustSetting: Th
         const minimumAccelDecel: KnotsPerSecond = desireAccelerationVsDeceleration ? 0.5 : -0.3;
 
         // The reason this is here is that we might be demanding a path angle which doesn't actually end up accelerating/decelerating the plane.
-        const pathAngleForMinimumAccelDecel = FlightModel.fpaForGradient(availableGradient, minimumAccelDecel / FlightModel.gravityConstKNS, accelerationFactor);
+        const pathAngleForMinimumAccelDecel = FlightModel.fpaForGradient(availableGradient, minimumAccelDecel);
 
         const targetPathAngle: Radians = pitchTarget.getPathAngle(state);
         const pathAngle = desireAccelerationVsDeceleration
             ? Math.max(0, Math.min(targetPathAngle, pathAngleForMinimumAccelDecel))
             : Math.min(0, Math.max(targetPathAngle, pathAngleForMinimumAccelDecel));
 
-        const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
+        const acceleration: KnotsPerSecond = FlightModel.accelerationForGradient(availableGradient, pathAngle);
         const verticalSpeed: FeetPerMinute = 101.268 * state.speeds.trueAirspeed * Math.sin(pathAngle);
         const stepTime: Seconds = 3600 * options.stepSize / state.speeds.groundSpeed;
         const fuelBurned: Pounds = fuelFlow * stepTime / 3600;

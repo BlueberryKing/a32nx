@@ -141,37 +141,33 @@ export class FlightModel {
     }
 
     /**
-     * Returns an acceleration for a given available gradient, fpa and acceleration factor.
+     * Returns an acceleration for a given available gradient and fpa
      *
      * @param availableGradient in radians
      * @param fpa in radians
-     * @param accelFactor
      *
-     * @returns the acceleration
+     * @returns the acceleration in knots/sec
      */
     static accelerationForGradient(
         availableGradient: Radians,
         fpa: number,
-        accelFactor: number,
     ): number {
-        return (Math.sin(availableGradient) - Math.sin(fpa)) * accelFactor;
+        return (Math.sin(availableGradient) - Math.sin(fpa)) * this.gravityConstKNS;
     }
 
     /**
-     * Returns an fpa for a given available gradient, acceleration and acceleration factor.
+     * Returns an fpa for a given available gradient and acceleration
      *
      * @param availableGradient in radians
-     * @param acceleration
-     * @param accelFactor
+     * @param acceleration in knots/sec
      *
      * @returns the fpa in radians
      */
     static fpaForGradient(
         availableGradient: Radians,
         acceleration: number,
-        accelFactor: number,
     ): number {
-        return Math.asin(Math.sin(availableGradient) - (acceleration / accelFactor));
+        return Math.asin(Math.sin(availableGradient) - (acceleration / this.gravityConstKNS));
     }
 
     // END NEW
