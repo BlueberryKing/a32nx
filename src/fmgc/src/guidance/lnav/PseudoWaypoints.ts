@@ -16,6 +16,7 @@ import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalFlightPlan, VerticalPseudoWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
+import { NdSymbolTypeFlags } from '@shared/NavigationDisplay';
 
 type McduPseudoWaypointTemplate = {
     readonly type: McduPseudoWaypointType,
@@ -69,9 +70,11 @@ export class PseudoWaypoints implements GuidanceComponent {
         }
 
         this.mcduPseudoWaypoints.length = 0;
+        this.ndPseudoWaypoints.length = 0;
 
         for (const { type, state, speedConstraint } of verticalFlightPlan.mcduPseudoWaypointRequests) {
             this.registerMcduPseudoWaypoint(type, state, speedConstraint);
+            this.registerNdPseudoWaypoint(type, state);
         }
     }
 
@@ -220,7 +223,7 @@ export class PseudoWaypoints implements GuidanceComponent {
                 let lla;
                 if (distanceFromLastFix > inboundTransLength + legPartLength) {
                     // Point is in outbound transition segment
-                    const distanceBeforeTerminator = outboundTransLength + legPartLength + inboundTransLength - distanceFromLastFix;
+                    const distanceBeforeTerminator = totalLegPathLength - distanceFromLastFix;
 
                     if (DEBUG) {
                         console.log(`[FMS/PWP] Placed PWP '${debugString}' on leg #${i} outbound segment (${distanceBeforeTerminator.toFixed(2)}nm before end)`);
@@ -229,7 +232,7 @@ export class PseudoWaypoints implements GuidanceComponent {
                     lla = outboundTrans.getPseudoWaypointLocation(distanceBeforeTerminator);
                 } else if (distanceFromLastFix >= inboundTransLength && distanceFromLastFix < inboundTransLength + legPartLength) {
                     // Point is in leg segment
-                    const distanceBeforeTerminator = distanceFromLastFix - inboundTransLength - legPartLength;
+                    const distanceBeforeTerminator = totalLegPathLength - outboundTransLength - distanceFromLastFix;
 
                     if (DEBUG) {
                         console.log(`[FMS/PWP] Placed PWP '${debugString}' on leg #${i} leg segment (${distanceBeforeTerminator.toFixed(2)}nm before end)`);
@@ -279,6 +282,40 @@ export class PseudoWaypoints implements GuidanceComponent {
         const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix, prediction: this.formatPseudoWaypointPrediction(state, speedConstraint) };
 
         this.mcduPseudoWaypoints.push(pwp);
+    }
+
+    // TODO: This is not here to stay
+    registerNdPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
+        // databaseId: `W      ${pwp.ident}`,
+        // ident: pwp.ident,
+        // location: this.guidanceController.vnavDriver.isInManagedNav() ? pwp.efisSymbolLla : undefined,
+        // type: pwp.efisSymbolFlag,
+        // distanceFromAirplane: pwp.distanceFromStart,
+        let efisSymbolFlag = NdSymbolTypeFlags.PwpDecel | NdSymbolTypeFlags.MagentaColor;
+        if (type === McduPseudoWaypointType.Flap1) {
+            efisSymbolFlag = NdSymbolTypeFlags.PwpCdaFlap1;
+        } else if (type === McduPseudoWaypointType.Flap2) {
+            efisSymbolFlag = NdSymbolTypeFlags.PwpCdaFlap2;
+        } else if (type !== McduPseudoWaypointType.Decel) {
+            return;
+        }
+
+        const geometry = this.guidanceController.activeGeometry;
+        const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
+
+        // Find position in flight plan
+        const position = this.pointOnPath(geometry, wptCount, state.distanceFromStart);
+        if (!position) {
+            console.warn(`[FMS/VNAV] Could not place PWP of type ${type}: ${JSON.stringify(state)}`);
+            return;
+        }
+
+        const [efisSymbolLla, _, alongLegIndex] = position;
+        const mcduPwp = pwpByType.get(type);
+
+        const pwp = { ident: mcduPwp.mcduIdent, efisSymbolLla, distanceFromStart: state.distanceFromStart, efisSymbolFlag, alongLegIndex };
+
+        this.ndPseudoWaypoints.push(pwp);
     }
 
     private formatPseudoWaypointPrediction(state: AircraftState, speedConstraint?: SpeedConstraintPrediction): VerticalPseudoWaypointPrediction {
