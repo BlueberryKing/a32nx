@@ -113,13 +113,13 @@ export class ManagedDescentSegment extends ProfileSegment {
     private evaluateAltitudeConstraint(altitude: Feet, constraint: AltitudeConstraint): [boolean, Feet] {
         switch (constraint.type) {
         case AltitudeConstraintType.at:
-            return [Math.abs(altitude - constraint.altitude1) < 250, MathUtils.clamp(altitude, constraint.altitude1 - 250, constraint.altitude1 + 250)];
+            return [Math.abs(altitude - constraint.altitude1) <= 250, MathUtils.clamp(altitude, constraint.altitude1 - 250, constraint.altitude1 + 250)];
         case AltitudeConstraintType.atOrAbove:
-            return [(altitude - constraint.altitude1) > -250, Math.max(altitude, constraint.altitude1 - 250)];
+            return [(altitude - constraint.altitude1) >= -250, Math.max(altitude, constraint.altitude1 - 250)];
         case AltitudeConstraintType.atOrBelow:
-            return [(altitude - constraint.altitude1) < 250, Math.min(altitude, constraint.altitude1 + 250)];
+            return [(altitude - constraint.altitude1) <= 250, Math.min(altitude, constraint.altitude1 + 250)];
         case AltitudeConstraintType.range:
-            return [(altitude - constraint.altitude2) > -250 && (altitude - constraint.altitude1) < 250, MathUtils.clamp(altitude, constraint.altitude2 - 250, constraint.altitude1 + 250)];
+            return [(altitude - constraint.altitude2) >= -250 && (altitude - constraint.altitude1) < 250, MathUtils.clamp(altitude, constraint.altitude2 - 250, constraint.altitude1 + 250)];
         default:
             console.error('[FMS/VNAV] Invalid altitude constraint type');
             return [true, altitude];
