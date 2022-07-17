@@ -6,14 +6,14 @@ import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 export class ManagedClimbMachSegment extends ProfileSegment {
-    constructor(context: SegmentContext, toAltitude: Feet, maxMach: Mach) {
+    constructor(context: SegmentContext, toAltitude: Feet, maxSpeed: Knots, maxMach: Mach) {
         super();
 
         const climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
         const options: PropagatorOptions = { stepSize: 5, windProfileType: WindProfileType.Climb };
 
         this.children = [
-            PureAccelerationSegment.toMach(context, climbThrust, maxMach, toAltitude, options),
+            PureAccelerationSegment.toMach(context, climbThrust, maxSpeed, maxMach, toAltitude, options),
             new PureClimbToAltitudeSegment(context, climbThrust, toAltitude, options),
         ];
     }

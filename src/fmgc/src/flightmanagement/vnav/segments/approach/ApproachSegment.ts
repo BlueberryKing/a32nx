@@ -47,6 +47,9 @@ export class ApproachSegment extends ProfileSegment {
     }
 
     onAfterBuildingChildren(builder: ProfileBuilder): void {
+        // We want the speedtarget before the decel point to be whatever speed we have computed the deceleration to approach speed (approach segment) to
+        builder.lastState.speeds.speedTarget = builder.lastState.speeds.calibratedAirspeed;
+
         builder.requestPseudoWaypoint(McduPseudoWaypointType.Decel, builder.lastState);
     }
 

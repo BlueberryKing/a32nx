@@ -17,7 +17,7 @@ export class PureIdlePathDecelerationSegment extends ProfileSegment {
 
     private idleThrustPropagator: IntegrationPropagator;
 
-    constructor(context: SegmentContext, toAltitude: Feet, toSpeed: Knots, toDistance: NauticalMiles, options: PropagatorOptions) {
+    constructor(context: SegmentContext, toAltitude: Feet, private toSpeed: Knots, toDistance: NauticalMiles, options: PropagatorOptions) {
         super();
 
         this.endConditions = {
@@ -44,6 +44,8 @@ export class PureIdlePathDecelerationSegment extends ProfileSegment {
         );
 
         if (decelerationStep.length > 1) {
+            decelerationStep.last.speeds.speedTarget = this.toSpeed;
+
             builder.push(decelerationStep.last);
         }
     }

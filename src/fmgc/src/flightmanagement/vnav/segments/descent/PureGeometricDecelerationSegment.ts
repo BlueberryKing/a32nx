@@ -76,10 +76,14 @@ export class PureGeometricDecelerationSegment extends ProfileSegment {
             }
 
             if (decelerationPathWithSpeedBrakes.length > 1) {
+                decelerationPathWithSpeedBrakes.last.speeds.speedTarget = this.toSpeed;
+
                 builder.push({ ...decelerationPathWithSpeedBrakes.last, reason: 'FPA decel with speedbrakes' });
                 state.config.speedbrakesExtended = false;
             }
         } else {
+            decelerationPath.last.speeds.speedTarget = this.toSpeed;
+
             builder.push({ ...decelerationPath.last, reason: 'FPA decel' });
         }
     }

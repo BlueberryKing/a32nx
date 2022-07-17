@@ -16,7 +16,7 @@ export class ClimbSegment extends ProfileSegment {
         this.children = [
             new ManagedClimbSegment(context, climbSpeedLimit.speed, Math.min(climbSpeedLimit.underAltitude, cruiseAltitude, crossoverAltitude), constraints),
             new ManagedClimbSegment(context, managedClimbSpeed, Math.min(crossoverAltitude, cruiseAltitude), constraints),
-            new ManagedClimbMachSegment(context, cruiseAltitude, managedClimbSpeedMach),
+            new ManagedClimbMachSegment(context, cruiseAltitude, managedClimbSpeed, managedClimbSpeedMach),
         ];
     }
 

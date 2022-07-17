@@ -17,7 +17,7 @@ export class PureIdlePathConstantMachSegment extends ProfileSegment {
 
     private idleThrustPropagator: IntegrationPropagator;
 
-    constructor(context: SegmentContext, private toAltitude: Feet, private toDistance: NauticalMiles) {
+    constructor(context: SegmentContext, private toAltitude: Feet, private mach: Mach, private toDistance: NauticalMiles) {
         super();
 
         this.endConditions = {
@@ -39,6 +39,7 @@ export class PureIdlePathConstantMachSegment extends ProfileSegment {
         // If we still have altitude and distance available, make sure the predicted segment is predicted as Mach
         if (state.altitude < this.toAltitude && state.distanceFromStart > this.toDistance) {
             builder.lastState.speeds.speedTargetType = AccelFactorMode.CONSTANT_MACH;
+            builder.lastState.speeds.speedTarget = this.mach;
         }
 
         const step = this.integrator.integrate(

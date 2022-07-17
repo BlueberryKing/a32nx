@@ -34,7 +34,7 @@ export class ManagedClimbSegment extends ProfileSegment {
                 }
 
                 // We only need to do this if we're below `toAltitude` because if we're above it, we can let the next `ManagedClimbSegment` take care of them
-                if (currentMaxAltitude < toAltitude) {
+                if (currentMaxAltitude <= toAltitude) {
                     // Possibly fly level before reaching `constraint` if there is a constraining altitude constraint
                     this.children.push(new PureLevelSegment(context, constraint.distanceFromStart, options));
                     // Accelerate in level flight if an upcoming constraint requires it.

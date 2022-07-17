@@ -10,7 +10,7 @@ export class IdlePathSegment extends ProfileSegment {
     constructor(context: SegmentContext, constraints: ConstraintReader, crossoverAltitude: Feet, toAltitude: Feet) {
         super();
 
-        const { descentSpeedLimit, managedDescentSpeed } = context.observer.get();
+        const { descentSpeedLimit, managedDescentSpeed, managedDescentSpeedMach } = context.observer.get();
 
         const options: PropagatorOptions = {
             stepSize: -5,
@@ -24,7 +24,7 @@ export class IdlePathSegment extends ProfileSegment {
             new IdlePathToAltitudeSegment(
                 context, constraints, Math.min(crossoverAltitude, toAltitude), managedDescentSpeed, options,
             ),
-            new PureIdlePathConstantMachSegment(context, toAltitude, -Infinity),
+            new PureIdlePathConstantMachSegment(context, toAltitude, managedDescentSpeedMach, -Infinity),
         ];
     }
 
