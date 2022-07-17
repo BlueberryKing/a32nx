@@ -1,4 +1,3 @@
-import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ClimbThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { PureAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureAccelerationSegment';
 import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureClimbToAltitudeSegment';
@@ -7,20 +6,21 @@ import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegm
 import { PureLevelAccelerationSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureLevelAccelerationSegment';
 import { PureLevelSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureLevelSegment';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
+import { ClimbProfileRequest } from '@fmgc/flightmanagement/vnav/ClimbProfileRequest';
 
 export class ManagedClimbSegment extends ProfileSegment {
-    constructor(context: SegmentContext, private maxSpeed: Knots, private toAltitude: Feet, private constraints: ConstraintReader) {
+    constructor(request: ClimbProfileRequest, context: SegmentContext, maxSpeed: Knots, toAltitude: Feet) {
         super();
 
         const climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
         const options = { stepSize: 5, windProfileType: WindProfileType.Climb };
 
         this.children = [
-            new PureClimbToAltitudeSegment(context, climbThrust, toAltitude, options),
-            new PureAccelerationSegment(context, climbThrust, maxSpeed, toAltitude, options),
+            new PureClimbToAltitudeSegment(request.climbPropagator, toAltitude),
+            new PureAccelerationSegment(request.accelerationPropagator, maxSpeed, toAltitude),
         ];
 
-        const allConstraints = [...constraints.climbSpeedConstraints, ...constraints.climbAlitudeConstraints];
+        const allConstraints = [...request.speedConstraints, ...request.altitudeConstraints];
         allConstraints.sort((a, b) => b.distanceFromStart - a.distanceFromStart);
 
         let currentMaxSpeed = maxSpeed;
@@ -41,17 +41,17 @@ export class ManagedClimbSegment extends ProfileSegment {
                     this.children.push(new PureLevelAccelerationSegment(context, climbThrust, constraint.maxSpeed, constraint.distanceFromStart, options));
                 }
 
-                this.children.push(new PureClimbToAltitudeSegment(context, climbThrust, currentMaxAltitude, options, constraint.distanceFromStart));
-                this.children.push(new PureAccelerationSegment(context, climbThrust, constraint.maxSpeed, currentMaxAltitude, options, constraint.distanceFromStart));
+                this.children.push(new PureClimbToAltitudeSegment(request.climbPropagator, currentMaxAltitude, constraint.distanceFromStart));
+                this.children.push(new PureAccelerationSegment(request.accelerationPropagator, constraint.maxSpeed, currentMaxAltitude, constraint.distanceFromStart));
 
                 currentMaxSpeed = Math.min(currentMaxSpeed, constraint.maxSpeed);
             } else if (constraint.maxAltitude <= toAltitude) {
                 this.children.push(new PureLevelSegment(context, constraint.distanceFromStart, options));
-                this.children.push(new PureClimbToAltitudeSegment(context, climbThrust, constraint.maxAltitude, options, constraint.distanceFromStart));
+                this.children.push(new PureClimbToAltitudeSegment(request.climbPropagator, constraint.maxAltitude, constraint.distanceFromStart));
 
                 // Before climbing to the constraint, accelerate to the target speed
                 this.children.push(new PureLevelAccelerationSegment(context, climbThrust, currentMaxSpeed, constraint.distanceFromStart, options));
-                this.children.push(new PureAccelerationSegment(context, climbThrust, currentMaxSpeed, constraint.maxAltitude, options));
+                this.children.push(new PureAccelerationSegment(request.accelerationPropagator, currentMaxSpeed, constraint.maxAltitude));
 
                 currentMaxAltitude = Math.min(currentMaxAltitude, constraint.maxAltitude);
             }

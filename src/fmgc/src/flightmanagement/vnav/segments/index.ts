@@ -10,6 +10,9 @@ import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { HeadwindRepository } from '@fmgc/guidance/vnav/wind/HeadwindRepository';
+import { ClimbProfileRequest } from '@fmgc/flightmanagement/vnav/ClimbProfileRequest';
+import { accelerationPropagator, ClimbThrustSetting, constantThrustPropagator, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
+import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 export enum VerticalSegmentType {
     Unknown = 1,
@@ -49,9 +52,22 @@ export class McduProfile extends ProfileSegment {
     constructor(context: SegmentContext, constraints: ConstraintReader, stepCoordinator: StepCoordinator) {
         super();
 
+        const { climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();
+        const climbThrust = new ClimbThrustSetting(context.atmosphericConditions);
+        const options: PropagatorOptions = { stepSize: 5, windProfileType: WindProfileType.Climb };
+
+        const climbProfileRequest = new ClimbProfileRequest()
+            .withSpeedConstraints(constraints.climbSpeedConstraints)
+            .withAltitudeConstraints(constraints.climbAlitudeConstraints)
+            .withSpeedLimit(climbSpeedLimit)
+            .withMaxSpeed(managedClimbSpeed)
+            .withMaxMach(managedClimbSpeedMach)
+            .withClimbPropagator(constantThrustPropagator(climbThrust, context, options))
+            .withAccelerationPropagator(accelerationPropagator(climbThrust, context, options));
+
         this.children = [
             new TakeoffSegment(context),
-            new ClimbSegment(context, constraints),
+            new ClimbSegment(context, climbProfileRequest),
             new CruiseAndDescentSegment(context, constraints, stepCoordinator),
         ];
     }

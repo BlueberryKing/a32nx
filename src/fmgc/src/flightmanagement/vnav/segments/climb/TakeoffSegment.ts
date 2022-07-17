@@ -1,5 +1,5 @@
 import { FlapConf } from '@fmgc/guidance/vnav/common';
-import { ClimbThrustSetting, PropagatorOptions, TakeoffThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
+import { ClimbThrustSetting, constantThrustPropagator, PropagatorOptions, TakeoffThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
 import { ConfigurationChangeSegment } from '@fmgc/flightmanagement/vnav/segments/ConfigurationChangeSegment';
 import { PureClimbToAltitudeSegment } from '@fmgc/flightmanagement/vnav/segments/climb/PureClimbToAltitudeSegment';
 import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments/index';
@@ -14,9 +14,12 @@ export class TakeoffSegment extends ProfileSegment {
         const { thrustReductionAltitude, accelerationAltitude } = context.observer.get();
         const options: PropagatorOptions = { stepSize: 5, windProfileType: WindProfileType.Climb };
 
+        const takeoffPropagator = constantThrustPropagator(new TakeoffThrustSetting(context.atmosphericConditions), context, options);
+        const climbPropagator = constantThrustPropagator(new ClimbThrustSetting(context.atmosphericConditions), context, options);
+
         this.children = [
-            new PureClimbToAltitudeSegment(context, new TakeoffThrustSetting(context.atmosphericConditions), thrustReductionAltitude, options),
-            new PureClimbToAltitudeSegment(context, new ClimbThrustSetting(context.atmosphericConditions), accelerationAltitude, options),
+            new PureClimbToAltitudeSegment(takeoffPropagator, thrustReductionAltitude),
+            new PureClimbToAltitudeSegment(climbPropagator, accelerationAltitude),
             new ConfigurationChangeSegment(context, { flapConfig: FlapConf.CLEAN, speedbrakesExtended: false, gearExtended: false }),
         ];
     }

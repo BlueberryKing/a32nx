@@ -1,23 +1,27 @@
-import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { ManagedClimbMachSegment } from '@fmgc/flightmanagement/vnav/segments/climb/ManagedClimbMachSegment';
 import { ManagedClimbSegment } from '@fmgc/flightmanagement/vnav/segments/climb/ManagedClimbSegment';
 import { SegmentContext, ProfileBuilder, AircraftState } from '@fmgc/flightmanagement/vnav/segments/index';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { ClimbProfileRequest } from '@fmgc/flightmanagement/vnav/ClimbProfileRequest';
 
 export class ClimbSegment extends ProfileSegment {
-    constructor(private context: SegmentContext, constraints: ConstraintReader) {
+    constructor(private context: SegmentContext, request: ClimbProfileRequest) {
         super();
 
-        const { cruiseAltitude, climbSpeedLimit, managedClimbSpeed, managedClimbSpeedMach } = context.observer.get();
-        const crossoverAltitude = context.computeCrossoverAltitude(managedClimbSpeed, managedClimbSpeedMach);
+        const { cruiseAltitude } = context.observer.get();
+        const crossoverAltitude = context.computeCrossoverAltitude(request.maxSpeed, request.maxMach);
 
-        this.children = [
-            new ManagedClimbSegment(context, climbSpeedLimit.speed, Math.min(climbSpeedLimit.underAltitude, cruiseAltitude, crossoverAltitude), constraints),
-            new ManagedClimbSegment(context, managedClimbSpeed, Math.min(crossoverAltitude, cruiseAltitude), constraints),
-            new ManagedClimbMachSegment(context, cruiseAltitude, managedClimbSpeed, managedClimbSpeedMach),
-        ];
+        // If we want to consider the speed limit in this profile, we insert a segment before the main segment.
+        if (request.speedLimit !== null) {
+            this.children.push(
+                new ManagedClimbSegment(request, context, Math.min(request.speedLimit.speed, request.maxSpeed), Math.min(request.speedLimit.underAltitude, cruiseAltitude, crossoverAltitude)),
+            );
+        }
+
+        this.children.push(new ManagedClimbSegment(request, context, request.maxSpeed, Math.min(crossoverAltitude, cruiseAltitude)));
+        this.children.push(new ManagedClimbMachSegment(request, cruiseAltitude, request.maxSpeed, request.maxMach));
     }
 
     shouldCompute(_state: AircraftState, _builder: ProfileBuilder): boolean {

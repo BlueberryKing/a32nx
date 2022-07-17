@@ -1,5 +1,5 @@
-import { accelerationPropagator, IntegrationEndConditions, Integrator, PropagatorOptions, ThrustSetting } from '@fmgc/flightmanagement/vnav/integrators';
-import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
+import { IntegrationEndConditions, IntegrationPropagator, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
+import { AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 
@@ -13,11 +13,9 @@ export class PureAccelerationSegment extends ProfileSegment {
     private toMach: Mach = 0.82;
 
     constructor(
-        private context: SegmentContext,
-        private thrustSetting: ThrustSetting,
+        private accelerationPropagator: IntegrationPropagator,
         private toSpeed: Knots,
-        private toAltitude: Feet,
-        private options: PropagatorOptions,
+        toAltitude: Feet,
         maxDistance: NauticalMiles = Infinity,
         toMach: Mach = 0.82,
     ) {
@@ -36,20 +34,16 @@ export class PureAccelerationSegment extends ProfileSegment {
      * A helper function to initialize a PureAccelerationSegment to accelerate to a mach target
      */
     static toMach(
-        context: SegmentContext,
-        thrustSetting: ThrustSetting,
-        toSpeed: Mach,
+        accelerationPropagator: IntegrationPropagator,
+        toSpeed: Knots,
         toMach: Mach,
         toAltitude: Feet,
-        options: PropagatorOptions,
         maxDistance: NauticalMiles = Infinity,
     ): PureAccelerationSegment {
         const segment = new PureAccelerationSegment(
-            context,
-            thrustSetting,
+            accelerationPropagator,
             toSpeed,
             toAltitude,
-            options,
             maxDistance,
             toMach,
         );
@@ -59,9 +53,7 @@ export class PureAccelerationSegment extends ProfileSegment {
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {
-        const step = this.integrator.integrate(state,
-            this.endConditions,
-            accelerationPropagator(this.thrustSetting, this.context, this.options));
+        const step = this.integrator.integrate(state, this.endConditions, this.accelerationPropagator);
 
         // If we're already at the desired Mach speed, the acceleration segment is essentially empty, but we still want to add a state to the profile.
         // This is because the Mach speed target should be propagated from this state to all future states.
@@ -92,7 +84,7 @@ export class PureAccelerationSegment extends ProfileSegment {
     }
 
     get repr() {
-        return `PureAccelerationSegment - Accelerate to ${this.toSpeed} kts, stay below ${this.toAltitude} ft`;
+        return 'PureAccelerationSegment';
     }
 }
 
