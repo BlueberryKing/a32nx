@@ -5,7 +5,7 @@
 
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
-import { PseudoWaypoints } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { NdPseudoWaypoint, PseudoWaypoints } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { EfisVectors } from '@fmgc/efis/EfisVectors';
 import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { EfisState } from '@fmgc/guidance/FmsState';
@@ -90,7 +90,7 @@ export class GuidanceController {
 
     focusedWaypointCoordinates: Coordinates = { lat: 0, long: 0 };
 
-    currentPseudoWaypoints: PseudoWaypoint[] = [];
+    currentPseudoWaypoints: NdPseudoWaypoint[] = [];
 
     automaticSequencing: boolean = true;
 

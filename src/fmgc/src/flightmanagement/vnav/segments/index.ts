@@ -8,7 +8,7 @@ import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegm
 import { CruiseAndDescentSegment } from '@fmgc/flightmanagement/vnav/segments/CruiseAndDescentSegment';
 import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { McduPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { McduPseudoWaypointType, NdPseudoWaypointType, SpeedConstraintPrediction } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { HeadwindRepository } from '@fmgc/guidance/vnav/wind/HeadwindRepository';
 import { ClimbProfileRequest } from '@fmgc/flightmanagement/vnav/ClimbProfileRequest';
 import { accelerationPropagator, ClimbThrustSetting, constantThrustPropagator, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
@@ -108,12 +108,19 @@ export interface McduPseudoWaypointRequest {
     speedConstraint?: SpeedConstraintPrediction
 }
 
+export interface NdPseudoWaypointRequest {
+    type: NdPseudoWaypointType,
+    state: AircraftState,
+}
+
 export class ProfileBuilder {
     private currentFlightPhase: FmgcFlightPhase;
 
     private phases: Map<FmgcFlightPhase, AircraftState[]> = new Map();
 
     mcduPseudoWaypointRequests: McduPseudoWaypointRequest[] = []
+
+    ndPseudoWaypointRequests: NdPseudoWaypointRequest[] = []
 
     // TODO: `buildInReverse` should probably actually call `unshift` to build in reverse
     constructor(initialState: AircraftState, phase: FmgcFlightPhase, private buildInReverse: boolean = false) {
@@ -138,8 +145,15 @@ export class ProfileBuilder {
         return this;
     }
 
-    requestPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
+    requestMcduPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
         this.mcduPseudoWaypointRequests.push({
+            type,
+            state,
+        });
+    }
+
+    requestNdPseudoWaypoint(type: NdPseudoWaypointType, state: AircraftState) {
+        this.ndPseudoWaypointRequests.push({
             type,
             state,
         });

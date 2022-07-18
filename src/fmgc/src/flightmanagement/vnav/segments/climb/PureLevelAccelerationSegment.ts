@@ -9,6 +9,7 @@ import {
 } from '@fmgc/flightmanagement/vnav/integrators';
 import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class PureLevelAccelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
@@ -37,13 +38,18 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
             return;
         }
 
-        const endState = this.integrator.integrate(
+        const accelerationPath = this.integrator.integrate(
             state,
             this.endConditions,
             this.propagator,
-        ).last;
+        );
 
-        builder.push(endState);
+        if (accelerationPath.length > 1) {
+            builder.push(accelerationPath.last);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.Level1Climb, accelerationPath.first);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, accelerationPath.first);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.StartOfClimb1, accelerationPath.last);
+        }
     }
 
     get repr() {

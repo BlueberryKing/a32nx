@@ -90,6 +90,7 @@ export class VnavDriver implements GuidanceComponent {
 
         this.profileManager.update(geometry);
         this.guidanceController.pseudoWaypoints.acceptVerticalProfile(this.profileManager.verticalFlightPlanForMcdu);
+        this.guidanceController.pseudoWaypoints.updateNdPseudoWaypoints(this.profileManager.ndPseudoWaypointRequests);
 
         this.version++;
     }
@@ -121,6 +122,7 @@ export class VnavDriver implements GuidanceComponent {
 
                 this.profileManager.update(this.guidanceController.activeGeometry);
                 this.guidanceController.pseudoWaypoints.acceptVerticalProfile(this.profileManager.verticalFlightPlanForMcdu);
+                this.guidanceController.pseudoWaypoints.updateNdPseudoWaypoints(this.profileManager.ndPseudoWaypointRequests);
 
                 // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
 

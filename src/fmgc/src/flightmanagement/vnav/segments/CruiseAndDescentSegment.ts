@@ -59,11 +59,13 @@ export class CruiseAndDescentSegment extends ProfileSegment {
 
         builder.changePhase(FmgcFlightPhase.Cruise).push(...temporaryCruiseBuilder.checkpointsOfPhase(FmgcFlightPhase.Cruise));
         builder.mcduPseudoWaypointRequests.push(...temporaryCruiseBuilder.mcduPseudoWaypointRequests);
+        builder.ndPseudoWaypointRequests.push(...temporaryCruiseBuilder.ndPseudoWaypointRequests);
 
         builder.changePhase(FmgcFlightPhase.Descent).push(...temporaryDescentBuilder.checkpointsOfPhase(FmgcFlightPhase.Descent).slice().reverse());
 
         builder.changePhase(FmgcFlightPhase.Approach).push(...temporaryDescentBuilder.checkpointsOfPhase(FmgcFlightPhase.Approach).slice().reverse());
         builder.mcduPseudoWaypointRequests.push(...temporaryDescentBuilder.mcduPseudoWaypointRequests);
+        builder.ndPseudoWaypointRequests.push(...temporaryDescentBuilder.ndPseudoWaypointRequests);
     }
 
     get repr() {

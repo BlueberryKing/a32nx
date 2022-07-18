@@ -453,9 +453,9 @@ export class EfisSymbols {
                 upsertSymbol({
                     databaseId: `W      ${pwp.ident}`,
                     ident: pwp.ident,
-                    location: this.guidanceController.vnavDriver.isInManagedNav() ? pwp.efisSymbolLla : undefined,
-                    type: pwp.efisSymbolFlag,
-                    distanceFromAirplane: pwp.distanceFromStart,
+                    location: pwp.location,
+                    type: pwp.symbol,
+                    distanceFromAirplane: pwp.distanceFromAirplane,
                 });
             }
 

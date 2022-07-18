@@ -13,7 +13,7 @@ import { LateralMode } from '@shared/autopilot';
 import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
-import { AircraftState } from '@fmgc/flightmanagement/vnav/segments';
+import { AircraftState, NdPseudoWaypointRequest } from '@fmgc/flightmanagement/vnav/segments';
 import { VerticalFlightPlan, VerticalPseudoWaypointPrediction } from '@fmgc/flightmanagement/vnav/VerticalFlightPlan';
 import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 import { NdSymbolTypeFlags } from '@shared/NavigationDisplay';
@@ -32,6 +32,20 @@ interface McduPseudoWaypoint extends McduPseudoWaypointTemplate {
     speedConstraint?: Knots
 }
 
+type NdPseudoWaypointTemplate = {
+    readonly type: NdPseudoWaypointType,
+    readonly ident: string,
+    readonly symbol: NdSymbolTypeFlags,
+}
+
+export interface NdPseudoWaypoint extends NdPseudoWaypointTemplate {
+    alongLegIndex: number,
+    distanceFromLegTermination: NauticalMiles,
+    location?: Coordinates,
+    distanceFromAirplane?: NauticalMiles,
+    label?: string,
+}
+
 export enum McduPseudoWaypointType {
     SpeedLimit,
     TopOfClimb,
@@ -43,7 +57,30 @@ export enum McduPseudoWaypointType {
     Flap2,
 }
 
-const pwpByType: Map<McduPseudoWaypointType, McduPseudoWaypointTemplate> = new Map([
+export enum NdPseudoWaypointType {
+    Level1Climb,
+    Level2Climb,
+    Level3Climb,
+    Level1Descent,
+    Level2Descent,
+    Level3Descent,
+    InterceptPoint1,
+    InterceptPoint2,
+    TopOfDescent1,
+    TopOfDescent2,
+    StartOfClimb1,
+    StartOfClimb2,
+    SpeedChange1,
+    SpeedLimitDistance,
+    Decel,
+    Flap1,
+    Flap2,
+    EnergyCircle,
+    TimeMarker,
+    EquitimePoint
+}
+
+const mcduPwpTemplates: Map<McduPseudoWaypointType, McduPseudoWaypointTemplate> = new Map([
     [McduPseudoWaypointType.SpeedLimit, { type: McduPseudoWaypointType.SpeedLimit, mcduIdent: '(LIM)', mcduHeader: '(SPD)' }],
     [McduPseudoWaypointType.TopOfClimb, { type: McduPseudoWaypointType.TopOfClimb, mcduIdent: '(T/C)' }],
     [McduPseudoWaypointType.TopOfDescent, { type: McduPseudoWaypointType.TopOfDescent, mcduIdent: '(T/D)' }],
@@ -54,8 +91,35 @@ const pwpByType: Map<McduPseudoWaypointType, McduPseudoWaypointTemplate> = new M
     [McduPseudoWaypointType.Flap2, { type: McduPseudoWaypointType.Flap2, mcduIdent: '(FLAP2)' }],
 ]);
 
+const ndPwpTemplates: Map<NdPseudoWaypointType, NdPseudoWaypointTemplate> = new Map([
+    [NdPseudoWaypointType.Level1Climb, { type: NdPseudoWaypointType.Level1Climb, ident: 'Level1Climb', symbol: NdSymbolTypeFlags.PwpClimbLevelOff | NdSymbolTypeFlags.MagentaColor }],
+    [NdPseudoWaypointType.Level2Climb, { type: NdPseudoWaypointType.Level2Climb, ident: 'Level2Climb', symbol: NdSymbolTypeFlags.PwpClimbLevelOff | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.Level3Climb, { type: NdPseudoWaypointType.Level3Climb, ident: 'Level3Climb', symbol: NdSymbolTypeFlags.PwpClimbLevelOff | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.Level1Descent, { type: NdPseudoWaypointType.Level1Descent, ident: 'Level1Descent', symbol: NdSymbolTypeFlags.PwpDescentLevelOff | NdSymbolTypeFlags.MagentaColor }],
+    [NdPseudoWaypointType.Level2Descent, { type: NdPseudoWaypointType.Level2Descent, ident: 'Level2Descent', symbol: NdSymbolTypeFlags.PwpDescentLevelOff | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.Level3Descent, { type: NdPseudoWaypointType.Level3Descent, ident: 'Level3Descent', symbol: NdSymbolTypeFlags.PwpDescentLevelOff | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.InterceptPoint1, { type: NdPseudoWaypointType.InterceptPoint1, ident: 'InterceptPoint1', symbol: NdSymbolTypeFlags.PwpInterceptProfile }],
+    [NdPseudoWaypointType.InterceptPoint2,
+        { type: NdPseudoWaypointType.InterceptPoint2, ident: 'InterceptPoint2', symbol: NdSymbolTypeFlags.PwpInterceptProfile | NdSymbolTypeFlags.CyanColor },
+    ],
+    [NdPseudoWaypointType.TopOfDescent1, { type: NdPseudoWaypointType.TopOfDescent1, ident: 'TopOfDescent1', symbol: NdSymbolTypeFlags.PwpTopOfDescent }],
+    [NdPseudoWaypointType.TopOfDescent2, { type: NdPseudoWaypointType.TopOfDescent2, ident: 'TopOfDescent2', symbol: NdSymbolTypeFlags.PwpTopOfDescent | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.StartOfClimb1, { type: NdPseudoWaypointType.StartOfClimb1, ident: 'StartOfClimb1', symbol: NdSymbolTypeFlags.PwpStartOfClimb }],
+    [NdPseudoWaypointType.StartOfClimb2, { type: NdPseudoWaypointType.StartOfClimb2, ident: 'StartOfClimb2', symbol: NdSymbolTypeFlags.PwpStartOfClimb | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.SpeedChange1, { type: NdPseudoWaypointType.SpeedChange1, ident: 'SpeedChange1', symbol: NdSymbolTypeFlags.PwpSpeedChange | NdSymbolTypeFlags.MagentaColor }],
+    [NdPseudoWaypointType.SpeedLimitDistance,
+        { type: NdPseudoWaypointType.SpeedLimitDistance, ident: 'SpeedLimitDistance', symbol: NdSymbolTypeFlags.PwpSpeedChange | NdSymbolTypeFlags.MagentaColor },
+    ],
+    [NdPseudoWaypointType.Decel, { type: NdPseudoWaypointType.Decel, ident: 'Decel', symbol: NdSymbolTypeFlags.PwpDecel | NdSymbolTypeFlags.MagentaColor }],
+    [NdPseudoWaypointType.Flap1, { type: NdPseudoWaypointType.Flap1, ident: 'Flap1', symbol: NdSymbolTypeFlags.PwpCdaFlap1 | NdSymbolTypeFlags.MagentaColor }],
+    [NdPseudoWaypointType.Flap2, { type: NdPseudoWaypointType.Flap2, ident: 'Flap2', symbol: NdSymbolTypeFlags.PwpCdaFlap2 | NdSymbolTypeFlags.MagentaColor }],
+    [NdPseudoWaypointType.EnergyCircle, { type: NdPseudoWaypointType.EnergyCircle, ident: 'EnergyCircle', symbol: 0 }],
+    [NdPseudoWaypointType.TimeMarker, { type: NdPseudoWaypointType.TimeMarker, ident: 'TimeMarker', symbol: NdSymbolTypeFlags.PwpTimeMarker }],
+    [NdPseudoWaypointType.EquitimePoint, { type: NdPseudoWaypointType.EquitimePoint, ident: 'EquitimePoint', symbol: 0 }],
+]);
+
 export class PseudoWaypoints implements GuidanceComponent {
-    ndPseudoWaypoints: PseudoWaypoint[] = [];
+    ndPseudoWaypoints: NdPseudoWaypoint[] = [];
 
     /**
      * Pseudowaypoints that are displayed on the flight plan page in the MCDU
@@ -74,6 +138,11 @@ export class PseudoWaypoints implements GuidanceComponent {
 
         for (const { type, state, speedConstraint } of verticalFlightPlan.mcduPseudoWaypointRequests) {
             this.registerMcduPseudoWaypoint(type, state, speedConstraint);
+        }
+    }
+
+    updateNdPseudoWaypoints(ndPseudoWaypointRequests: NdPseudoWaypointRequest[]) {
+        for (const { type, state } of ndPseudoWaypointRequests) {
             this.registerNdPseudoWaypoint(type, state);
         }
     }
@@ -149,6 +218,21 @@ export class PseudoWaypoints implements GuidanceComponent {
             break;
         default:
         }
+    }
+
+    private distanceFromLegTermination(geometry: Geometry, legIndex: number, distanceFromLegStart: NauticalMiles) {
+        const leg = geometry.legs.get(legIndex);
+        const inboundTrans = geometry.transitions.get(legIndex - 1);
+        const outboundTrans = geometry.transitions.get(legIndex);
+
+        const [inboundTransLength, legPartLength, outboundTransLength] = Geometry.completeLegPathLengths(
+            leg,
+            inboundTrans,
+            (outboundTrans instanceof FixedRadiusTransition) ? outboundTrans : null,
+        );
+
+        const totalLegPathLength = inboundTransLength + legPartLength + outboundTransLength;
+        return totalLegPathLength - distanceFromLegStart;
     }
 
     private pointOnPath(
@@ -279,26 +363,17 @@ export class PseudoWaypoints implements GuidanceComponent {
 
         const [_, distanceFromLastFix, alongLegIndex] = position;
 
-        const pwp = { ...pwpByType.get(type), alongLegIndex, distanceFromLastFix, prediction: this.formatPseudoWaypointPrediction(state, speedConstraint) };
+        const pwp = { ...mcduPwpTemplates.get(type), alongLegIndex, distanceFromLastFix, prediction: this.formatPseudoWaypointPrediction(state, speedConstraint) };
 
         this.mcduPseudoWaypoints.push(pwp);
     }
 
-    // TODO: This is not here to stay
-    registerNdPseudoWaypoint(type: McduPseudoWaypointType, state: AircraftState) {
+    registerNdPseudoWaypoint(type: NdPseudoWaypointType, state: AircraftState) {
         // databaseId: `W      ${pwp.ident}`,
         // ident: pwp.ident,
         // location: this.guidanceController.vnavDriver.isInManagedNav() ? pwp.efisSymbolLla : undefined,
         // type: pwp.efisSymbolFlag,
         // distanceFromAirplane: pwp.distanceFromStart,
-        let efisSymbolFlag = NdSymbolTypeFlags.PwpDecel | NdSymbolTypeFlags.MagentaColor;
-        if (type === McduPseudoWaypointType.Flap1) {
-            efisSymbolFlag = NdSymbolTypeFlags.PwpCdaFlap1;
-        } else if (type === McduPseudoWaypointType.Flap2) {
-            efisSymbolFlag = NdSymbolTypeFlags.PwpCdaFlap2;
-        } else if (type !== McduPseudoWaypointType.Decel) {
-            return;
-        }
 
         const geometry = this.guidanceController.activeGeometry;
         const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
@@ -310,10 +385,15 @@ export class PseudoWaypoints implements GuidanceComponent {
             return;
         }
 
-        const [efisSymbolLla, _, alongLegIndex] = position;
-        const mcduPwp = pwpByType.get(type);
+        const [location, distanceFromLastFix, alongLegIndex] = position;
 
-        const pwp = { ident: mcduPwp.mcduIdent, efisSymbolLla, distanceFromStart: state.distanceFromStart, efisSymbolFlag, alongLegIndex };
+        const pwp: NdPseudoWaypoint = {
+            ...ndPwpTemplates.get(type),
+            location,
+            distanceFromAirplane: state.distanceFromStart,
+            alongLegIndex,
+            distanceFromLegTermination: this.distanceFromLegTermination(geometry, alongLegIndex, distanceFromLastFix),
+        };
 
         this.ndPseudoWaypoints.push(pwp);
     }

@@ -5,7 +5,7 @@ import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { FinalApproachSegment } from '@fmgc/flightmanagement/vnav/segments/approach/FinalApproachSegment';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { McduPseudoWaypointType, NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 import { ApproachFlapSegment } from '@fmgc/flightmanagement/vnav/segments/approach/ApproachFlapSegment';
@@ -50,7 +50,8 @@ export class ApproachSegment extends ProfileSegment {
         // We want the speedtarget before the decel point to be whatever speed we have computed the deceleration to approach speed (approach segment) to
         builder.lastState.speeds.speedTarget = builder.lastState.speeds.calibratedAirspeed;
 
-        builder.requestPseudoWaypoint(McduPseudoWaypointType.Decel, builder.lastState);
+        builder.requestMcduPseudoWaypoint(McduPseudoWaypointType.Decel, builder.lastState);
+        builder.requestNdPseudoWaypoint(NdPseudoWaypointType.Decel, builder.lastState);
     }
 
     get repr(): string {

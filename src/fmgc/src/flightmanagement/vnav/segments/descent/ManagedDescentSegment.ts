@@ -4,7 +4,7 @@ import { AltitudeConstraint, AltitudeConstraintType } from '@fmgc/guidance/lnav/
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { SegmentContext, ProfileBuilder, AircraftState, BuilderVisitor, TemporaryStateSequence } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
-import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { McduPseudoWaypointType, NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { WindProfileType } from '@fmgc/guidance/vnav/wind/WindProfile';
 import { PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { FmgcFlightPhase } from '@shared/flightphase';
@@ -71,7 +71,8 @@ export class ManagedDescentSegment extends ProfileSegment {
     }
 
     onAfterBuildingChildren(builder: ProfileBuilder): void {
-        builder.requestPseudoWaypoint(McduPseudoWaypointType.TopOfDescent, builder.lastState);
+        builder.requestMcduPseudoWaypoint(McduPseudoWaypointType.TopOfDescent, builder.lastState);
+        builder.requestNdPseudoWaypoint(NdPseudoWaypointType.TopOfDescent1, builder.lastState);
     }
 
     private findGeometricPathPoint(decelPoint: AircraftState): AircraftState {

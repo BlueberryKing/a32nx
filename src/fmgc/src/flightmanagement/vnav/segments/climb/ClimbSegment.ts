@@ -33,7 +33,7 @@ export class ClimbSegment extends ProfileSegment {
     }
 
     onAfterBuildingChildren(builder: ProfileBuilder): void {
-        builder.requestPseudoWaypoint(McduPseudoWaypointType.TopOfClimb, builder.lastState);
+        builder.requestMcduPseudoWaypoint(McduPseudoWaypointType.TopOfClimb, builder.lastState);
     }
 
     get repr() {

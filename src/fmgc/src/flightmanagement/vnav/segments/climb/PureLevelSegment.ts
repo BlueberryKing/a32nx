@@ -1,6 +1,7 @@
 import { constantPitchPropagator, FlightPathAnglePitchTarget, IntegrationEndConditions, Integrator, PropagatorOptions } from '@fmgc/flightmanagement/vnav/integrators';
 import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 export class PureLevelSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
@@ -22,13 +23,15 @@ export class PureLevelSegment extends ProfileSegment {
             return;
         }
 
-        const endState = this.integrator.integrate(
+        const accelerationPath = this.integrator.integrate(
             state,
             this.endConditions,
             constantPitchPropagator(pitchTarget, this.context, this.options),
-        ).last;
+        );
 
-        builder.push(endState);
+        builder.push(accelerationPath.last);
+        builder.requestNdPseudoWaypoint(NdPseudoWaypointType.Level1Climb, accelerationPath.first);
+        builder.requestNdPseudoWaypoint(NdPseudoWaypointType.StartOfClimb2, accelerationPath.last);
     }
 
     get repr() {

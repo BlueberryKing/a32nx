@@ -10,7 +10,7 @@ import {
     PropagatorOptions,
     VerticalSpeedPitchTarget,
 } from '@fmgc/flightmanagement/vnav/integrators';
-import { McduPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { McduPseudoWaypointType, NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 
 /**
  * A step climb or descent
@@ -40,7 +40,12 @@ export class PureCruiseStepSegment extends ProfileSegment {
     }
 
     compute(state: AircraftState, builder: ProfileBuilder): void {
-        builder.requestPseudoWaypoint(
+        builder.requestNdPseudoWaypoint(
+            this.isClimbVsDescent ? NdPseudoWaypointType.StartOfClimb1 : NdPseudoWaypointType.TopOfDescent1,
+            state,
+        );
+
+        builder.requestMcduPseudoWaypoint(
             this.isClimbVsDescent ? McduPseudoWaypointType.StepClimb : McduPseudoWaypointType.StepDescent,
             state,
         );
@@ -56,7 +61,7 @@ export class PureCruiseStepSegment extends ProfileSegment {
 
             // I think there's only an indication on the MCDU for a step climb, not a step descent.
             if (this.isClimbVsDescent) {
-                builder.requestPseudoWaypoint(McduPseudoWaypointType.TopOfClimb, state);
+                builder.requestMcduPseudoWaypoint(McduPseudoWaypointType.TopOfClimb, state);
             }
         }
     }

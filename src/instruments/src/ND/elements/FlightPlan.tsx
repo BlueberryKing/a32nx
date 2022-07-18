@@ -398,9 +398,9 @@ export const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, endX, en
         elements.push(
             <>
                 <circle cx={0} cy={0} r={13} strokeWidth={1.8} className="shadow" />
-                <circle cx={0} cy={0} r={13} strokeWidth={1.5} className="White" />
+                <circle cx={0} cy={0} r={13} strokeWidth={1.5} className={typeFlagToColor(type)} />
 
-                <text x={2.5} y={2} className="shadow White" textAnchor="middle" dominantBaseline="middle" fontSize={21}>1</text>
+                <text x={2.5} y={2} className={`shadow ${typeFlagToColor(type)}`} textAnchor="middle" dominantBaseline="middle" fontSize={21}>1</text>
             </>,
         );
     } else if (type & (NdSymbolTypeFlags.PwpCdaFlap2)) {
@@ -408,9 +408,9 @@ export const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, endX, en
         elements.push(
             <>
                 <circle cx={0} cy={0} r={13} strokeWidth={1.8} className="shadow" />
-                <circle cx={0} cy={0} r={13} strokeWidth={1.5} className="White" />
+                <circle cx={0} cy={0} r={13} strokeWidth={1.5} className={typeFlagToColor(type)} />
 
-                <text x={1} y={2} className="shadow White" textAnchor="middle" dominantBaseline="middle" fontSize={21}>2</text>
+                <text x={1} y={2} className={`shadow ${typeFlagToColor(type)}`} textAnchor="middle" dominantBaseline="middle" fontSize={21}>2</text>
             </>,
         );
     } else if (type & (NdSymbolTypeFlags.PwpDecel)) {
@@ -471,7 +471,7 @@ export const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, endX, en
     } else if (type & (NdSymbolTypeFlags.PwpSpeedChange)) {
         showIdent = false;
         elements.push(
-            <circle cx={0} cy={0} r={7} className={`${typeFlagToColor(type)} Fill`} />,
+            <circle cx={0} cy={0} r={8} className={`${typeFlagToColor(type)} Fill`} />,
         );
     }
 

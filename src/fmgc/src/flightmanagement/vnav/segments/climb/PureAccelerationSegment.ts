@@ -1,6 +1,7 @@
 import { IntegrationEndConditions, IntegrationPropagator, Integrator } from '@fmgc/flightmanagement/vnav/integrators';
 import { AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
+import { NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 
 export class PureAccelerationSegment extends ProfileSegment {
@@ -62,6 +63,7 @@ export class PureAccelerationSegment extends ProfileSegment {
             step.last.speeds.speedTarget = this.useMachTarget ? this.toMach : this.toSpeed;
 
             builder.push(step.last);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, step.first);
         } else {
             const copyOfLastState = copyState(builder.lastState);
 
@@ -80,6 +82,7 @@ export class PureAccelerationSegment extends ProfileSegment {
             }
 
             builder.push(copyOfLastState);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, copyOfLastState);
         }
     }
 
