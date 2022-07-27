@@ -369,16 +369,20 @@ export class EfisSymbols {
 
                     const isBehindAircraft = i < activeFp.activeWaypointIndex;
                     const isInManagedNav = this.guidanceController.vnavDriver.isInManagedNav();
+                    const shouldObeyAltConstraints = this.guidanceController.vnavDriver.shouldObeyAltitudeConstraints();
 
                     if (isInManagedNav && !isBehindAircraft && wp.legAltitudeDescription > 0 && wp.legAltitudeDescription < 6) {
-                        const predictionAtWaypoint = this.guidanceController.vnavDriver.getWaypointPrediction(i);
+                        if (shouldObeyAltConstraints) {
+                            type |= NdSymbolTypeFlags.Constraint;
 
-                        type |= NdSymbolTypeFlags.Constraint;
-
-                        if (predictionAtWaypoint?.isAltitudeConstraintMet) {
-                            type |= NdSymbolTypeFlags.MagentaColor;
-                        } else if (predictionAtWaypoint) {
-                            type |= NdSymbolTypeFlags.AmberColor;
+                            const predictionAtWaypoint = this.guidanceController.vnavDriver.getWaypointPrediction(i);
+                            if (predictionAtWaypoint?.isAltitudeConstraintMet) {
+                                type |= NdSymbolTypeFlags.MagentaColor;
+                            } else if (predictionAtWaypoint) {
+                                type |= NdSymbolTypeFlags.AmberColor;
+                            }
+                        } else if (i === activeFp.activeWaypointIndex) {
+                            type |= NdSymbolTypeFlags.Constraint;
                         }
                     }
 

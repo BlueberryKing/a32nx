@@ -19,19 +19,17 @@ export class PureLevelSegment extends ProfileSegment {
     override compute(state: AircraftState, builder: ProfileBuilder) {
         const pitchTarget = new FlightPathAnglePitchTarget(0);
 
-        if (state.distanceFromStart > this.toDistance) {
-            return;
-        }
-
         const accelerationPath = this.integrator.integrate(
             state,
             this.endConditions,
             constantPitchPropagator(pitchTarget, this.context, this.options),
         );
 
-        builder.push(accelerationPath.last);
-        builder.requestNdPseudoWaypoint(NdPseudoWaypointType.Level1Climb, accelerationPath.first);
-        builder.requestNdPseudoWaypoint(NdPseudoWaypointType.StartOfClimb2, accelerationPath.last);
+        if (accelerationPath.length > 1) {
+            builder.push(accelerationPath.last);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.Level1Climb, accelerationPath.first);
+            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.StartOfClimb1, accelerationPath.last);
+        }
     }
 
     get repr() {

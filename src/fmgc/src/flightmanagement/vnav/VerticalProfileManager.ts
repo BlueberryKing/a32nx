@@ -13,6 +13,10 @@ import { FlightPlanManager } from '@shared/flightplan';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CpuTimer, measurePerformance } from '@fmgc/flightmanagement/vnav/common/profiling';
 import { HeadwindRepository } from '@fmgc/guidance/vnav/wind/HeadwindRepository';
+import { TacticalProfile } from '@fmgc/flightmanagement/vnav/TacticalProfile';
+import { NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { ArmedLateralMode, ArmedVerticalMode, isArmed, LateralMode, VerticalMode } from '@shared/autopilot';
+import { Interpolator } from '@fmgc/flightmanagement/vnav/common/Interpolator';
 
 // Tasks: Compute a vertical profile for different use cases:
 //  - A tactical profile used to display pseudowaypoints such as level off arrows on the ND
@@ -38,10 +42,11 @@ export class VerticalProfileManager {
 
     update(geometry: Geometry) {
         if (this.observer.canComputeProfile()) {
-            const profile = this.computeFlightPlanProfile();
-            this.verticalFlightPlan.update(profile, geometry);
+            const mcduProfile = this.computeFlightPlanProfile();
+            this.verticalFlightPlan.update(mcduProfile, geometry);
 
-            this.ndPseudoWaypointRequests = profile.ndPseudoWaypointRequests;
+            const tacticalProfile = this.computeTacticalProfile();
+            this.updateNdPseudoWaypointRequests(tacticalProfile, mcduProfile);
         }
     }
 
@@ -60,7 +65,7 @@ export class VerticalProfileManager {
             windRepository,
         );
 
-        const builder = new ProfileBuilder(this.getInitialStateForMcduProfile(climbWinds), FmgcFlightPhase.Takeoff);
+        const builder = new ProfileBuilder(this.getInitialStateForProfile(climbWinds), FmgcFlightPhase.Takeoff);
         const visitor = new BuilderVisitor(builder);
 
         CpuTimer.reset();
@@ -71,7 +76,33 @@ export class VerticalProfileManager {
         return builder;
     }
 
-    private getInitialStateForMcduProfile(climbWinds: HeadwindProfile): AircraftState {
+    private computeTacticalProfile(): ProfileBuilder {
+        const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
+
+        const windRepository = new HeadwindRepository(
+            climbWinds,
+            new HeadwindProfile(this.windProfileFactory.getCruiseWinds(), this.headingProfile),
+            new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile),
+        );
+
+        const context = new SegmentContext(
+            this.atmosphericConditions,
+            this.observer,
+            windRepository,
+        );
+
+        const builder = new ProfileBuilder(this.getInitialStateForProfile(climbWinds), FmgcFlightPhase.Takeoff);
+        const visitor = new BuilderVisitor(builder);
+
+        CpuTimer.reset();
+
+        const profile = new TacticalProfile(context, this.constraintReader, this.stepCoordinator);
+        profile.accept(visitor);
+
+        return builder;
+    }
+
+    private getInitialStateForProfile(climbWinds: HeadwindProfile): AircraftState {
         const { v2Speed, originAirfieldElevation, flightPhase, presentPosition, fuelOnBoard, zeroFuelWeight, takeoffFlapsSetting } = this.observer.get();
 
         const takeoffTas = this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10);
@@ -99,9 +130,9 @@ export class VerticalProfileManager {
             };
         }
 
-        const speedTarget = Simplane.getAutoPilotAirspeedSelected()
-            ? SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_SPEED_SELECTED', 'number')
-            : SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'number');
+        const speedTarget = Math.round(Simplane.getAutoPilotAirspeedSelected()
+            ? SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_SPEED_SELECTED', 'knots')
+            : SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'knots'));
 
         return {
             altitude: presentPosition.alt,
@@ -125,6 +156,71 @@ export class VerticalProfileManager {
         };
     }
 
+    private updateNdPseudoWaypointRequests(tacticalProfile: ProfileBuilder, mcduProfile: ProfileBuilder) {
+        const {
+            fcuVerticalMode,
+            fcuArmedVerticalMode,
+            fcuLateralMode,
+            fcuArmedLateralMode,
+            fcuAltitude,
+            fcuFlightPathAngle,
+            fcuVerticalSpeed,
+            flightPhase,
+            presentPosition,
+        } = this.observer.get();
+        const existingPseudoWaypoints = new Set<NdPseudoWaypointType>();
+
+        this.ndPseudoWaypointRequests = [];
+
+        for (const pwp of tacticalProfile.ndPseudoWaypointRequests) {
+            if (pwp.type === NdPseudoWaypointType.Level1Climb) {
+                if (presentPosition.alt > pwp.state.altitude - 100 || Math.round(pwp.state.altitude) > Math.round(fcuAltitude)) {
+                    continue;
+                } else if (Math.round(pwp.state.altitude) === Math.round(fcuAltitude)) {
+                    pwp.type = NdPseudoWaypointType.Level2Climb;
+                }
+            } else if (pwp.type === NdPseudoWaypointType.StartOfClimb1) {
+                if (Math.round(pwp.state.altitude) < Math.round(fcuAltitude)) {
+                    pwp.type = NdPseudoWaypointType.StartOfClimb2;
+                }
+            }
+
+            if (existingPseudoWaypoints.has(pwp.type)) {
+                continue;
+            }
+
+            existingPseudoWaypoints.add(pwp.type);
+            this.ndPseudoWaypointRequests.push(pwp);
+        }
+
+        // Use waypoints of MCDU profile (i.e managed modes) for the upcoming flight phases
+        const checkpointsOfCurrentPhase = mcduProfile.checkpointsOfPhase(Math.max(flightPhase, FmgcFlightPhase.Climb));
+        const minDistance = checkpointsOfCurrentPhase.length > 0 ? checkpointsOfCurrentPhase[checkpointsOfCurrentPhase.length - 1].distanceFromStart : 0;
+        for (const pwp of mcduProfile.ndPseudoWaypointRequests) {
+            if (existingPseudoWaypoints.has(pwp.type) || pwp.state.distanceFromStart <= minDistance) {
+                continue;
+            }
+
+            existingPseudoWaypoints.add(pwp.type);
+            this.ndPseudoWaypointRequests.push(pwp);
+        }
+
+        const tacticalProfileCheckpoints = tacticalProfile.allCheckpointsWithPhase;
+
+        // Dynamically compute level offs
+        if (isInClimbMode(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle) || isClimbArmed(fcuArmedVerticalMode)) {
+            const levelOffDistance = Interpolator.interpolateDistanceAtAltitude(tacticalProfileCheckpoints, fcuAltitude);
+            const state = Interpolator.interpolateEverythingFromStart(tacticalProfileCheckpoints, levelOffDistance);
+
+            this.ndPseudoWaypointRequests.push({ type: isInManagedNav(fcuLateralMode, fcuArmedLateralMode) ? NdPseudoWaypointType.Level2Climb : NdPseudoWaypointType.Level3Climb, state });
+        } else if (isInDescentMode(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle) || isDescentArmed(fcuArmedVerticalMode)) {
+            const levelOffDistance = Interpolator.interpolateDistanceAtAltitude(tacticalProfileCheckpoints, fcuAltitude);
+            const state = Interpolator.interpolateEverythingFromStart(tacticalProfileCheckpoints, levelOffDistance);
+
+            this.ndPseudoWaypointRequests.push({ type: isInManagedNav(fcuLateralMode, fcuArmedLateralMode) ? NdPseudoWaypointType.Level2Descent : NdPseudoWaypointType.Level3Descent, state });
+        }
+    }
+
     getWaypointPrediction(waypointIndex: number): VerticalWaypointPrediction | null {
         return this.verticalFlightPlan.getWaypointPrediction(waypointIndex);
     }
@@ -132,4 +228,31 @@ export class VerticalProfileManager {
     get verticalFlightPlanForMcdu(): VerticalFlightPlan {
         return this.verticalFlightPlan;
     }
+}
+
+const verticalModesDescent = new Set([VerticalMode.OP_DES, VerticalMode.DES]);
+const verticalModesClimb = new Set([VerticalMode.OP_CLB, VerticalMode.CLB, VerticalMode.SRS, VerticalMode.SRS_GA]);
+
+function isInClimbMode(verticalMode: VerticalMode, verticalSpeed: FeetPerMinute, flightPathAngle: Degrees): boolean {
+    return verticalModesClimb.has(verticalMode)
+        || verticalMode === VerticalMode.VS && verticalSpeed > 0
+        || verticalMode === VerticalMode.FPA && flightPathAngle > 0;
+}
+
+function isClimbArmed(armedVerticalMode: ArmedVerticalMode): boolean {
+    return isArmed(armedVerticalMode, ArmedVerticalMode.CLB);
+}
+
+function isDescentArmed(armedVerticalMode: ArmedVerticalMode): boolean {
+    return isArmed(armedVerticalMode, ArmedVerticalMode.DES);
+}
+
+function isInDescentMode(verticalMode: VerticalMode, verticalSpeed: FeetPerMinute, flightPathAngle: Degrees): boolean {
+    return verticalModesDescent.has(verticalMode)
+        || verticalMode === VerticalMode.VS && verticalSpeed < 0
+        || verticalMode === VerticalMode.FPA && flightPathAngle < 0;
+}
+
+function isInManagedNav(fcuLateralMode: LateralMode, fcuArmedLateralMode: ArmedLateralMode): boolean {
+    return fcuLateralMode === LateralMode.NAV || isArmed(fcuArmedLateralMode, ArmedLateralMode.NAV);
 }

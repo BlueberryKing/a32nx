@@ -84,6 +84,7 @@ export class VnavDriver implements GuidanceComponent {
 
     acceptMultipleLegGeometry(geometry: Geometry) {
         this.constraintReader.extract(geometry, this.guidanceController.activeLegIndex, this.guidanceController.activeTransIndex, this.computationParametersObserver.get().presentPosition);
+        this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
         this.headingProfile.updateGeometry(this.guidanceController.activeGeometry);
 
         // this.descentGuidance.updateProfile(this.currentNavGeometryProfile);

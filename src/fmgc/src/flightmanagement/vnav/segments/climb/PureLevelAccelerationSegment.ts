@@ -34,10 +34,6 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
     }
 
     override compute(state: AircraftState, builder: ProfileBuilder) {
-        if (state.distanceFromStart > this.toDistance) {
-            return;
-        }
-
         const accelerationPath = this.integrator.integrate(
             state,
             this.endConditions,

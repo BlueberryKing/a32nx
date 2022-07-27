@@ -3,6 +3,7 @@ import { AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segme
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
 import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export class PureAccelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
@@ -63,12 +64,16 @@ export class PureAccelerationSegment extends ProfileSegment {
             step.last.speeds.speedTarget = this.useMachTarget ? this.toMach : this.toSpeed;
 
             builder.push(step.last);
-            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, step.first);
+
+            // We don't want to display a speed change at acceleration altitude
+            if (builder.checkpointsOfPhase(FmgcFlightPhase.Climb).length > 1) {
+                builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, step.first);
+            }
         } else {
             const copyOfLastState = copyState(builder.lastState);
 
             const shouldSpeedTargetTypeChange = this.useMachTarget && state.speeds.mach > this.endConditions.mach.max && state.speeds.speedTargetType === AccelFactorMode.CONSTANT_CAS;
-            const shouldSpeedTargetChange = this.toMach > builder.lastState.speeds.speedTarget || this.toSpeed > builder.lastState.speeds.speedTarget;
+            const shouldSpeedTargetChange = this.toMach > builder.lastState.speeds.speedTarget || Math.round(this.toSpeed) > Math.round(builder.lastState.speeds.speedTarget);
 
             // Since we arrive at this segment because we reach the managed mach target, this acceleration segment will be basically empty.
             // However, we still need to place a state with Mach as speed target, since this will be propagated to the other
@@ -77,12 +82,12 @@ export class PureAccelerationSegment extends ProfileSegment {
                 copyOfLastState.speeds.speedTarget = this.toMach;
             } else if (shouldSpeedTargetChange) {
                 copyOfLastState.speeds.speedTarget = this.toSpeed;
+                builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, step.first);
             } else {
                 return;
             }
 
             builder.push(copyOfLastState);
-            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, copyOfLastState);
         }
     }
 
