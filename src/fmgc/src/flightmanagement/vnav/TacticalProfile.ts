@@ -33,7 +33,7 @@ export class TacticalProfile extends ProfileSegment {
             .withClimbPropagator(climbPropagator)
             .withAccelerationPropagator(accelerationPropagator)
             .withMaxSpeed(this.getMaxSpeed(parameters))
-            .withMaxMach(parameters.fcuSpeed < 1 ? parameters.fcuSpeed : parameters.managedClimbSpeedMach);
+            .withMaxMach(this.getMaxMach(parameters));
 
         if (this.shouldObeySpeedConstraints(parameters)) {
             climbProfileRequest.withSpeedConstraints(constraints.climbSpeedConstraints);
@@ -72,6 +72,15 @@ export class TacticalProfile extends ProfileSegment {
         }
         // If we have a Mach number selected, we set the max speed to zero,
         return parameters.fcuSpeed < 1 ? 0 : parameters.fcuSpeed;
+    }
+
+    private getMaxMach(parameters: VerticalProfileComputationParameters): Mach {
+        if (parameters.fcuSpeed >= 0.1 && parameters.fcuSpeed < 1) {
+            return parameters.fcuSpeed;
+        }
+
+        // TODO: Use manual crossover altitude law if there is a selected speed selected.
+        return parameters.managedClimbSpeedMach;
     }
 
     private getPropagators(context: SegmentContext, parameters: VerticalProfileComputationParameters): [IntegrationPropagator, IntegrationPropagator] {
