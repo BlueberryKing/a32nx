@@ -153,7 +153,7 @@ export class ProfileBuilder {
     }
 
     requestNdPseudoWaypoint(type: NdPseudoWaypointType, state: AircraftState) {
-        // If this "StartOfClimb" PWP is at the same altitude as a "StartOfClimb" PWP before it, remove previous one.
+        // If this PWP is at the same altitude as a "StartOfClimb" PWP before it, remove the "StartOfClimb" PWP.
         if (this.ndPseudoWaypointRequests.length > 0
             && this.ndPseudoWaypointRequests[this.ndPseudoWaypointRequests.length - 1].type === NdPseudoWaypointType.StartOfClimb1
             && Math.round(this.ndPseudoWaypointRequests[this.ndPseudoWaypointRequests.length - 1].state.altitude) === Math.round(state.altitude)) {
