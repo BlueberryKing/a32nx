@@ -105,10 +105,13 @@ export class VerticalProfileManager {
     private getInitialStateForProfile(climbWinds: HeadwindProfile): AircraftState {
         const { v2Speed, originAirfieldElevation, flightPhase, presentPosition, fuelOnBoard, zeroFuelWeight, takeoffFlapsSetting } = this.observer.get();
 
-        const takeoffTas = this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10);
-        const headwind = climbWinds.getHeadwindComponent(0, originAirfieldElevation);
+        const cas = SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots');
 
-        if (flightPhase <= FmgcFlightPhase.Takeoff) {
+        // I am not sure if this logic is correct
+        if (flightPhase < FmgcFlightPhase.Takeoff || cas < 100) {
+            const takeoffTas = this.atmosphericConditions.computeTasFromCas(originAirfieldElevation, v2Speed + 10);
+            const headwind = climbWinds.getHeadwindComponent(0, originAirfieldElevation);
+
             return {
                 altitude: originAirfieldElevation,
                 distanceFromStart: 0,
@@ -140,7 +143,7 @@ export class VerticalProfileManager {
             time: 0,
             speeds: {
                 // TODO: Take vars from FMGC instead of simvars
-                calibratedAirspeed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
+                calibratedAirspeed: cas,
                 mach: SimVar.GetSimVarValue('AIRSPEED MACH', 'number'),
                 trueAirspeed: SimVar.GetSimVarValue('AIRSPEED TRUE', 'knots'),
                 groundSpeed: SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots'),
