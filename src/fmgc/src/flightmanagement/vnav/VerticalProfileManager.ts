@@ -161,12 +161,14 @@ export class VerticalProfileManager {
 
     private updateNdPseudoWaypointRequests(tacticalProfile: ProfileBuilder, mcduProfile: ProfileBuilder) {
         const {
-            fcuVerticalMode,
-            fcuArmedVerticalMode,
-            fcuLateralMode,
-            fcuArmedLateralMode,
             fcuAltitude,
+            fcuArmedLateralMode,
+            fcuArmedVerticalMode,
+            fcuExpediteModeActive,
             fcuFlightPathAngle,
+            fcuLateralMode,
+            fcuSpeed,
+            fcuVerticalMode,
             fcuVerticalSpeed,
             flightPhase,
             presentPosition,
@@ -186,6 +188,8 @@ export class VerticalProfileManager {
                 if (Math.round(pwp.state.altitude) < Math.round(fcuAltitude)) {
                     pwp.type = NdPseudoWaypointType.StartOfClimb2;
                 }
+            } else if (pwp.type === NdPseudoWaypointType.SpeedChange1 && (!isSpeedAutoControlActive(fcuSpeed) || fcuExpediteModeActive)) {
+                continue;
             }
 
             if (existingPseudoWaypoints.has(pwp.type)) {
@@ -258,4 +262,8 @@ function isInDescentMode(verticalMode: VerticalMode, verticalSpeed: FeetPerMinut
 
 function isInManagedNav(fcuLateralMode: LateralMode, fcuArmedLateralMode: ArmedLateralMode): boolean {
     return fcuLateralMode === LateralMode.NAV || isArmed(fcuArmedLateralMode, ArmedLateralMode.NAV);
+}
+
+function isSpeedAutoControlActive(fcuSpeed: Knots | Mach | -1) {
+    return fcuSpeed <= 0;
 }
