@@ -72,7 +72,9 @@ export class PureAccelerationSegment extends ProfileSegment {
         } else {
             const copyOfLastState = copyState(builder.lastState);
 
-            const shouldSpeedTargetTypeChange = this.useMachTarget && state.speeds.mach > this.endConditions.mach.max && state.speeds.speedTargetType === AccelFactorMode.CONSTANT_CAS;
+            // We check whether mach is above the target mach to make sure we are above the crossover altitude. However, we give it some leeway
+            // because we might have just barely hit the CAS endcondition, but not the Mach one.
+            const shouldSpeedTargetTypeChange = this.useMachTarget && state.speeds.mach - this.endConditions.mach.max > -1e-2 && state.speeds.speedTargetType === AccelFactorMode.CONSTANT_CAS;
             const shouldSpeedTargetChange = this.toMach > builder.lastState.speeds.speedTarget || Math.round(this.toSpeed) > Math.round(builder.lastState.speeds.speedTarget);
 
             // Since we arrive at this segment because we reach the managed mach target, this acceleration segment will be basically empty.
