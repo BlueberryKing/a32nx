@@ -115,9 +115,9 @@ const ndPwpTemplates: Map<NdPseudoWaypointType, NdPseudoWaypointTemplate> = new 
     [NdPseudoWaypointType.Flap1, { type: NdPseudoWaypointType.Flap1, ident: 'Flap1', symbol: NdSymbolTypeFlags.PwpCdaFlap1 | NdSymbolTypeFlags.MagentaColor }],
     [NdPseudoWaypointType.Flap2, { type: NdPseudoWaypointType.Flap2, ident: 'Flap2', symbol: NdSymbolTypeFlags.PwpCdaFlap2 | NdSymbolTypeFlags.MagentaColor }],
     [NdPseudoWaypointType.EnergyCircle, { type: NdPseudoWaypointType.EnergyCircle, ident: 'EnergyCircle', symbol: 0 }],
-    [NdPseudoWaypointType.TimeMarker, { type: NdPseudoWaypointType.TimeMarker, ident: 'TimeMarker', symbol: NdSymbolTypeFlags.PwpTimeMarker }],
-    [NdPseudoWaypointType.EquitimePoint, { type: NdPseudoWaypointType.EquitimePoint, ident: 'EquitimePoint', symbol: 0 }],
-    [NdPseudoWaypointType.Debug, { type: NdPseudoWaypointType.Debug, ident: 'EquitimePoint', symbol: NdSymbolTypeFlags.PwpSpeedChange | NdSymbolTypeFlags.CyanColor }],
+    [NdPseudoWaypointType.TimeMarker, { type: NdPseudoWaypointType.TimeMarker, ident: '(HH:MM)', symbol: NdSymbolTypeFlags.PwpTimeMarker }],
+    [NdPseudoWaypointType.EquitimePoint, { type: NdPseudoWaypointType.EquitimePoint, ident: '(ETP)', symbol: NdSymbolTypeFlags.PwpTimeMarker }],
+    [NdPseudoWaypointType.Debug, { type: NdPseudoWaypointType.Debug, ident: 'DEBUG', symbol: NdSymbolTypeFlags.PwpTimeMarker }],
 ]);
 
 export class PseudoWaypoints implements GuidanceComponent {

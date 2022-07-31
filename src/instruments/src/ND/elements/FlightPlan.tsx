@@ -388,9 +388,9 @@ export const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, endX, en
         showIdent = false;
         elements.push(
             <>
-                <path d="M 0, 0 h 21 l 17 17 m -5, 0 l 5, 0 l 0, -5" strokeWidth={1.8} className="shadow" />
+                <path d="M 0 0 h 22.2 l 19.8 16.2 m -6 0 h 6 v -6" strokeWidth={1.8} className="shadow" />
 
-                <path d="M 0, 0 h 21 l 17 17 m -5, 0 l 5, 0 l 0, -5" strokeWidth={1.5} className={typeFlagToColor(type)} />
+                <path d="M 0 0 h 22.2 l 19.8 16.2 m -6 0 h 6 v -6" strokeWidth={1.5} className={typeFlagToColor(type)} />
             </>,
         );
     } else if (type & (NdSymbolTypeFlags.PwpCdaFlap1)) {
@@ -427,27 +427,27 @@ export const SymbolMarker: FC<SymbolMarkerProps> = memo(({ ident, x, y, endX, en
         showIdent = false;
         elements.push(
             <>
-                <path d="M -38, 17 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.8} className="shadow" />
+                <path d="M -42 16.2 l 19.8 -16.2 h 22.2 m -4.2 -4.2 l 4.2 4.2 l -4.2 4.2" strokeWidth={1.8} className="shadow" />
 
-                <path d="M -38, 17 l 17, -17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.5} className={typeFlagToColor(type)} />
+                <path d="M -42 16.2 l 19.8 -16.2 h 22.2 m -4.2 -4.2 l 4.2 4.2 l -4.2 4.2" strokeWidth={1.5} className={typeFlagToColor(type)} />
             </>,
         );
     } else if (type & (NdSymbolTypeFlags.PwpDescentLevelOff)) {
         showIdent = false;
         elements.push(
             <>
-                <path d="M -38, -17 l 17, 17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.8} className="shadow" />
+                <path d="M -42 -16.2 l 19.8 16.2 h 22.2 m -4.2 -4.2 l 4.2 4.2 l -4.2 4.2" strokeWidth={1.8} className="shadow" />
 
-                <path d="M -38, -17 l 17, 17 h 21 m -5, -5 l 5, 5 l -5, 5" strokeWidth={1.5} className={typeFlagToColor(type)} />
+                <path d="M -42 -16.2 l 19.8 16.2 h 22.2 m -4.2 -4.2 l 4.2 4.2 l -4.2 4.2" strokeWidth={1.5} className={typeFlagToColor(type)} />
             </>,
         );
     } else if (type & (NdSymbolTypeFlags.PwpStartOfClimb)) {
         showIdent = false;
         elements.push(
             <>
-                <path d="M 0, 0 h 21 l 17 -17 m -5, 0 l 5, 0 l 0, 5" strokeWidth={1.8} className="shadow" />
+                <path d="M 0 0 h 22.2 l 19.8 -16.2 m -6 0 h 6 v 6" strokeWidth={1.8} className="shadow" />
 
-                <path d="M 0, 0 h 21 l 17 -17 m -5, 0 l 5, 0 l 0, 5" strokeWidth={1.5} className={typeFlagToColor(type)} />
+                <path d="M 0 0 h 22.2 l 19.8 -16.2 m -6 0 h 6 v 6" strokeWidth={1.5} className={typeFlagToColor(type)} />
             </>,
         );
     } else if (type & (NdSymbolTypeFlags.PwpInterceptProfile)) {
