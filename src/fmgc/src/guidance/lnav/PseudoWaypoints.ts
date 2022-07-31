@@ -78,6 +78,7 @@ export enum NdPseudoWaypointType {
     EnergyCircle = 'EnergyCircle',
     TimeMarker = 'TimeMarker',
     EquitimePoint = 'EquitimePoint',
+    Debug = 'Debug'
 }
 
 const mcduPwpTemplates: Map<McduPseudoWaypointType, McduPseudoWaypointTemplate> = new Map([
@@ -116,6 +117,7 @@ const ndPwpTemplates: Map<NdPseudoWaypointType, NdPseudoWaypointTemplate> = new 
     [NdPseudoWaypointType.EnergyCircle, { type: NdPseudoWaypointType.EnergyCircle, ident: 'EnergyCircle', symbol: 0 }],
     [NdPseudoWaypointType.TimeMarker, { type: NdPseudoWaypointType.TimeMarker, ident: 'TimeMarker', symbol: NdSymbolTypeFlags.PwpTimeMarker }],
     [NdPseudoWaypointType.EquitimePoint, { type: NdPseudoWaypointType.EquitimePoint, ident: 'EquitimePoint', symbol: 0 }],
+    [NdPseudoWaypointType.Debug, { type: NdPseudoWaypointType.Debug, ident: 'EquitimePoint', symbol: NdSymbolTypeFlags.PwpSpeedChange | NdSymbolTypeFlags.CyanColor }],
 ]);
 
 export class PseudoWaypoints implements GuidanceComponent {
@@ -134,7 +136,6 @@ export class PseudoWaypoints implements GuidanceComponent {
         }
 
         this.mcduPseudoWaypoints.length = 0;
-        this.ndPseudoWaypoints.length = 0;
 
         for (const { type, state, speedConstraint } of verticalFlightPlan.mcduPseudoWaypointRequests) {
             this.registerMcduPseudoWaypoint(type, state, speedConstraint);
@@ -142,9 +143,14 @@ export class PseudoWaypoints implements GuidanceComponent {
     }
 
     updateNdPseudoWaypoints(ndPseudoWaypointRequests: NdPseudoWaypointRequest[]) {
+        this.ndPseudoWaypoints.length = 0;
+
         for (const { type, state } of ndPseudoWaypointRequests) {
             this.registerNdPseudoWaypoint(type, state);
         }
+
+        const debugPosition = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number');
+        this.createDebugPseudoWaypoint(debugPosition);
     }
 
     acceptMultipleLegGeometry(_geometry: Geometry) {
@@ -295,7 +301,7 @@ export class PseudoWaypoints implements GuidanceComponent {
                 console.log(`[FMS/PWP] Trying to place PWP '${debugString}' ${distanceFromStart.toFixed(2)} along leg #${i}; inb: ${inb}, leg: ${legd}, outb: ${outb}, acc: ${acc}`);
             }
 
-            if (accumulator > distanceFromStart) {
+            if (accumulator >= distanceFromStart) {
                 if (accumulator - distanceInDiscontinuity < distanceFromStart) {
                     // Points lies on discontinuity (on the direct line between the two fixes)
                     // In this case, we don't want to place the
@@ -306,15 +312,15 @@ export class PseudoWaypoints implements GuidanceComponent {
 
                 let lla;
                 if (distanceFromLastFix > inboundTransLength + legPartLength) {
-                    // Point is in outbound transition segment
-                    const distanceBeforeTerminator = totalLegPathLength - distanceFromLastFix;
+                    // Point is in outbound transition segment. This can only be the case if it's a FixedRadiusTransition on the outbound
+                    const distanceBeforeTerminator = totalLegPathLength + outboundTransLength - distanceFromLastFix;
 
                     if (DEBUG) {
                         console.log(`[FMS/PWP] Placed PWP '${debugString}' on leg #${i} outbound segment (${distanceBeforeTerminator.toFixed(2)}nm before end)`);
                     }
 
                     lla = outboundTrans.getPseudoWaypointLocation(distanceBeforeTerminator);
-                } else if (distanceFromLastFix >= inboundTransLength && distanceFromLastFix < inboundTransLength + legPartLength) {
+                } else if (distanceFromLastFix >= inboundTransLength && distanceFromLastFix <= inboundTransLength + legPartLength) {
                     // Point is in leg segment
                     const distanceBeforeTerminator = totalLegPathLength - outboundTransLength - distanceFromLastFix;
 
@@ -393,6 +399,31 @@ export class PseudoWaypoints implements GuidanceComponent {
             distanceFromAirplane: state.distanceFromStart,
             alongLegIndex,
             distanceFromLegTermination: this.distanceFromLegTermination(geometry, alongLegIndex, distanceFromLastFix),
+        };
+
+        this.ndPseudoWaypoints.push(pwp);
+    }
+
+    private createDebugPseudoWaypoint(distanceFromStart: NauticalMiles) {
+        const geometry = this.guidanceController.activeGeometry;
+        const wptCount = this.guidanceController.flightPlanManager.getWaypointsCount();
+
+        // Find position in flight plan
+        const position = this.pointOnPath(geometry, wptCount, distanceFromStart);
+        if (!position) {
+            console.warn(`[FMS/VNAV] Could not place Debug PWP at ${distanceFromStart} NM`);
+            return;
+        }
+
+        const [location, distanceFromLastFix, alongLegIndex] = position;
+
+        const pwp: NdPseudoWaypoint = {
+            ...ndPwpTemplates.get(NdPseudoWaypointType.Debug),
+            location,
+            distanceFromAirplane: distanceFromStart,
+            alongLegIndex,
+            distanceFromLegTermination: this.distanceFromLegTermination(geometry, alongLegIndex, distanceFromLastFix),
+            label: `LEG: ${alongLegIndex}, ${distanceFromLastFix} NM FROM FIX`,
         };
 
         this.ndPseudoWaypoints.push(pwp);
