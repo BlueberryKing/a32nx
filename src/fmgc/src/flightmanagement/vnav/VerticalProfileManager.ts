@@ -179,13 +179,19 @@ export class VerticalProfileManager {
 
         for (const pwp of tacticalProfile.ndPseudoWaypointRequests) {
             if (pwp.type === NdPseudoWaypointType.Level1Climb) {
-                if (presentPosition.alt > pwp.state.altitude - 100 || Math.round(pwp.state.altitude) > Math.round(fcuAltitude)) {
+                const isBelowAircraftAlt = presentPosition.alt > pwp.state.altitude - 100;
+                const isAboveFcuAltitude = Math.round(pwp.state.altitude) > Math.round(fcuAltitude);
+                const isAltitudeBeingCaptured = VerticalMode.ALT_CPT && Math.round(pwp.state.altitude) === Math.round(fcuAltitude)
+                 || fcuVerticalMode === VerticalMode.ALT_CST_CPT && Math.round(pwp.state.altitude) === SimVar.GetSimVarValue('L:A32NX_FG_ALTITUDE_CONSTRAINT', 'ft');
+
+                if (isBelowAircraftAlt || isAboveFcuAltitude || isAltitudeBeingCaptured) {
                     continue;
                 } else if (Math.round(pwp.state.altitude) === Math.round(fcuAltitude)) {
                     pwp.type = NdPseudoWaypointType.Level2Climb;
                 }
             } else if (pwp.type === NdPseudoWaypointType.StartOfClimb1) {
-                if (Math.round(pwp.state.altitude) < Math.round(fcuAltitude)) {
+                if (Math.round(pwp.state.altitude) < Math.round(fcuAltitude) && isArmed(fcuArmedVerticalMode, ArmedVerticalMode.CLB)
+                    || existingPseudoWaypoints.has(NdPseudoWaypointType.Level1Climb)) {
                     pwp.type = NdPseudoWaypointType.StartOfClimb2;
                 }
             } else if (pwp.type === NdPseudoWaypointType.SpeedChange1 && (!isSpeedAutoControlActive(fcuSpeed) || fcuExpediteModeActive)) {
