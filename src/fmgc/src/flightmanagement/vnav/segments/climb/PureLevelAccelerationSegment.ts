@@ -10,6 +10,7 @@ import {
 import { SegmentContext, AircraftState, ProfileBuilder } from '@fmgc/flightmanagement/vnav/segments';
 import { ProfileSegment } from '@fmgc/flightmanagement/vnav/segments/ProfileSegment';
 import { NdPseudoWaypointType } from '@fmgc/guidance/lnav/PseudoWaypoints';
+import { AccelFactorMode } from '@fmgc/guidance/vnav/common';
 
 export class PureLevelAccelerationSegment extends ProfileSegment {
     private integrator: Integrator = new Integrator();
@@ -42,8 +43,12 @@ export class PureLevelAccelerationSegment extends ProfileSegment {
 
         if (accelerationPath.length > 1) {
             builder.push(accelerationPath.last);
+
             builder.requestNdPseudoWaypoint(NdPseudoWaypointType.Level1Climb, accelerationPath.first);
-            builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, accelerationPath.first);
+            if (Math.round(this.toSpeed) > Math.round(state.speeds.speedTarget) && state.speeds.speedTargetType === AccelFactorMode.CONSTANT_CAS) {
+                builder.requestNdPseudoWaypoint(NdPseudoWaypointType.SpeedChange1, accelerationPath.first);
+            }
+
             builder.requestNdPseudoWaypoint(NdPseudoWaypointType.StartOfClimb1, accelerationPath.last);
         }
     }
