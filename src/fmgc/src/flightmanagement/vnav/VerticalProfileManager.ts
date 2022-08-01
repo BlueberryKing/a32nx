@@ -178,23 +178,26 @@ export class VerticalProfileManager {
         this.ndPseudoWaypointRequests = [];
 
         for (const pwp of tacticalProfile.ndPseudoWaypointRequests) {
+            const isBelowFcuAltitude = Math.round(pwp.state.altitude) < Math.round(fcuAltitude);
+            const isAtFcuAltitude = Math.round(pwp.state.altitude) === Math.round(fcuAltitude);
+            const isAboveFcuAltitude = Math.round(pwp.state.altitude) > Math.round(fcuAltitude);
+            const isBelowAircraftAlt = presentPosition.alt > pwp.state.altitude - 100;
+            const isAtAircraftAlt = Math.round(presentPosition.alt) === Math.round(pwp.state.altitude);
+
             if (pwp.type === NdPseudoWaypointType.Level1Climb) {
-                const isBelowAircraftAlt = presentPosition.alt > pwp.state.altitude - 100;
-                const isAboveFcuAltitude = Math.round(pwp.state.altitude) > Math.round(fcuAltitude);
-                const isAltitudeBeingCaptured = VerticalMode.ALT_CPT && Math.round(pwp.state.altitude) === Math.round(fcuAltitude)
+                const isAltitudeBeingCaptured = fcuVerticalMode === VerticalMode.ALT_CPT && Math.round(pwp.state.altitude) === Math.round(fcuAltitude)
                  || fcuVerticalMode === VerticalMode.ALT_CST_CPT && Math.round(pwp.state.altitude) === SimVar.GetSimVarValue('L:A32NX_FG_ALTITUDE_CONSTRAINT', 'ft');
 
                 if (isBelowAircraftAlt || isAboveFcuAltitude || isAltitudeBeingCaptured) {
                     continue;
-                } else if (Math.round(pwp.state.altitude) === Math.round(fcuAltitude)) {
+                } else if (isAtFcuAltitude) {
                     pwp.type = NdPseudoWaypointType.Level2Climb;
                 }
             } else if (pwp.type === NdPseudoWaypointType.StartOfClimb1) {
-                if (Math.round(pwp.state.altitude) < Math.round(fcuAltitude) && isArmed(fcuArmedVerticalMode, ArmedVerticalMode.CLB)
-                    || existingPseudoWaypoints.has(NdPseudoWaypointType.Level1Climb)) {
+                if (isBelowFcuAltitude && isArmed(fcuArmedVerticalMode, ArmedVerticalMode.CLB) || existingPseudoWaypoints.has(NdPseudoWaypointType.Level1Climb)) {
                     pwp.type = NdPseudoWaypointType.StartOfClimb2;
                 }
-            } else if (pwp.type === NdPseudoWaypointType.SpeedChange1 && (!isSpeedAutoControlActive(fcuSpeed) || fcuExpediteModeActive)) {
+            } else if (pwp.type === NdPseudoWaypointType.SpeedChange1 && (!isSpeedAutoControlActive(fcuSpeed) || fcuExpediteModeActive) || (isAboveFcuAltitude && !isAtAircraftAlt)) {
                 continue;
             }
 
@@ -221,12 +224,14 @@ export class VerticalProfileManager {
         const tacticalProfileCheckpoints = tacticalProfile.allCheckpointsWithPhase;
 
         // Dynamically compute level offs
-        if (isInClimbMode(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle) || isClimbArmed(fcuArmedVerticalMode)) {
+        if (!existingPseudoWaypoints.has(NdPseudoWaypointType.Level2Climb)
+            && (isInClimbMode(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle) || isClimbArmed(fcuArmedVerticalMode))) {
             const levelOffDistance = Interpolator.interpolateDistanceAtAltitude(tacticalProfileCheckpoints, fcuAltitude);
             const state = Interpolator.interpolateEverythingFromStart(tacticalProfileCheckpoints, levelOffDistance);
 
             this.ndPseudoWaypointRequests.push({ type: isInManagedNav(fcuLateralMode, fcuArmedLateralMode) ? NdPseudoWaypointType.Level2Climb : NdPseudoWaypointType.Level3Climb, state });
-        } else if (isInDescentMode(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle) || isDescentArmed(fcuArmedVerticalMode)) {
+        } else if (!existingPseudoWaypoints.has(NdPseudoWaypointType.Level2Descent)
+            && isInDescentMode(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle) || isDescentArmed(fcuArmedVerticalMode)) {
             const levelOffDistance = Interpolator.interpolateDistanceAtAltitude(tacticalProfileCheckpoints, fcuAltitude);
             const state = Interpolator.interpolateEverythingFromStart(tacticalProfileCheckpoints, levelOffDistance);
 
