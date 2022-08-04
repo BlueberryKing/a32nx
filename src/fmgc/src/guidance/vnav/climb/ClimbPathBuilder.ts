@@ -167,7 +167,9 @@ export class ClimbPathBuilder {
     ): void {
         const { managedClimbSpeedMach } = this.computationParametersObserver.get();
 
-        for (let altitude = startingAltitude; altitude < targetAltitude;) {
+        // This is just to prevent a potential infinite loop
+        let i = 0;
+        for (let altitude = startingAltitude; i++ < 100 && altitude < targetAltitude;) {
             const { speed, remainingFuelOnBoard, distanceFromStart } = profile.lastCheckpoint;
 
             const speedTarget = speedProfile.getTarget(distanceFromStart, altitude, ManagedSpeedType.Climb);
@@ -363,7 +365,7 @@ export class ClimbPathBuilder {
         step.distanceTraveled *= scaling;
         step.fuelBurned *= scaling;
         step.timeElapsed *= scaling;
-        step.finalAltitude = (1 - scaling) * lastCheckpoint.altitude + scaling * step.initialAltitude;
+        step.finalAltitude = (1 - scaling) * lastCheckpoint.altitude + scaling * step.finalAltitude;
         step.speed = (1 - scaling) * lastCheckpoint.speed + scaling * step.speed;
     }
 }
