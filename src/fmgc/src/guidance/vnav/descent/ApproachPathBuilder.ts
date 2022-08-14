@@ -360,7 +360,7 @@ export class ApproachPathBuilder {
     }
 
     private levelFlightSegment(
-        altitude: Feet, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration,
+        altitude: Feet, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, _config?: AircraftConfiguration,
     ): StepResults {
         const { zeroFuelWeight } = this.observer.get();
 
