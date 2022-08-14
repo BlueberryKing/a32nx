@@ -173,10 +173,12 @@ export class ClimbPathBuilder {
             const { speed, remainingFuelOnBoard, distanceFromStart } = profile.lastCheckpoint;
 
             const speedTarget = speedProfile.getTarget(distanceFromStart, altitude, ManagedSpeedType.Climb);
+            const isAboveCrossoverAltitude = speedTarget > this.atmosphericConditions.computeCasFromMach(altitude, managedClimbSpeedMach);
 
             const headwind = windProfile.getHeadwindComponent(distanceFromStart, altitude);
 
-            const step = speedTarget - speed < 1
+            // If we're below the target speed, we need to accelerate, unless we're above the crossover altitude. In that case, IAS is always below the managed IAS speed.
+            const step = isAboveCrossoverAltitude || speedTarget - speed < 1
                 ? climbStrategy.predictToAltitude(altitude, Math.min(altitude + 1500, targetAltitude), speedTarget, managedClimbSpeedMach, remainingFuelOnBoard, headwind)
                 : climbStrategy.predictToSpeed(altitude, speedTarget, speed, managedClimbSpeedMach, remainingFuelOnBoard, headwind);
 
