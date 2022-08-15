@@ -7,6 +7,7 @@ import { FlightPlans, WaypointConstraintType } from '@fmgc/flightplanning/Flight
 import { AltitudeDescriptor } from '@fmgc/types/fstypes/FSEnums';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
+import { PathCaptureTransition } from '@fmgc/guidance/lnav/transitions/PathCaptureTransition';
 
 export class ConstraintReader {
     public climbAlitudeConstraints: MaxAltitudeConstraint[] = [];
@@ -224,7 +225,13 @@ export class ConstraintReader {
                 this.distanceToPresentPosition += legDistance + correctedInboundLength - outboundTransition.getDistanceToGo(ppos) - outboundLength;
             } else if (activeTransIndex === activeLegIndex - 1) {
                 // On an inbound transition
-                this.distanceToPresentPosition += correctedInboundLength - inboundTransition.getDistanceToGo(ppos);
+                const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
+
+                const transitionDistanceToGo = inboundTransition instanceof PathCaptureTransition
+                    ? inboundTransition.getActualDistanceToGo(ppos, trueTrack)
+                    : inboundTransition.getDistanceToGo(ppos);
+
+                this.distanceToPresentPosition += correctedInboundLength - transitionDistanceToGo;
             } else {
                 console.error(`[FMS/VNAV] Unexpected transition index (legIndex: ${activeLegIndex}, transIndex: ${activeTransIndex})`);
             }
