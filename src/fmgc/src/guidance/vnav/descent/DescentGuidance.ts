@@ -129,22 +129,27 @@ export class DescentGuidance {
     }
 
     private updateLinearDeviation() {
+        const currentVerticalMode = this.observer.get().fcuVerticalMode;
+        const flightPhase = this.observer.get().flightPhase;
+
         this.targetAltitude = this.aircraftToDescentProfileRelation.currentTargetAltitude();
 
-        this.showLinearDeviationOnPfd = (this.observer.get().flightPhase >= FmgcFlightPhase.Descent || this.aircraftToDescentProfileRelation.isPastTopOfDescent())
-            && this.observer.get().fcuVerticalMode !== VerticalMode.GS_CPT
-            && this.observer.get().fcuVerticalMode !== VerticalMode.GS_TRACK
-            && this.observer.get().fcuVerticalMode !== VerticalMode.LAND
-            && this.observer.get().fcuVerticalMode !== VerticalMode.FLARE
-            && this.observer.get().fcuVerticalMode !== VerticalMode.ROLL_OUT;
+        this.showLinearDeviationOnPfd = (flightPhase >= FmgcFlightPhase.Descent || this.aircraftToDescentProfileRelation.isPastTopOfDescent())
+            && currentVerticalMode !== VerticalMode.GS_CPT
+            && currentVerticalMode !== VerticalMode.GS_TRACK
+            && currentVerticalMode !== VerticalMode.LAND
+            && currentVerticalMode !== VerticalMode.FLARE
+            && currentVerticalMode !== VerticalMode.ROLL_OUT;
     }
 
     private updateDesModeGuidance() {
         const isOnGeometricPath = this.aircraftToDescentProfileRelation.isOnGeometricPath();
         const isAboveSpeedLimitAltitude = this.aircraftToDescentProfileRelation.isAboveSpeedLimitAltitude();
+        const isCloseToAirfieldElevation = this.aircraftToDescentProfileRelation.isCloseToAirfieldElevation();
         const isBeforeTopOfDescent = !this.aircraftToDescentProfileRelation.isPastTopOfDescent();
         const linearDeviation = this.aircraftToDescentProfileRelation.computeLinearDeviation();
         const isSpeedAuto = Simplane.getAutoPilotAirspeedManaged();
+        const isApproachPhaseActive = this.observer.get().flightPhase === FmgcFlightPhase.Approach;
 
         this.targetAltitudeGuidance = this.atmosphericConditions.estimatePressureAltitudeInMsfs(
             this.aircraftToDescentProfileRelation.currentTargetAltitude(),
@@ -160,9 +165,9 @@ export class DescentGuidance {
                 this.targetVerticalSpeed = this.aircraftToDescentProfileRelation.currentTargetPathAngle() / 2;
             } else {
                 this.requestedVerticalMode = RequestedVerticalMode.VsSpeed;
-                this.targetVerticalSpeed = (isAboveSpeedLimitAltitude ? -1000 : -500);
+                this.targetVerticalSpeed = (isAboveSpeedLimitAltitude || isCloseToAirfieldElevation ? -1000 : -500);
             }
-        } else if (!isOnGeometricPath && isSpeedAuto && !this.isInUnderspeedCondition) {
+        } else if (!isOnGeometricPath && isSpeedAuto && !this.isInUnderspeedCondition && !isApproachPhaseActive) {
             // on idle path
 
             this.requestedVerticalMode = RequestedVerticalMode.VpathThrust;
@@ -176,11 +181,17 @@ export class DescentGuidance {
     }
 
     private updateSpeedTarget() {
-        const { fcuSpeed, managedDescentSpeedMach } = this.observer.get();
+        const { fcuSpeed, managedDescentSpeedMach, flightPhase } = this.observer.get();
         const inManagedSpeed = Simplane.getAutoPilotAirspeedManaged();
 
+        // In the approach phase we want to fetch the correct speed target from the JS code.
+        // This is because the guidance logic is a bit different in this case.
+        const managedSpeedTarget = flightPhase === FmgcFlightPhase.Approach
+            ? SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'knots')
+            : Math.round(this.iasOrMach(this.aircraftToDescentProfileRelation.currentTargetSpeed(), managedDescentSpeedMach));
+
         this.speedTarget = inManagedSpeed
-            ? Math.round(this.iasOrMach(this.aircraftToDescentProfileRelation.currentTargetSpeed(), managedDescentSpeedMach))
+            ? managedSpeedTarget
             : fcuSpeed;
     }
 

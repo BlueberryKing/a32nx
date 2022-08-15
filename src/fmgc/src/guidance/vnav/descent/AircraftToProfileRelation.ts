@@ -103,4 +103,10 @@ export class AircraftToDescentProfileRelation {
 
         return presentPosition.alt > descentSpeedLimit?.underAltitude;
     }
+
+    isCloseToAirfieldElevation(): boolean {
+        const { destinationAirfieldElevation, presentPosition } = this.observer.get();
+
+        return presentPosition.alt < destinationAirfieldElevation + 5000;
+    }
 }
