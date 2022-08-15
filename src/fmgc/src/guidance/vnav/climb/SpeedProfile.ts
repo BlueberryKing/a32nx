@@ -81,7 +81,7 @@ export class McduSpeedProfile implements SpeedProfile {
 
         const hasPreselectedSpeed = flightPhase < FmgcFlightPhase.Climb && preselectedClbSpeed > 1;
         // In the descent, the MCDU assumes an immediate return to managed speed, and selecting a speed should not affect the profile
-        const hasSelectedSpeed = fcuSpeed > 100 && flightPhase > FmgcFlightPhase.Takeoff && flightPhase < FlightPhase.FLIGHT_PHASE_DESCENT;
+        const hasSelectedSpeed = fcuSpeed > 100 && flightPhase > FmgcFlightPhase.Takeoff && flightPhase < FmgcFlightPhase.Descent;
 
         if (!hasPreselectedSpeed && !hasSelectedSpeed) {
             return this.getManagedTarget(distanceFromStart, altitude, managedSpeedType);
