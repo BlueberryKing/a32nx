@@ -47,6 +47,7 @@ export enum VerticalCheckpointReason {
     InterceptDescentProfileSelected = 'InterceptDescentProfileSelected',
     LevelOffForDescentConstraint = 'LevelOffForDescentConstraint',
     ContinueDescent = 'ContinueDescent',
+    ContinueDescentArmed = 'ContinueDescentArmed',
     TopOfDescent = 'TopOfDescent',
     CrossingDescentSpeedLimit = 'CrossingDescentSpeedLimit',
     IdlePathAtmosphericConditions = 'IdlePathAtmosphericConditions',

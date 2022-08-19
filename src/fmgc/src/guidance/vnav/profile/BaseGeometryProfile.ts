@@ -71,14 +71,15 @@ export abstract class BaseGeometryProfile {
     }
 
     private interpolateFromCheckpointsBackwards<T extends number, U extends number>(
-        indexValue: T, keySelector: (checkpoint: VerticalCheckpoint) => T, valueSelector: (checkpoint: VerticalCheckpoint) => U,
+        indexValue: T, keySelector: (checkpoint: VerticalCheckpoint) => T, valueSelector: (checkpoint: VerticalCheckpoint) => U, snapReverse: boolean = false,
     ) {
         if (indexValue < keySelector(this.checkpoints[this.checkpoints.length - 1])) {
             return valueSelector(this.checkpoints[this.checkpoints.length - 1]);
         }
 
         for (let i = this.checkpoints.length - 2; i >= 0; i--) {
-            if (indexValue <= keySelector(this.checkpoints[i]) && indexValue > keySelector(this.checkpoints[i + 1])) {
+            if (!snapReverse && (indexValue <= keySelector(this.checkpoints[i]) && indexValue > keySelector(this.checkpoints[i + 1]))
+             || snapReverse && (indexValue < keySelector(this.checkpoints[i]) && indexValue >= keySelector(this.checkpoints[i + 1]))) {
                 return Common.interpolate(
                     indexValue,
                     keySelector(this.checkpoints[i]),
@@ -197,8 +198,19 @@ export abstract class BaseGeometryProfile {
         return this.interpolateFromCheckpoints(altitude, (checkpoint) => checkpoint.altitude, (checkpoint) => checkpoint.distanceFromStart);
     }
 
-    interpolateDistanceAtAltitudeBackwards(altitude: Feet): NauticalMiles {
-        return this.interpolateFromCheckpointsBackwards(altitude, (checkpoint) => checkpoint.altitude, (checkpoint) => checkpoint.distanceFromStart);
+    /**
+     *
+     * @param altitude Altitude to interpolate from
+     * @param snapReverse True if we are looking for the first distance at which the altitude is reached or the last. (Think of a level segment)
+     * @returns
+     */
+    interpolateDistanceAtAltitudeBackwards(altitude: Feet, snapReverse: boolean = false): NauticalMiles {
+        return this.interpolateFromCheckpointsBackwards(
+            altitude,
+            (checkpoint) => Math.round(checkpoint.altitude),
+            (checkpoint) => checkpoint.distanceFromStart,
+            snapReverse,
+        );
     }
 
     interpolateFuelAtDistance(distance: NauticalMiles): NauticalMiles {
@@ -408,6 +420,8 @@ export abstract class BaseGeometryProfile {
             VerticalCheckpointReason.CrossingFcuAltitudeClimb,
             VerticalCheckpointReason.TopOfDescent,
             VerticalCheckpointReason.CrossingFcuAltitudeDescent,
+            VerticalCheckpointReason.ContinueDescent,
+            VerticalCheckpointReason.ContinueDescentArmed,
             VerticalCheckpointReason.LevelOffForDescentConstraint,
             VerticalCheckpointReason.InterceptDescentProfileManaged,
             VerticalCheckpointReason.InterceptDescentProfileSelected,

@@ -201,6 +201,7 @@ class TacticalDescentPathPlanner {
             remainingFuelOnBoard: checkpoint.remainingFuelOnBoard - step.fuelBurned,
             secondsFromPresent: checkpoint.secondsFromPresent + step.timeElapsed,
             speed: step.speed,
+            mach: checkpoint.mach,
         };
     }
 }

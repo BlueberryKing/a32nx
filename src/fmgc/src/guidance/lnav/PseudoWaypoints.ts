@@ -46,6 +46,8 @@ const CHECKPOINT_REASONS_FOR_PWP: VerticalCheckpointReason[] = [
     VerticalCheckpointReason.StepDescent,
     VerticalCheckpointReason.TopOfDescent,
     VerticalCheckpointReason.CrossingFcuAltitudeDescent,
+    VerticalCheckpointReason.ContinueDescent,
+    VerticalCheckpointReason.ContinueDescentArmed,
     VerticalCheckpointReason.CrossingDescentSpeedLimit,
     VerticalCheckpointReason.LevelOffForDescentConstraint,
     VerticalCheckpointReason.InterceptDescentProfileManaged,
@@ -491,6 +493,28 @@ export class PseudoWaypoints implements GuidanceComponent {
                 distanceFromStart: checkpoint.distanceFromStart,
                 displayedOnMcdu: true,
                 flightPlanInfo: this.formatFlightPlanInfo(checkpoint, geometry, alongLegIndex, distanceFromLegTermination),
+                displayedOnNd: true,
+            };
+        case VerticalCheckpointReason.ContinueDescent:
+            return {
+                ident: PWP_IDENT_TOD,
+                alongLegIndex,
+                distanceFromLegTermination,
+                efisSymbolFlag: NdSymbolTypeFlags.PwpTopOfDescent,
+                efisSymbolLla,
+                distanceFromStart: checkpoint.distanceFromStart,
+                displayedOnMcdu: false,
+                displayedOnNd: true,
+            };
+        case VerticalCheckpointReason.ContinueDescentArmed:
+            return {
+                ident: PWP_IDENT_TOD,
+                alongLegIndex,
+                distanceFromLegTermination,
+                efisSymbolFlag: NdSymbolTypeFlags.PwpTopOfDescent | NdSymbolTypeFlags.CyanColor,
+                efisSymbolLla,
+                distanceFromStart: checkpoint.distanceFromStart,
+                displayedOnMcdu: false,
                 displayedOnNd: true,
             };
         case VerticalCheckpointReason.TopOfDescent:
