@@ -47,17 +47,13 @@ export class ClimbWindProfile implements WindProfile {
         }
 
         const forecast = this.interpolateByAltitude(altitude);
-        const distanceBetweenToAirplane = distanceFromStart - this.aircraftDistanceFromStart;
+        const distanceToAirplane = distanceFromStart - this.aircraftDistanceFromStart;
 
-        if (distanceBetweenToAirplane < 0) {
-            console.warn('[FMS/VNAV] Wind prediction made for point behind aircraft');
-        }
-
-        if (!measurement || distanceBetweenToAirplane > 0) {
+        if (!measurement || distanceToAirplane < 0) {
             return WindComponent.fromVector(forecast, planeHeading);
         }
 
-        const scaling = Math.min(1, (distanceFromStart - this.aircraftDistanceFromStart) / 200);
+        const scaling = Math.min(1, distanceToAirplane / 200);
 
         return WindComponent.fromVector(this.interpolateVectors(measurement, forecast, scaling), planeHeading);
     }
