@@ -1,4 +1,4 @@
-import { InertialDistanceAlongTrack } from '@fmgc/guidance/vnav/descent/InertialDistanceAlongTrack';
+import { Filter } from '@fmgc/guidance/vnav/descent/InertialDistanceAlongTrack';
 import { NavGeometryProfile, VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
@@ -9,14 +9,16 @@ export class AircraftToDescentProfileRelation {
 
     private currentProfile?: NavGeometryProfile;
 
-    private inertialDistanceAlongTrack: InertialDistanceAlongTrack;
-
     private topOfDescent?: VerticalCheckpoint;
 
     private geometricPathStart?: VerticalCheckpoint;
 
+    private distanceToEnd: Filter;
+
+    private totalFlightPlanDistance: number = 0;
+
     constructor(private observer: VerticalProfileComputationParametersObserver) {
-        this.inertialDistanceAlongTrack = new InertialDistanceAlongTrack();
+        this.distanceToEnd = new Filter(1);
     }
 
     updateProfile(profile: NavGeometryProfile) {
@@ -46,8 +48,9 @@ export class AircraftToDescentProfileRelation {
         profile.checkpoints = profile.checkpoints.filter(({ reason }) => reason !== VerticalCheckpointReason.PresentPosition);
 
         this.currentProfile = profile;
+        this.totalFlightPlanDistance = profile.totalFlightPlanDistance;
 
-        this.inertialDistanceAlongTrack.updateCorrectInformation(lastPosition.distanceFromStart);
+        this.distanceToEnd.reset(profile.totalFlightPlanDistance - profile.distanceToPresentPosition);
     }
 
     private invalidate() {
@@ -56,20 +59,36 @@ export class AircraftToDescentProfileRelation {
         this.topOfDescent = undefined;
     }
 
-    update() {
+    private get distanceFromStart(): NauticalMiles {
+        return this.totalFlightPlanDistance - this.distanceToEnd.output;
+    }
+
+    update(distanceToEnd: number) {
         if (!this.isValid) {
             return;
         }
 
-        this.inertialDistanceAlongTrack.update();
+        if (VnavConfig.DEBUG_PROFILE) {
+            this.distanceToEnd.weight = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_FILTER_CONSTANT', 'number');
+        }
+
+        this.distanceToEnd.update(distanceToEnd);
     }
 
     isPastTopOfDescent(): boolean {
-        return !this.topOfDescent || this.inertialDistanceAlongTrack.get() > this.topOfDescent.distanceFromStart;
+        return !this.topOfDescent || this.distanceFromStart > this.topOfDescent.distanceFromStart;
+    }
+
+    distanceToTopOfDescent(): number | null {
+        if (this.topOfDescent) {
+            return this.topOfDescent.distanceFromStart - this.distanceFromStart;
+        }
+
+        return null;
     }
 
     isOnGeometricPath(): boolean {
-        return this.inertialDistanceAlongTrack.get() > this.geometricPathStart.distanceFromStart;
+        return this.distanceFromStart > this.geometricPathStart.distanceFromStart;
     }
 
     computeLinearDeviation(): Feet {
@@ -80,15 +99,15 @@ export class AircraftToDescentProfileRelation {
     }
 
     currentTargetAltitude(): Feet {
-        return this.currentProfile.interpolateAltitudeAtDistance(this.inertialDistanceAlongTrack.get());
+        return this.currentProfile.interpolateAltitudeAtDistance(this.distanceFromStart);
     }
 
     currentTargetSpeed(): Feet {
-        return this.currentProfile.findNextSpeedTarget(this.inertialDistanceAlongTrack.get());
+        return this.currentProfile.findNextSpeedTarget(this.distanceFromStart);
     }
 
     currentTargetPathAngle(): Degrees {
-        return this.currentProfile.interpolatePathAngleAtDistance(this.inertialDistanceAlongTrack.get());
+        return this.currentProfile.interpolatePathAngleAtDistance(this.distanceFromStart);
     }
 
     currentTargetVerticalSpeed(): FeetPerMinute {

@@ -46,7 +46,7 @@ export class LinearDeviationIndicator extends DisplayComponent<LinearDeviationIn
 
          sub.on('verticalProfileLatched').whenChanged().handle(hideOrShow(this.latchSymbol));
 
-         sub.on('targetAltitude').atFrequency(3).handle((targetAltitude) => {
+         sub.on('targetAltitude').atFrequency(5).handle((targetAltitude) => {
              const altitude = this.altitude.get();
              if (!altitude.isNormalOperation()) {
                  return;

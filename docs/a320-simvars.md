@@ -1670,9 +1670,9 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - Indicates the distance from start at which to draw a debug pseudowaypoint on the ND
     - **WARNING:** This is only used for testing purposes.
 
-- A32NX_FM_VNAV_DEBUG_SPEED_BIAS
-    - Knots
-    - This is indicative of how aggressively the speed margins should be used while above the profile
+- A32NX_FM_VNAV_DEBUG_FILTER_CONSTANT
+    - Number (0-1)
+    - The estimation of available track miles is filtered using this constant.
     - **WARNING:** This is only used for testing purposes.
 
 ## Autopilot System

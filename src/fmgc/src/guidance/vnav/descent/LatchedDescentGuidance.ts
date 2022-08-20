@@ -86,8 +86,8 @@ export class LatchedDescentGuidance {
         this.isInOverspeedCondition = false;
     }
 
-    update() {
-        this.aircraftToDescentProfileRelation.update();
+    update(deltaTime: number, distanceToEnd: NauticalMiles) {
+        this.aircraftToDescentProfileRelation.update(distanceToEnd);
 
         if (!this.aircraftToDescentProfileRelation.isValid) {
             return;
@@ -96,8 +96,8 @@ export class LatchedDescentGuidance {
         if ((this.observer.get().fcuVerticalMode === VerticalMode.DES) !== (this.verticalState === DescentVerticalGuidanceState.ProvidingGuidance)) {
             this.changeState(this.verticalState === DescentVerticalGuidanceState.ProvidingGuidance ? DescentVerticalGuidanceState.Observing : DescentVerticalGuidanceState.ProvidingGuidance);
         }
-        this.updateSpeedMarginState();
 
+        this.updateSpeedMarginState();
         this.updateSpeedTarget();
         this.updateSpeedGuidance();
         this.updateOverspeedCondition();

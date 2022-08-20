@@ -416,6 +416,7 @@ export class Predictions {
         gearExtended = false,
         flapConfig = FlapConf.CLEAN,
         minimumAbsoluteAcceleration?: number,
+        perfFactorPercent = 0,
     ): StepResults {
         const theta = Common.getTheta(initialAltitude, isaDev, initialAltitude > tropoAltitude);
         const delta = Common.getDelta(initialAltitude, initialAltitude > tropoAltitude);
@@ -450,7 +451,7 @@ export class Predictions {
         const correctedThrust = EngineModel.tableInterpolation(EngineModel.table1506, correctedN1, averageMach) * 2 * EngineModel.maxThrust;
         const correctedFuelFlow = EngineModel.getCorrectedFuelFlow(correctedN1, averageMach, initialAltitude) * 2;
         const thrust = EngineModel.getUncorrectedThrust(correctedThrust, delta2); // in lbf
-        const fuelFlow = EngineModel.getUncorrectedFuelFlow(correctedFuelFlow, delta2, theta2); // in lbs/hour
+        const fuelFlow = EngineModel.getUncorrectedFuelFlow(correctedFuelFlow, delta2, theta2) * (1 + perfFactorPercent / 100); // in lbs/hour
 
         const weightEstimate = zeroFuelWeight + initialFuelWeight;
 

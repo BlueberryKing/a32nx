@@ -5,7 +5,6 @@ import { NavGeometryProfile } from '@fmgc/guidance/vnav/profile/NavGeometryProfi
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { SpeedMargin } from './SpeedMargin';
 
 enum DescentVerticalGuidanceState {
@@ -91,8 +90,8 @@ export class DescentGuidance {
         this.isInOverspeedCondition = false;
     }
 
-    update() {
-        this.aircraftToDescentProfileRelation.update();
+    update(deltaTime: number, distanceToEnd: NauticalMiles) {
+        this.aircraftToDescentProfileRelation.update(distanceToEnd);
 
         if (!this.aircraftToDescentProfileRelation.isValid) {
             return;
@@ -101,8 +100,8 @@ export class DescentGuidance {
         if ((this.observer.get().fcuVerticalMode === VerticalMode.DES) !== (this.verticalState === DescentVerticalGuidanceState.ProvidingGuidance)) {
             this.changeState(this.verticalState === DescentVerticalGuidanceState.ProvidingGuidance ? DescentVerticalGuidanceState.Observing : DescentVerticalGuidanceState.ProvidingGuidance);
         }
-        this.updateSpeedMarginState();
 
+        this.updateSpeedMarginState();
         this.updateSpeedTarget();
         this.updateSpeedGuidance();
         this.updateOverUnderspeedCondition();
@@ -212,12 +211,9 @@ export class DescentGuidance {
 
         SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots', this.speedTarget);
 
-        const maxBias = VnavConfig.DEBUG_PROFILE
-            ? SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_SPEED_BIAS', 'knots')
-            : 3;
-
+        const maxBias = 4;
         const speedBias = this.requestedVerticalMode === RequestedVerticalMode.SpeedThrust
-            ? Math.max(Math.min(this.aircraftToDescentProfileRelation.computeLinearDeviation(), maxBias), 0)
+            ? Math.max(Math.min(this.aircraftToDescentProfileRelation.computeLinearDeviation() / 100, maxBias), 0)
             : 0;
 
         const airspeed = SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots');

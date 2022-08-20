@@ -158,9 +158,34 @@ export class IdleDescentStrategy implements DescentStrategy {
     }
 
     predictToSpeed(
-        _initialAltitude: number, _speed: Knots, _finalSpeed: Knots, _mach: Mach, _fuelOnBoard: number, _headwindComponent: WindComponent, _config: AircraftConfiguration = this.defaultConfig,
+        initialAltitude: number, speed: Knots, finalSpeed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config: AircraftConfiguration = this.defaultConfig,
     ): StepResults {
-        throw new Error('[FMS/VNAV] predictToSpeed not implemented for IdleDescentStrategy');
+        const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
+
+        const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, speed), mach);
+        const predictedN1 = EngineModel.getIdleN1(initialAltitude, computedMach) + VnavConfig.IDLE_N1_MARGIN;
+
+        const initialMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, speed), mach);
+        const finalMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, finalSpeed), mach);
+
+        return Predictions.speedChangeStep(
+            -1,
+            initialAltitude,
+            speed,
+            finalSpeed,
+            initialMach,
+            finalMach,
+            predictedN1,
+            zeroFuelWeight,
+            fuelOnBoard,
+            headwindComponent.value,
+            this.atmosphericConditions.isaDeviation,
+            tropoPause,
+            config.gearExtended,
+            config.flapConfig,
+            0,
+            perfFactor,
+        );
     }
 
     predictToSpeedBackwards(

@@ -104,12 +104,10 @@ export class VnavDriver implements GuidanceComponent {
         this.cruisePathBuilder = new CruisePathBuilder(computationParametersObserver, this.atmosphericConditions, this.stepCoordinator);
         this.tacticalDescentPathBuilder = new TacticalDescentPathBuilder(this.computationParametersObserver);
         this.managedDescentPathBuilder = new DescentPathBuilder(computationParametersObserver, this.atmosphericConditions);
-        // TODO: Remove decelPathBuilder
-        this.decelPathBuilder = new DecelPathBuilder(computationParametersObserver, this.atmosphericConditions);
         this.approachPathBuilder = new ApproachPathBuilder(computationParametersObserver, this.atmosphericConditions);
         this.cruiseToDescentCoordinator = new CruiseToDescentCoordinator(computationParametersObserver, this.cruisePathBuilder, this.managedDescentPathBuilder, this.approachPathBuilder);
 
-        this.constraintReader = new ConstraintReader(this.flightPlanManager);
+        this.constraintReader = new ConstraintReader(guidanceController);
 
         this.aircraftToDescentProfileRelation = new AircraftToDescentProfileRelation(this.computationParametersObserver);
         this.descentGuidance = VnavConfig.VNAV_USE_LATCHED_DESCENT_MODE
@@ -122,62 +120,50 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     acceptMultipleLegGeometry(geometry: Geometry) {
-        this.constraintReader.extract(geometry, this.guidanceController.activeLegIndex, this.guidanceController.activeTransIndex, this.computationParametersObserver.get().presentPosition);
-        this.headingProfile.updateGeometry(this.guidanceController.activeGeometry);
-
-        this.computeVerticalProfileForMcdu(geometry);
-        this.computeVerticalProfileForNd(geometry);
-
-        this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
-        this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
-        this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
-
-        this.version++;
+        this.recompute(geometry);
     }
 
-    lastCruiseAltitude: Feet = 0;
+    private lastCruiseAltitude: Feet = 0;
+
+    private lastFlightPlanVersion: number = -1;
 
     update(deltaTime: number): void {
         try {
-            this.atmosphericConditions.update();
+            const { presentPosition } = this.computationParametersObserver.get();
+
+            this.constraintReader.updateDistanceToEnd(presentPosition);
 
             if (this.coarsePredictionsUpdate.canUpdate(deltaTime) !== -1) {
                 CoarsePredictions.updatePredictions(this.guidanceController, this.atmosphericConditions);
             }
 
-            const newCruiseAltitude = SimVar.GetSimVarValue('L:AIRLINER_CRUISE_ALTITUDE', 'number');
-
-            if (newCruiseAltitude !== this.lastCruiseAltitude) {
-                this.lastCruiseAltitude = newCruiseAltitude;
-
-                if (DEBUG) {
-                    console.log('[FMS/VNAV] Computed new vertical profile because of new cruise altitude.');
-                }
-
-                this.constraintReader.extract(
-                    this.guidanceController.activeGeometry,
-                    this.guidanceController.activeLegIndex,
-                    this.guidanceController.activeTransIndex,
-                    this.computationParametersObserver.get().presentPosition,
-                );
-                this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
-
-                this.computeVerticalProfileForMcdu(this.guidanceController.activeGeometry);
-                this.computeVerticalProfileForNd(this.guidanceController.activeGeometry);
-
-                this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
-                this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
-                this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
-
-                this.version++;
-            }
-
             this.updateTimeMarkers();
-            this.descentGuidance.update();
+            this.descentGuidance.update(deltaTime, this.constraintReader.distanceToEnd);
         } catch (e) {
-            console.error('[FMS] Failed to calculate vertical profil. See exception below.');
+            console.error('[FMS] Failed to calculate vertical profile. See exception below.');
             console.error(e);
         }
+    }
+
+    recompute(geometry: Geometry): void {
+        const { presentPosition, flightPhase, cruiseAltitude } = this.computationParametersObserver.get();
+
+        this.constraintReader.updateGeometry(geometry, presentPosition);
+        this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
+        this.headingProfile.updateGeometry(geometry);
+
+        this.computeVerticalProfileForMcdu(geometry);
+        this.computeVerticalProfileForNd(geometry);
+
+        this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
+
+        if (this.shouldUpdateDescentProfile(flightPhase, cruiseAltitude)) {
+            this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
+        }
+
+        this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
+
+        this.version++;
     }
 
     private updateTimeMarkers() {
@@ -196,7 +182,8 @@ export class VnavDriver implements GuidanceComponent {
 
     /**
      * Based on the last checkpoint in the profile, we build a profile to the destination
-     * @param geometry
+     * @param profile: The profile to build to the destination
+     * @param fromFlightPhase: The flight phase to start building the profile from
      */
     private finishProfileInManagedModes(profile: BaseGeometryProfile, fromFlightPhase: FmgcFlightPhase) {
         const { cruiseAltitude } = this.computationParametersObserver.get();
@@ -479,14 +466,6 @@ export class VnavDriver implements GuidanceComponent {
         }
     }
 
-    getCurrentSpeedConstraint(): Knots {
-        if (this.shouldObeySpeedConstraints()) {
-            return this.currentMcduSpeedProfile.getCurrentSpeedTarget();
-        }
-
-        return Infinity;
-    }
-
     isInManagedNav(): boolean {
         const { fcuLateralMode, fcuArmedLateralMode } = this.computationParametersObserver.get();
 
@@ -551,5 +530,12 @@ export class VnavDriver implements GuidanceComponent {
         }
 
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
+    }
+
+    private shouldUpdateDescentProfile(flightPhase: FmgcFlightPhase, cruiseAltitude: Feet): boolean {
+        // While in the descent phase, we don't want to update the profile anymore
+        return flightPhase < FmgcFlightPhase.Descent || flightPhase > FmgcFlightPhase.Approach
+            || (this.flightPlanManager.currentFlightPlanVersion !== this.lastFlightPlanVersion && !this.flightPlanManager.isCurrentFlightPlanTemporary())
+            || this.lastCruiseAltitude === cruiseAltitude;
     }
 }
