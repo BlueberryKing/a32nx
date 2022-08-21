@@ -131,12 +131,11 @@ export class VnavDriver implements GuidanceComponent {
         try {
             const { presentPosition } = this.computationParametersObserver.get();
 
-            this.constraintReader.updateDistanceToEnd(presentPosition);
-
             if (this.coarsePredictionsUpdate.canUpdate(deltaTime) !== -1) {
                 CoarsePredictions.updatePredictions(this.guidanceController, this.atmosphericConditions);
             }
 
+            this.constraintReader.updateDistanceToEnd(presentPosition);
             this.updateTimeMarkers();
             this.descentGuidance.update(deltaTime, this.constraintReader.distanceToEnd);
         } catch (e) {
@@ -158,6 +157,8 @@ export class VnavDriver implements GuidanceComponent {
         this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
 
         if (this.shouldUpdateDescentProfile(flightPhase, cruiseAltitude)) {
+            this.lastFlightPlanVersion = this.flightPlanManager.currentFlightPlanVersion;
+            this.lastCruiseAltitude = cruiseAltitude;
             this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
         }
 
@@ -536,6 +537,6 @@ export class VnavDriver implements GuidanceComponent {
         // While in the descent phase, we don't want to update the profile anymore
         return flightPhase < FmgcFlightPhase.Descent || flightPhase > FmgcFlightPhase.Approach
             || (this.flightPlanManager.currentFlightPlanVersion !== this.lastFlightPlanVersion && !this.flightPlanManager.isCurrentFlightPlanTemporary())
-            || this.lastCruiseAltitude === cruiseAltitude;
+            || this.lastCruiseAltitude !== cruiseAltitude;
     }
 }

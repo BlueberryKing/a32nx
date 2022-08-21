@@ -114,7 +114,9 @@ export class ConstraintReader {
             this.distanceToEnd = distanceToGo + outboundLength + (this.distancesToEnd.get(activeLegIndex + 1) ?? 0);
         } else if (activeTransIndex === activeLegIndex) {
             // On an outbound transition
-            this.distanceToEnd = outboundTransition.getDistanceToGo(ppos) + (this.distancesToEnd.get(activeLegIndex + 1) ?? 0);
+            // We subtract `outboundLength` because getDistanceToGo will include the entire distance while we only want the part that's on this leg.
+            // For a FixedRadiusTransition, there's also a part on the next leg.
+            this.distanceToEnd = outboundTransition.getDistanceToGo(ppos) - outboundLength + (this.distancesToEnd.get(activeLegIndex + 1) ?? 0);
         } else if (activeTransIndex === activeLegIndex - 1) {
             // On an inbound transition
             const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
@@ -215,21 +217,22 @@ export class ConstraintReader {
         }
 
         const activeLegIndex = this.guidanceController.activeLegIndex;
+        const activeTransIndex = this.guidanceController.activeTransIndex;
 
-        if (index < this.guidanceController.activeLegIndex) {
+        if (index < activeLegIndex) {
             this.distanceToPresentPosition += totalLegLength;
-        } else if (index === this.guidanceController.activeLegIndex) {
-            if (this.guidanceController.activeTransIndex < 0) {
+        } else if (index === activeLegIndex) {
+            if (activeTransIndex < 0) {
                 const distanceToGo = leg instanceof VMLeg
                     ? Avionics.Utils.computeGreatCircleDistance(ppos, nextWaypoint.infos.coordinates)
                     : leg.getDistanceToGo(ppos);
 
                 // On a leg, not on any guided transition
                 this.distanceToPresentPosition += legDistance + correctedInboundLength - distanceToGo;
-            } else if (this.guidanceController.activeLegIndex === activeLegIndex) {
+            } else if (activeTransIndex === activeLegIndex) {
                 // On an outbound transition
                 this.distanceToPresentPosition += legDistance + correctedInboundLength - outboundTransition.getDistanceToGo(ppos) - outboundLength;
-            } else if (this.guidanceController.activeLegIndex === activeLegIndex - 1) {
+            } else if (activeTransIndex === activeLegIndex - 1) {
                 // On an inbound transition
                 const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
 
