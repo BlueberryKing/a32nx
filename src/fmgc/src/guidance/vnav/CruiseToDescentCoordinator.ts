@@ -62,7 +62,7 @@ export class CruiseToDescentCoordinator {
         let cruisePath = new TemporaryCheckpointSequence();
 
         while (iterationCount++ < 4 && (Math.abs(todFuelError) > 100 || Math.abs(todTimeError) > 1)) {
-            descentPath = this.approachPathBuilder.computeApproachPath(profile, speedProfile, this.lastEstimatedFuelAtDestination, this.lastEstimatedTimeAtDestination);
+            descentPath = this.approachPathBuilder.computeApproachPath(profile, speedProfile, descentWinds, this.lastEstimatedFuelAtDestination, this.lastEstimatedTimeAtDestination);
 
             if (descentPath.lastCheckpoint.reason !== VerticalCheckpointReason.Decel) {
                 console.error('[FMS/VNAV] Approach path did not end in DECEL. Discarding descent profile.');

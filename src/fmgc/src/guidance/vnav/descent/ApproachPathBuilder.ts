@@ -13,6 +13,7 @@ import { MathUtils } from '@shared/MathUtils';
 import { WindComponent } from '@fmgc/guidance/vnav/wind';
 import { TemporaryCheckpointSequence } from '@fmgc/guidance/vnav/profile/TemporaryCheckpointSequence';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
+import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 
 class FlapConfigurationProfile {
     static getBySpeed(speed: Knots): FlapConf {
@@ -68,7 +69,7 @@ export class ApproachPathBuilder {
     }
 
     computeApproachPath(
-        profile: NavGeometryProfile, speedProfile: SpeedProfile, estimatedFuelOnBoardAtDestination: number, estimatedSecondsFromPresentAtDestination: number,
+        profile: NavGeometryProfile, speedProfile: SpeedProfile, windProfile: HeadwindProfile, estimatedFuelOnBoardAtDestination: number, estimatedSecondsFromPresentAtDestination: number,
     ): TemporaryCheckpointSequence {
         const { approachSpeed, managedDescentSpeedMach, zeroFuelWeight, tropoPause, destinationAirfieldElevation } = this.observer.get();
 
@@ -105,7 +106,7 @@ export class ApproachPathBuilder {
             zeroFuelWeight,
             estimatedFuelOnBoardAtDestination,
             this.atmosphericConditions.isaDeviation,
-            0,
+            windProfile.getHeadwindComponent(profile.getDistanceFromStart(0), finalAltitude).value,
             tropoPause,
             true,
             FlapConf.CONF_FULL,
@@ -115,7 +116,7 @@ export class ApproachPathBuilder {
 
         // Assume idle thrust from there
         for (const altitudeConstraint of approachConstraints) {
-            this.handleAltitudeConstraint(sequence, speedProfile, altitudeConstraint);
+            this.handleAltitudeConstraint(sequence, speedProfile, windProfile, altitudeConstraint);
 
             // If you're at or above your descent speed (taking speed limit into account, place the decel point)
             if (sequence.lastCheckpoint.speed - speedProfile.getTargetWithoutConstraints(sequence.lastCheckpoint.altitude, ManagedSpeedType.Descent) > -1) {
@@ -126,7 +127,7 @@ export class ApproachPathBuilder {
         const speedTarget = speedProfile.getTarget(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
 
         if (speedTarget - sequence.lastCheckpoint.speed > 0.1) {
-            const decelerationToDescentSpeed = this.buildDecelerationPath(sequence, this.idleStrategy, speedProfile, 0);
+            const decelerationToDescentSpeed = this.buildDecelerationPath(sequence, this.idleStrategy, speedProfile, windProfile, 0);
             sequence.push(...decelerationToDescentSpeed.get());
         }
 
@@ -138,7 +139,7 @@ export class ApproachPathBuilder {
         return sequence;
     }
 
-    private handleAltitudeConstraint(sequence: TemporaryCheckpointSequence, speedProfile: SpeedProfile, constraint: DescentAltitudeConstraint) {
+    private handleAltitudeConstraint(sequence: TemporaryCheckpointSequence, speedProfile: SpeedProfile, windProfile: HeadwindProfile, constraint: DescentAltitudeConstraint) {
         // We compose this segment of two segments:
         //  A descent segment
         //  A level deceleration segment
@@ -174,6 +175,7 @@ export class ApproachPathBuilder {
                 sequence,
                 this.idleStrategy,
                 speedProfile,
+                windProfile,
                 distanceFromStart - decelerationSegmentDistance,
             );
 
@@ -183,15 +185,17 @@ export class ApproachPathBuilder {
                 decelerationSequence.lastCheckpoint.speed,
                 managedDescentSpeedMach,
                 decelerationSequence.lastCheckpoint.remainingFuelOnBoard,
-                WindComponent.zero(),
+                windProfile.getHeadwindComponent(distanceFromStart - decelerationSegmentDistance, minimumAltitude),
                 AircraftConfigurationProfile.getBySpeed(decelerationSequence.lastCheckpoint.speed),
             );
 
             const distanceTraveled = descentSegment.distanceTraveled + (distanceFromStart - decelerationSequence.lastCheckpoint.distanceFromStart);
 
             decelerationSegmentDistanceError = distanceTraveled - desiredDistanceToCover;
-            decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError);
+            decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError / 3);
         }
+
+        console.log(`[FMS/VNAV] Final error: ${decelerationSegmentDistanceError}`);
 
         sequence.push(...decelerationSequence.get());
 
@@ -233,7 +237,7 @@ export class ApproachPathBuilder {
      * @returns
      */
     private buildDecelerationPath(
-        sequence: TemporaryCheckpointSequence, strategy: DescentStrategy, speedProfile: SpeedProfile, targetDistanceFromStart: NauticalMiles,
+        sequence: TemporaryCheckpointSequence, strategy: DescentStrategy, speedProfile: SpeedProfile, windProfile: HeadwindProfile, targetDistanceFromStart: NauticalMiles,
     ): TemporaryCheckpointSequence {
         const decelerationSequence = new TemporaryCheckpointSequence(sequence.lastCheckpoint);
 
@@ -267,7 +271,7 @@ export class ApproachPathBuilder {
                     speedConstraint.maxSpeed,
                     managedDescentSpeedMach,
                     remainingFuelOnBoard,
-                    WindComponent.zero(),
+                    windProfile.getHeadwindComponent(distanceFromStart, altitude),
                     AircraftConfigurationProfile.getBySpeed(speed),
                 );
 
@@ -289,7 +293,7 @@ export class ApproachPathBuilder {
                         speedConstraint.maxSpeed,
                         managedDescentSpeedMach,
                         remainingFuelOnBoard - decelerationStep.fuelBurned,
-                        WindComponent.zero(),
+                        windProfile.getHeadwindComponent(distanceFromStart, altitude),
                         AircraftConfigurationProfile.getBySpeed(speedConstraint.maxSpeed),
                     );
 
@@ -309,7 +313,7 @@ export class ApproachPathBuilder {
                     targetSpeed,
                     managedDescentSpeedMach,
                     remainingFuelOnBoard,
-                    WindComponent.zero(),
+                    windProfile.getHeadwindComponent(distanceFromStart, altitude),
                     AircraftConfigurationProfile.getBySpeed(speed),
                 );
 
