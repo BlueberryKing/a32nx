@@ -56,6 +56,8 @@ export interface Fmgc {
     getTripWind(): number,
     getWinds(): FmcWinds,
     getApproachWind(): FmcWindVector,
+    getApproachQnh(): number,
+    getApproachTemperature(): number,
 }
 
 export class GuidanceController {

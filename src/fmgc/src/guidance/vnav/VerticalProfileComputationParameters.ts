@@ -18,15 +18,17 @@ export interface VerticalProfileComputationParameters {
     fcuArmedVerticalMode: ArmedVerticalMode,
     qnhSettingMillibar: Millibar,
 
+    managedClimbSpeed: Knots,
+    managedClimbSpeedMach: Mach,
     managedCruiseSpeed: Knots,
     managedCruiseSpeedMach: Mach,
+    managedDescentSpeed: Knots,
+    managedDescentSpeedMach: Mach,
 
     zeroFuelWeight: Pounds,
     fuelOnBoard: Pounds,
     v2Speed: Knots,
     tropoPause: Feet,
-    managedClimbSpeed: Knots,
-    managedClimbSpeedMach: Mach,
     perfFactor: number,
     originAirfieldElevation: Feet,
     destinationAirfieldElevation: Feet,
@@ -40,9 +42,8 @@ export interface VerticalProfileComputationParameters {
     preselectedClbSpeed: Knots,
     takeoffFlapsSetting?: FlapConf
 
-    managedDescentSpeed: Knots,
-    managedDescentSpeedMach: Mach,
-
+    approachQnh: Millibar,
+    approachTemperature: Celcius,
     approachSpeed: Knots,
     flapRetractionSpeed: Knots,
     slatRetractionSpeed: Knots,
@@ -70,15 +71,17 @@ export class VerticalProfileComputationParametersObserver {
             fcuArmedVerticalMode: SimVar.GetSimVarValue('L:A32NX_FMA_VERTICAL_ARMED', 'number'),
             qnhSettingMillibar: Simplane.getPressureValue('millibar'),
 
+            managedClimbSpeed: this.fmgc.getManagedClimbSpeed(),
+            managedClimbSpeedMach: this.fmgc.getManagedClimbSpeedMach(),
             managedCruiseSpeed: this.fmgc.getManagedCruiseSpeed(),
             managedCruiseSpeedMach: this.fmgc.getManagedCruiseSpeedMach(),
+            managedDescentSpeed: this.fmgc.getManagedDescentSpeed(),
+            managedDescentSpeedMach: this.fmgc.getManagedDescentSpeedMach(),
 
             zeroFuelWeight: this.fmgc.getZeroFuelWeight(),
             fuelOnBoard: this.fmgc.getFOB() * Constants.TONS_TO_POUNDS,
             v2Speed: this.fmgc.getV2Speed(),
             tropoPause: this.fmgc.getTropoPause(),
-            managedClimbSpeed: this.fmgc.getManagedClimbSpeed(),
-            managedClimbSpeedMach: this.fmgc.getManagedClimbSpeedMach(),
             perfFactor: 0, // FIXME: Use actual value,
             originAirfieldElevation: SimVar.GetSimVarValue('L:A32NX_DEPARTURE_ELEVATION', 'feet'),
             destinationAirfieldElevation: SimVar.GetSimVarValue('L:A32NX_PRESS_AUTO_LANDING_ELEVATION', 'feet'),
@@ -92,9 +95,8 @@ export class VerticalProfileComputationParametersObserver {
             preselectedClbSpeed: this.fmgc.getPreSelectedClbSpeed(),
             takeoffFlapsSetting: this.fmgc.getTakeoffFlapsSetting(),
 
-            managedDescentSpeed: this.fmgc.getManagedDescentSpeed(),
-            managedDescentSpeedMach: this.fmgc.getManagedDescentSpeedMach(),
-
+            approachQnh: this.fmgc.getApproachQnh(),
+            approachTemperature: this.fmgc.getApproachTemperature(),
             approachSpeed: this.fmgc.getApproachSpeed(),
             flapRetractionSpeed: this.fmgc.getFlapRetractionSpeed(),
             slatRetractionSpeed: this.fmgc.getSlatRetractionSpeed(),

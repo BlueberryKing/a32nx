@@ -10,7 +10,7 @@ import { CoarsePredictions } from '@fmgc/guidance/vnav/CoarsePredictions';
 import { FlightPlanManager } from '@fmgc/flightplanning/FlightPlanManager';
 import { VerticalMode, ArmedLateralMode, ArmedVerticalMode, isArmed, LateralMode } from '@shared/autopilot';
 import { PseudoWaypointFlightPlanInfo } from '@fmgc/guidance/PseudoWaypoint';
-import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
+import { VerticalProfileComputationParameters, VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { CruisePathBuilder } from '@fmgc/guidance/vnav/cruise/CruisePathBuilder';
 import { CruiseToDescentCoordinator } from '@fmgc/guidance/vnav/CruiseToDescentCoordinator';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
@@ -123,7 +123,7 @@ export class VnavDriver implements GuidanceComponent {
         this.recompute(geometry);
     }
 
-    private lastCruiseAltitude: Feet = 0;
+    private lastParameters: VerticalProfileComputationParameters = null;
 
     private lastFlightPlanVersion: number = -1;
 
@@ -145,9 +145,9 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     recompute(geometry: Geometry): void {
-        const { presentPosition, flightPhase, cruiseAltitude } = this.computationParametersObserver.get();
+        const newParameters = this.computationParametersObserver.get();
 
-        this.constraintReader.updateGeometry(geometry, presentPosition);
+        this.constraintReader.updateGeometry(geometry, newParameters.presentPosition);
         this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
         this.headingProfile.updateGeometry(geometry);
 
@@ -156,9 +156,9 @@ export class VnavDriver implements GuidanceComponent {
 
         this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
 
-        if (this.shouldUpdateDescentProfile(flightPhase, cruiseAltitude)) {
+        if (this.shouldUpdateDescentProfile(newParameters)) {
             this.lastFlightPlanVersion = this.flightPlanManager.currentFlightPlanVersion;
-            this.lastCruiseAltitude = cruiseAltitude;
+            this.lastParameters = newParameters;
             this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
         }
 
@@ -533,10 +533,18 @@ export class VnavDriver implements GuidanceComponent {
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
     }
 
-    private shouldUpdateDescentProfile(flightPhase: FmgcFlightPhase, cruiseAltitude: Feet): boolean {
+    private shouldUpdateDescentProfile(newParameters: VerticalProfileComputationParameters): boolean {
         // While in the descent phase, we don't want to update the profile anymore
-        return flightPhase < FmgcFlightPhase.Descent || flightPhase > FmgcFlightPhase.Approach
+        if (this.lastParameters === null) {
+            return true;
+        }
+
+        return newParameters.flightPhase < FmgcFlightPhase.Descent || newParameters.flightPhase > FmgcFlightPhase.Approach
             || (this.flightPlanManager.currentFlightPlanVersion !== this.lastFlightPlanVersion && !this.flightPlanManager.isCurrentFlightPlanTemporary())
-            || this.lastCruiseAltitude !== cruiseAltitude;
+            || this.lastParameters.cruiseAltitude !== newParameters.cruiseAltitude
+            || this.lastParameters.managedDescentSpeed !== newParameters.managedDescentSpeed
+            || this.lastParameters.managedDescentSpeedMach !== newParameters.managedDescentSpeedMach
+            || this.lastParameters.approachQnh !== newParameters.approachQnh
+            || this.lastParameters.approachTemperature !== newParameters.approachTemperature;
     }
 }
