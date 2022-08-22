@@ -479,34 +479,20 @@ export class Predictions {
                 error = VnavStepError.AVAILABLE_GRADIENT_INSUFFICIENT;
             }
 
-            // TODO: Why are we using 10 here?
-            const acceleration = FlightModel.accelerationForGradient(
-                availableGradient,
-                pathAngleRadians,
-                10,
-            );
+            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngleRadians, FlightModel.gravityConstKNS); // in kts/s
 
-            const accelerationKNS = (FlightModel.requiredAccelRateKNS * acceleration) / FlightModel.requiredAccelRateMS2;
-
-            if (Math.abs(accelerationKNS) < minimumAbsoluteAcceleration) {
+            if (Math.abs(acceleration) < minimumAbsoluteAcceleration) {
                 if (DEBUG) {
                     console.warn('[FMS/VNAV/ConstantSlopeSegment] Minimum absolute acceleration not achieved with given desired path angle.');
                 }
                 error = VnavStepError.TOO_LOW_DECELERATION;
             }
 
-            stepTime = Math.abs(finalTas - initialTas) / Math.abs(accelerationKNS); // in seconds
-
-            distanceTraveled = (stepTime / 3600) * averageTas;
-
-            verticalSpeed = 101.268 * (averageTas - headwindAtInitialAltitude) * Math.sin(pathAngleRadians); // in feet per minute
-            // // TODO: double-check if accel rate operates on TAS or CAS
-            // stepTime = Math.abs(finalTas - initialTas) / accelerationKNS; // in seconds
-            finalAltitude = initialAltitude + (verticalSpeed * (stepTime / 60)); // in feet
-            // TODO: now that we have final altitude, we could get accurate mid-step headwind instead of using initial headwind...
-            // distanceTraveled = (averageTas - headwindAtInitialAltitude) * (stepTime / 3_600); // in NM
+            stepTime = Math.abs(finalTas - initialTas) / Math.abs(acceleration); // in seconds
+            distanceTraveled = (stepTime / 3600) * (averageTas - headwindAtInitialAltitude);
+            finalAltitude = initialAltitude + distanceTraveled * Math.tan(pathAngleRadians);
+            verticalSpeed = stepTime < 1e-12 ? 0 : (finalAltitude - initialAltitude) / stepTime / 60; // in feet per minute
             fuelBurned = (fuelFlow / 3600) * stepTime;
-            // const endStepWeight = zeroFuelWeight + (initialFuelWeight - fuelBurned); <- not really needed
 
             // Adjust variables for better accuracy next iteration
             previousMidStepWeight = midStepWeight;
@@ -863,12 +849,10 @@ export class Predictions {
             let finalMach = Common.CAStoMach(finalCAS, delta);
 
             let initialTas: Knots;
-            let accelFactorMode: AccelFactorMode = AccelFactorMode.CONSTANT_CAS;
             // If above crossover altitude, use econMach
             if (initialMach > econMach) {
                 initialMach = econMach;
                 initialTas = Common.machToTAS(initialMach, theta);
-                accelFactorMode = AccelFactorMode.CONSTANT_MACH;
             } else {
                 initialTas = Common.CAStoTAS(initialCAS, theta, delta);
             }
@@ -898,8 +882,7 @@ export class Predictions {
             const availableGradient = FlightModel.getAvailableGradient(thrust, drag, midStepWeight);
             pathAngle = Math.atan2(verticalSpeed, midwayTas * 101.269); // radians
 
-            const accelerationFactor = Common.getAccelerationFactor(midwayMach, midStepAltitude, isaDev, isAboveTropo, accelFactorMode);
-            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
+            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, FlightModel.gravityConstKNS); // kts/s
 
             stepTime = (finalCAS - initialCAS) / acceleration; // in seconds
             distanceTraveled = (midwayTas - headwindAtMidStepAlt) * (stepTime / 3600); // in nautical miles
@@ -963,12 +946,10 @@ export class Predictions {
             let finalMach = Common.CAStoMach(finalCAS, delta);
 
             let initialTas: Knots;
-            let accelFactorMode: AccelFactorMode = AccelFactorMode.CONSTANT_CAS;
             // If above crossover altitude, use econMach
             if (initialMach > econMach) {
                 initialMach = econMach;
                 initialTas = Common.machToTAS(initialMach, theta);
-                accelFactorMode = AccelFactorMode.CONSTANT_MACH;
             } else {
                 initialTas = Common.CAStoTAS(initialCAS, theta, delta);
             }
@@ -998,8 +979,7 @@ export class Predictions {
 
             const availableGradient = FlightModel.getAvailableGradient(thrust, drag, midStepWeight);
             pathAngle = FlightModel.getSpeedChangePathAngle(thrust, midStepWeight, drag); // radians
-            const accelerationFactor = Common.getAccelerationFactor(midwayMach, midStepAltitude, isaDev, isAboveTropo, accelFactorMode);
-            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
+            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, FlightModel.gravityConstKNS); // kts/s
 
             verticalSpeed = 101.268 * midwayTas * Math.sin(pathAngle); // in feet per minute
             stepTime = (finalCAS - initialCAS) / acceleration; // in seconds
@@ -1064,12 +1044,10 @@ export class Predictions {
             let finalMach = Common.CAStoMach(finalCAS, delta);
 
             let initialTas: Knots;
-            let accelFactorMode: AccelFactorMode = AccelFactorMode.CONSTANT_CAS;
             // If above crossover altitude, use econMach
             if (initialMach > econMach) {
                 initialMach = econMach;
                 initialTas = Common.machToTAS(initialMach, theta);
-                accelFactorMode = AccelFactorMode.CONSTANT_MACH;
             } else {
                 initialTas = Common.CAStoTAS(initialCAS, theta, delta);
             }
@@ -1102,9 +1080,7 @@ export class Predictions {
             // This is based on a reference saying that the energy loss should go into deceleration by 70% and 30% for altitude loss.
             // TODO: Using the gradient for this probably doesn't make too much sense.
             pathAngle = availableGradient * 0.3;
-
-            const accelerationFactor = Common.getAccelerationFactor(midwayMach, midStepAltitude, isaDev, isAboveTropo, accelFactorMode);
-            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, accelerationFactor) * FlightModel.gravityConstKNS;
+            const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, FlightModel.gravityConstKNS); // kts/s
 
             verticalSpeed = 101.268 * midwayTas * Math.sin(pathAngle); // in feet per minute
             stepTime = (finalCAS - initialCAS) / acceleration; // in seconds
