@@ -569,7 +569,8 @@ export class PseudoWaypoints implements GuidanceComponent {
                 sequencingType: PseudoWaypointSequencingAction.APPROACH_PHASE_AUTO_ENGAGE,
                 alongLegIndex,
                 distanceFromLegTermination,
-                efisSymbolFlag: NdSymbolTypeFlags.PwpDecel | NdSymbolTypeFlags.MagentaColor,
+                efisSymbolFlag: NdSymbolTypeFlags.PwpDecel
+                    | (Simplane.getAutoPilotAirspeedManaged() && this.guidanceController.vnavDriver.isInManagedNav() ? NdSymbolTypeFlags.MagentaColor : 0),
                 efisSymbolLla,
                 distanceFromStart: checkpoint.distanceFromStart,
                 displayedOnMcdu: true,
