@@ -96,6 +96,11 @@ export interface ApproachPathAngleConstraint {
     pathAngle: PathAngleConstraint,
 }
 
+export interface CruiseStep {
+    distanceFromStart: NauticalMiles,
+    toAltitude: Feet,
+}
+
 export class NavGeometryProfile extends BaseGeometryProfile {
     public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
@@ -126,6 +131,10 @@ export class NavGeometryProfile extends BaseGeometryProfile {
 
     override get distanceToPresentPosition(): number {
         return this.constraintReader.distanceToPresentPosition;
+    }
+
+    override get cruiseSteps(): CruiseStep[] {
+        return this.constraintReader.cruiseSteps;
     }
 
     get totalFlightPlanDistance(): number {

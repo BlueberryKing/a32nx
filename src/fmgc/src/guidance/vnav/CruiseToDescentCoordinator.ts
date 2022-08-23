@@ -70,7 +70,7 @@ export class CruiseToDescentCoordinator {
             }
 
             // Geometric and idle
-            this.descentPathBuilder.computeManagedDescentPath(descentPath, profile, speedProfile, descentWinds, this.cruisePathBuilder.getFinalCruiseAltitude());
+            this.descentPathBuilder.computeManagedDescentPath(descentPath, profile, speedProfile, descentWinds, this.cruisePathBuilder.getFinalCruiseAltitude(profile));
 
             if (descentPath.lastCheckpoint.reason !== VerticalCheckpointReason.TopOfDescent) {
                 console.error('[FMS/VNAV] Approach path did not end in T/D. Discarding descent profile.');

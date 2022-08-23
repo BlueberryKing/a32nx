@@ -5,7 +5,6 @@ class CDUStepAltsPage {
         const flightPhase = SimVar.GetSimVarValue("L:A32NX_FWC_FLIGHT_PHASE", "Enum");
         const isFlying = flightPhase >= 5 && flightPhase <= 7;
         const transitionAltitude = mcdu.flightPlanManager.originTransitionAltitude;
-        const coordinator = mcdu.guidanceController.vnavDriver.stepCoordinator;
         const predictions = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.waypointPredictions;
 
         mcdu.setTemplate([
@@ -59,7 +58,7 @@ class CDUStepAltsPage {
 
     static formatStepClimbLine(mcdu, index, predictions, isFlying, transitionAltitude) {
         const emptyField = "[\xa0".padEnd(4, "\xa0") + "]";
-        const enteredStepAlts = mcdu.guidanceController.vnavDriver.stepCoordinator.steps;
+        const enteredStepAlts = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.cruiseSteps;
 
         if (index > enteredStepAlts.length) {
             return [""];
@@ -106,21 +105,21 @@ class CDUStepAltsPage {
         }
 
         const splitInputs = input.split("/");
-        const altInput = splitInputs[0];
-        const waypointInput = splitInputs[1];
+        const rawAltitudeInput = splitInputs[0];
+        const rawIdentInput = splitInputs[1];
 
-        if (!waypointInput) {
+        if (!rawIdentInput) {
             mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
             return false;
             // OPT STEP
         }
 
-        const alt = this.tryParseAltitude(mcdu, altInput);
+        const alt = this.tryParseAltitude(mcdu, rawAltitudeInput);
         if (!alt) {
             return false;
         }
 
-        if (!coordinator.requestToAddGeographicStep(waypointInput, alt)) {
+        if (!mcdu.flightPlanManager.tryAddStepAltitude(rawIdentInput, alt)) {
             mcdu.setScratchpadMessage(NXSystemMessages.formatError);
             return false;
         }

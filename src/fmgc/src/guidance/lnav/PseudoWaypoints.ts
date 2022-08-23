@@ -252,7 +252,7 @@ export class PseudoWaypoints implements GuidanceComponent {
             break;
         case PseudoWaypointSequencingAction.STEP_REACHED:
             // Since you cannot have steps behind you, the one getting sequenced should always be the first one
-            this.guidanceController.vnavDriver.stepCoordinator.removeStep(0);
+            // TODO: Remove step
             break;
         default:
         }

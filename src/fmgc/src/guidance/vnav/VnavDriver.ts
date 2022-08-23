@@ -17,7 +17,6 @@ import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { McduSpeedProfile, ExpediteSpeedProfile, NdSpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { SelectedGeometryProfile } from '@fmgc/guidance/vnav/profile/SelectedGeometryProfile';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
-import { StepCoordinator } from '@fmgc/guidance/vnav/StepCoordinator';
 import { TakeoffPathBuilder } from '@fmgc/guidance/vnav/takeoff/TakeoffPathBuilder';
 import { ClimbThrustClimbStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -78,8 +77,6 @@ export class VnavDriver implements GuidanceComponent {
 
     timeMarkers = new Map<Seconds, PseudoWaypointFlightPlanInfo | undefined>()
 
-    stepCoordinator: StepCoordinator;
-
     private constraintReader: ConstraintReader;
 
     private aircraftToDescentProfileRelation: AircraftToDescentProfileRelation;
@@ -100,8 +97,7 @@ export class VnavDriver implements GuidanceComponent {
 
         this.takeoffPathBuilder = new TakeoffPathBuilder(computationParametersObserver, this.atmosphericConditions);
         this.climbPathBuilder = new ClimbPathBuilder(computationParametersObserver, this.atmosphericConditions);
-        this.stepCoordinator = new StepCoordinator(this.flightPlanManager);
-        this.cruisePathBuilder = new CruisePathBuilder(computationParametersObserver, this.atmosphericConditions, this.stepCoordinator);
+        this.cruisePathBuilder = new CruisePathBuilder(computationParametersObserver, this.atmosphericConditions);
         this.tacticalDescentPathBuilder = new TacticalDescentPathBuilder(this.computationParametersObserver);
         this.managedDescentPathBuilder = new DescentPathBuilder(computationParametersObserver, this.atmosphericConditions);
         this.approachPathBuilder = new ApproachPathBuilder(computationParametersObserver, this.atmosphericConditions);
@@ -153,8 +149,6 @@ export class VnavDriver implements GuidanceComponent {
 
         this.computeVerticalProfileForMcdu(geometry);
         this.computeVerticalProfileForNd(geometry);
-
-        this.stepCoordinator.updateGeometryProfile(this.currentNavGeometryProfile);
 
         if (this.shouldUpdateDescentProfile(newParameters)) {
             this.lastFlightPlanVersion = this.flightPlanManager.currentFlightPlanVersion;

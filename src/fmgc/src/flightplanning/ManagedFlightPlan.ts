@@ -22,7 +22,7 @@
  * SOFTWARE.
  */
 
-import { HoldData, WaypointStats } from '@fmgc/flightplanning/data/flightplan';
+import { HoldData, StepData, WaypointStats } from '@fmgc/flightplanning/data/flightplan';
 import { AltitudeDescriptor, FixTypeFlags, LegType } from '../types/fstypes/FSEnums';
 import { FlightPlanSegment, SegmentType } from './FlightPlanSegment';
 import { LegsProcedure } from './LegsProcedure';
@@ -1623,5 +1623,26 @@ export class ManagedFlightPlan {
         }
 
         return false;
+    }
+
+    public tryAddStepAltitude(ident: string, toAltitude: Feet): boolean {
+        const waypoint = this.findWaypointByIdent(ident);
+
+        if (!waypoint) {
+            return false;
+        }
+
+        const step: StepData = {
+            distanceBeforeTermination: 0,
+            toAltitude,
+        }
+
+        waypoint.additionalData.steps.push(step);
+
+        return true;
+    }
+
+    private findWaypointByIdent(ident: string): WayPoint | undefined {
+        return this.waypoints.find(waypoint => waypoint.ident === ident);
     }
 }

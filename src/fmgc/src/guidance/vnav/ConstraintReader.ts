@@ -1,5 +1,5 @@
 import { Leg } from '@fmgc/guidance/lnav/legs/Leg';
-import { ApproachPathAngleConstraint, DescentAltitudeConstraint, MaxAltitudeConstraint, MaxSpeedConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { ApproachPathAngleConstraint, CruiseStep, DescentAltitudeConstraint, MaxAltitudeConstraint, MaxSpeedConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { AltitudeConstraintType, SpeedConstraintType } from '@fmgc/guidance/lnav/legs';
 import { FlightPlans, WaypointConstraintType } from '@fmgc/flightplanning/FlightPlanManager';
@@ -19,6 +19,8 @@ export class ConstraintReader {
     public descentSpeedConstraints: MaxSpeedConstraint[] = [];
 
     public flightPathAngleConstraints: ApproachPathAngleConstraint[] = []
+
+    public cruiseSteps: CruiseStep[] = [];
 
     public totalFlightPlanDistance = 0;
 
@@ -46,6 +48,15 @@ export class ConstraintReader {
             // I think this is only hit for manual discontinuities
             if (!leg) {
                 continue;
+            }
+
+            if ((waypoint.additionalData.steps?.length ?? 0) > 0) {
+                for (const step of waypoint.additionalData.steps) {
+                    this.cruiseSteps.push({
+                        distanceFromStart: this.totalFlightPlanDistance - step.distanceBeforeTermination,
+                        toAltitude: step.toAltitude,
+                    });
+                }
             }
 
             if (waypoint.additionalData.constraintType === WaypointConstraintType.CLB) {
@@ -162,24 +173,13 @@ export class ConstraintReader {
         return leg.metadata.pathAngleConstraint != null;
     }
 
-    resetAltitudeConstraints() {
+    reset() {
         this.climbAlitudeConstraints = [];
         this.descentAltitudeConstraints = [];
-    }
-
-    resetSpeedConstraints() {
         this.climbSpeedConstraints = [];
         this.descentSpeedConstraints = [];
-    }
-
-    resetPathAngleConstraints() {
         this.flightPathAngleConstraints = [];
-    }
-
-    reset() {
-        this.resetAltitudeConstraints();
-        this.resetSpeedConstraints();
-        this.resetPathAngleConstraints();
+        this.cruiseSteps = [];
 
         this.totalFlightPlanDistance = 0;
         this.distanceToPresentPosition = 0;
