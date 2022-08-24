@@ -195,8 +195,6 @@ export class ApproachPathBuilder {
             decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError / 3);
         }
 
-        console.log(`[FMS/VNAV] Final error: ${decelerationSegmentDistanceError}`);
-
         sequence.push(...decelerationSequence.get());
 
         // Don't bother considering the climb step in the profile if we have already reached the target speed in the deceleration segment
