@@ -541,4 +541,8 @@ export class VnavDriver implements GuidanceComponent {
             || this.lastParameters.approachQnh !== newParameters.approachQnh
             || this.lastParameters.approachTemperature !== newParameters.approachTemperature;
     }
+
+    public getDestinationPrediction(): VerticalWaypointPrediction | null {
+        return this.currentNavGeometryProfile?.waypointPredictions?.get(this.flightPlanManager.getDestinationIndex());
+    }
 }

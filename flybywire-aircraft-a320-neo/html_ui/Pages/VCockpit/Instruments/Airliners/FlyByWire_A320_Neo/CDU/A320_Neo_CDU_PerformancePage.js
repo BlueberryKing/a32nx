@@ -555,7 +555,7 @@ class CDUPerformancePage {
         const isPhaseActive = mcdu.flightPhaseManager.phase === FmgcFlightPhases.CRUISE;
         const titleColor = isPhaseActive ? "green" : "white";
         const isSelected = Simplane.getAutoPilotAirspeedSelected();
-        const isFlying = false;
+        const isFlying = mcdu.flightPhaseManager.phase >= FmgcFlightPhases.TAKEOFF;
         const actModeCell = isSelected ? "SELECTED" : "MANAGED";
         const costIndexCell = isFinite(mcdu.costIndex) ? mcdu.costIndex.toFixed(0) + "[color]cyan" : "[][color]cyan";
         let managedSpeedCell = "";
@@ -575,6 +575,8 @@ class CDUPerformancePage {
         if (isFlying) {
             timeLabel = "UTC";
         }
+        const [destEfobCell, destTimeCell] = CDUPerformancePage.formatDestEfobAndTime(mcdu, isFlying);
+
         const bottomRowLabels = ["\xa0PREV", "NEXT\xa0"];
         const bottomRowCells = ["<PHASE", "PHASE>"];
         mcdu.leftInputDelay[5] = () => {
@@ -616,8 +618,8 @@ class CDUPerformancePage {
         };
         mcdu.setTemplate([
             ["CRZ[color]" + titleColor],
-            ["ACT MODE", "EFOB", timeLabel],
-            [actModeCell + "[color]green", "6.0[color]green", "----[color]green"],
+            ["ACT MODE", "DEST EFOB", timeLabel],
+            [actModeCell + "[color]green", destEfobCell, destTimeCell],
             ["\xa0CI"],
             [costIndexCell + "[color]cyan"],
             ["\xa0MANAGED"],
@@ -647,7 +649,7 @@ class CDUPerformancePage {
         };
         const isPhaseActive = mcdu.flightPhaseManager.phase === FmgcFlightPhases.DESCENT;
         const titleColor = isPhaseActive ? "green" : "white";
-        const isFlying = false;
+        const isFlying = mcdu.flightPhaseManager.phase >= FmgcFlightPhases.TAKEOFF;
         const isSelected = Simplane.getAutoPilotAirspeedSelected();
         const actModeCell = isSelected ? "SELECTED" : "MANAGED";
         const costIndexCell = isFinite(mcdu.costIndex) ? mcdu.costIndex.toFixed(0) + "[color]cyan" : "[][color]cyan";
@@ -661,6 +663,8 @@ class CDUPerformancePage {
         if (isFlying) {
             timeLabel = "UTC";
         }
+        const [destEfobCell, destTimeCell] = CDUPerformancePage.formatDestEfobAndTime(mcdu, isFlying);
+
         const bottomRowLabels = ["\xa0PREV", "NEXT\xa0"];
         const bottomRowCells = ["<PHASE", "PHASE>"];
         mcdu.leftInputDelay[5] = () => {
@@ -709,8 +713,8 @@ class CDUPerformancePage {
         };
         mcdu.setTemplate([
             ["DES[color]" + titleColor],
-            ["ACT MODE", "EFOB", timeLabel],
-            [actModeCell + "[color]green", "6.0[color]green", "----[color]green"],
+            ["ACT MODE", "DEST EFOB", timeLabel],
+            [actModeCell + "[color]green", destEfobCell, destTimeCell],
             ["\xa0CI"],
             [costIndexCell + "[color]cyan"],
             ["\xa0MANAGED"],
@@ -1178,6 +1182,30 @@ class CDUPerformancePage {
         }
 
         return [predToDistanceCell, predToTimeCell];
+    }
+    static formatDestEfobAndTime(mcdu, isFlying) {
+        const destinationPrediction = mcdu.guidanceController.vnavDriver.getDestinationPrediction();
+
+        let destEfobCell = "---.-";
+        let destTimeCell = "----";
+
+        if (destinationPrediction) {
+            if (isFinite(destinationPrediction.estimatedFuelOnBoard)) {
+                destEfobCell = (NXUnits.poundsToUser(destinationPrediction.estimatedFuelOnBoard) / 1000).toFixed(1) + "[color]green";
+            }
+
+            if (isFinite(destinationPrediction.secondsFromPresent)) {
+                const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
+
+                const predToTimeCellText = isFlying
+                    ? FMCMainDisplay.secondsToUTC(utcTime + destinationPrediction.secondsFromPresent)
+                    : FMCMainDisplay.secondsTohhmm(destinationPrediction.secondsFromPresent);
+
+                destTimeCell = predToTimeCellText + "[color]green";
+            }
+        }
+
+        return [destEfobCell, destTimeCell];
     }
 }
 CDUPerformancePage._timer = 0;

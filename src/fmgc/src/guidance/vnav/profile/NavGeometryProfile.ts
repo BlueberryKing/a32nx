@@ -19,6 +19,7 @@ export interface VerticalWaypointPrediction {
     isSpeedConstraintMet: boolean,
     altError: number,
     distanceToTopOfDescent: NauticalMiles | null,
+    estimatedFuelOnBoard: Pounds
 }
 
 export enum VerticalCheckpointReason {
