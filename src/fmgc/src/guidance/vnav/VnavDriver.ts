@@ -1,7 +1,6 @@
 //  Copyright (c) 2021 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { DecelPathBuilder, DecelPathCharacteristics } from '@fmgc/guidance/vnav/descent/DecelPathBuilder';
 import { DescentPathBuilder } from '@fmgc/guidance/vnav/descent/DescentPathBuilder';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { RequestedVerticalMode, TargetAltitude, TargetVerticalSpeed } from '@fmgc/guidance/ControlLaws';
