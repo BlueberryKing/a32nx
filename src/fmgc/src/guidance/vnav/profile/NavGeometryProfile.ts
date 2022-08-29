@@ -1,10 +1,17 @@
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
-import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
-import { Geometry } from '../../Geometry';
-import { AltitudeConstraint, AltitudeConstraintType, PathAngleConstraint, SpeedConstraint, SpeedConstraintType } from '../../lnav/legs';
+import { FlightPlans } from '@fmgc/flightplanning/FlightPlanManager';
+import { GuidanceController } from '@fmgc/guidance/GuidanceController';
+import {
+    AltitudeConstraint,
+    AltitudeConstraintType,
+    getAltitudeConstraintFromWaypoint,
+    getSpeedConstraintFromWaypoint,
+    PathAngleConstraint,
+    SpeedConstraint,
+    SpeedConstraintType,
+} from '../../lnav/legs';
 
 // TODO: Merge this with VerticalCheckpoint
 export interface VerticalWaypointPrediction {
@@ -108,7 +115,7 @@ export class NavGeometryProfile extends BaseGeometryProfile {
     public waypointPredictions: Map<number, VerticalWaypointPrediction> = new Map();
 
     constructor(
-        public geometry: Geometry,
+        public guidanceControler: GuidanceController,
         private constraintReader: ConstraintReader,
         private atmosphericConditions: AtmosphericConditions,
         public waypointCount: number,
@@ -161,61 +168,40 @@ export class NavGeometryProfile extends BaseGeometryProfile {
      */
     private computePredictionsAtWaypoints(): Map<number, VerticalWaypointPrediction> {
         const predictions = new Map<number, VerticalWaypointPrediction>();
+        const fpm = this.guidanceControler.flightPlanManager;
 
         if (!this.isReadyToDisplay) {
             return predictions;
         }
 
-        let totalDistance = 0;
-
         const topOfDescent = this.findVerticalCheckpoint(VerticalCheckpointReason.TopOfDescent);
 
-        for (let i = 0; i < this.waypointCount; i++) {
-            const leg = this.geometry.legs.get(i);
-            if (!leg || leg.isNull) {
+        for (let i = this.guidanceControler.activeLegIndex - 1; i < fpm.getWaypointsCount(FlightPlans.Active); i++) {
+            const waypoint = fpm.getWaypoint(i, FlightPlans.Active);
+            if (!waypoint) {
                 continue;
             }
 
-            const inboundTransition = this.geometry.transitions.get(i - 1);
-            const outboundTransition = this.geometry.transitions.get(i);
+            const distanceFromStart = this.getDistanceFromStart(waypoint.additionalData.distanceToEnd);
+            const { secondsFromPresent, altitude, speed, mach, remainingFuelOnBoard } = this.interpolateEverythingFromStart(distanceFromStart);
 
-            const [inboundLength, legDistance, outboundLength] = Geometry.completeLegPathLengths(
-                leg, (inboundTransition?.isNull || !inboundTransition?.isComputed) ? null : inboundTransition, outboundTransition,
-            );
-
-            const correctedInboundLength = Number.isNaN(inboundLength) ? 0 : inboundLength;
-
-            const totalLegLength = legDistance + correctedInboundLength + outboundLength;
-
-            totalDistance += totalLegLength;
-
-            const { secondsFromPresent, altitude, speed, mach } = this.interpolateEverythingFromStart(totalDistance);
+            const altitudeConstraint = getAltitudeConstraintFromWaypoint(waypoint);
+            const speedConstraint = getSpeedConstraintFromWaypoint(waypoint);
 
             predictions.set(i, {
                 waypointIndex: i,
-                distanceFromStart: totalDistance,
+                distanceFromStart,
                 secondsFromPresent,
                 altitude,
                 speed: this.atmosphericConditions.casOrMach(speed, mach, altitude),
-                altitudeConstraint: leg.metadata.altitudeConstraint,
-                isAltitudeConstraintMet: this.isAltitudeConstraintMet(altitude, leg.metadata.altitudeConstraint),
-                speedConstraint: leg.metadata.speedConstraint,
-                isSpeedConstraintMet: this.isSpeedConstraintMet(speed, leg.metadata.speedConstraint),
-                altError: this.computeAltError(altitude, leg.metadata.altitudeConstraint),
-                distanceToTopOfDescent: topOfDescent ? topOfDescent.distanceFromStart - totalDistance : null,
+                altitudeConstraint,
+                isAltitudeConstraintMet: this.isAltitudeConstraintMet(altitude, altitudeConstraint),
+                speedConstraint,
+                isSpeedConstraintMet: this.isSpeedConstraintMet(speed, speedConstraint),
+                altError: this.computeAltError(altitude, altitudeConstraint),
+                distanceToTopOfDescent: topOfDescent ? topOfDescent.distanceFromStart - distanceFromStart : null,
+                estimatedFuelOnBoard: remainingFuelOnBoard,
             });
-
-            let distanceInDiscontinuity = 0;
-            const nextLeg = this.geometry.legs.get(i + 1);
-            const previousLeg = this.geometry.legs.get(i - 1);
-
-            if (leg instanceof XFLeg && leg.fix.endsInDiscontinuity && nextLeg instanceof XFLeg) {
-                distanceInDiscontinuity = Avionics.Utils.computeGreatCircleDistance(leg.fix.infos.coordinates, nextLeg.fix.infos.coordinates);
-            } else if (leg instanceof VMLeg && previousLeg instanceof XFLeg && nextLeg instanceof XFLeg) {
-                distanceInDiscontinuity = Avionics.Utils.computeGreatCircleDistance(previousLeg.fix.infos.coordinates, nextLeg.fix.infos.coordinates);
-            }
-
-            totalDistance += distanceInDiscontinuity;
         }
 
         return predictions;
@@ -321,6 +307,7 @@ export class NavGeometryProfile extends BaseGeometryProfile {
     }
 
     override resetAltitudeConstraints() {
-        this.constraintReader.resetAltitudeConstraints();
+        this.constraintReader.climbAlitudeConstraints = [];
+        this.constraintReader.descentAltitudeConstraints = [];
     }
 }

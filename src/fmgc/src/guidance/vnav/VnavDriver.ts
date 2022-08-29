@@ -34,7 +34,7 @@ import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfi
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
-import { NavGeometryProfile, VerticalCheckpointReason } from './profile/NavGeometryProfile';
+import { NavGeometryProfile, VerticalCheckpointReason, VerticalWaypointPrediction } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 
 export class VnavDriver implements GuidanceComponent {
@@ -144,7 +144,7 @@ export class VnavDriver implements GuidanceComponent {
         this.headingProfile.updateGeometry(geometry);
 
         this.computeVerticalProfileForMcdu(geometry);
-        this.computeVerticalProfileForNd(geometry);
+        this.computeVerticalProfileForNd();
 
         if (this.shouldUpdateDescentProfile(newParameters)) {
             this.lastFlightPlanVersion = this.flightPlanManager.currentFlightPlanVersion;
@@ -213,7 +213,7 @@ export class VnavDriver implements GuidanceComponent {
     private computeVerticalProfileForMcdu(geometry: Geometry) {
         const { flightPhase, presentPosition, fuelOnBoard } = this.computationParametersObserver.get();
 
-        this.currentNavGeometryProfile = new NavGeometryProfile(geometry, this.constraintReader, this.atmosphericConditions, this.flightPlanManager.getWaypointsCount());
+        this.currentNavGeometryProfile = new NavGeometryProfile(this.guidanceController, this.constraintReader, this.atmosphericConditions, this.flightPlanManager.getWaypointsCount());
 
         if (geometry.legs.size <= 0 || !this.computationParametersObserver.canComputeProfile()) {
             return;
@@ -240,11 +240,11 @@ export class VnavDriver implements GuidanceComponent {
         }
     }
 
-    private computeVerticalProfileForNd(geometry: Geometry) {
+    private computeVerticalProfileForNd() {
         const { fcuAltitude, fcuVerticalMode, presentPosition, fuelOnBoard, fcuVerticalSpeed, flightPhase } = this.computationParametersObserver.get();
 
         this.currentNdGeometryProfile = this.isInManagedNav()
-            ? new NavGeometryProfile(geometry, this.constraintReader, this.atmosphericConditions, this.flightPlanManager.getWaypointsCount())
+            ? new NavGeometryProfile(this.guidanceController, this.constraintReader, this.atmosphericConditions, this.flightPlanManager.getWaypointsCount())
             : new SelectedGeometryProfile();
 
         if (!this.computationParametersObserver.canComputeProfile()) {
