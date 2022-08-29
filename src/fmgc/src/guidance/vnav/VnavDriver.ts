@@ -120,15 +120,17 @@ export class VnavDriver implements GuidanceComponent {
 
     update(deltaTime: number): void {
         try {
-            const { presentPosition } = this.computationParametersObserver.get();
+            const { presentPosition, flightPhase } = this.computationParametersObserver.get();
 
             if (this.coarsePredictionsUpdate.canUpdate(deltaTime) !== -1) {
                 CoarsePredictions.updatePredictions(this.guidanceController, this.atmosphericConditions);
             }
 
-            this.constraintReader.updateDistanceToEnd(presentPosition);
-            this.updateTimeMarkers();
-            this.descentGuidance.update(deltaTime, this.constraintReader.distanceToEnd);
+            if (flightPhase >= FmgcFlightPhase.Takeoff) {
+                this.constraintReader.updateDistanceToEnd(presentPosition);
+                this.updateTimeMarkers();
+                this.descentGuidance.update(deltaTime, this.constraintReader.distanceToEnd);
+            }
         } catch (e) {
             console.error('[FMS] Failed to calculate vertical profile. See exception below.');
             console.error(e);
@@ -530,14 +532,19 @@ export class VnavDriver implements GuidanceComponent {
 
         return newParameters.flightPhase < FmgcFlightPhase.Descent || newParameters.flightPhase > FmgcFlightPhase.Approach
             || (this.flightPlanManager.currentFlightPlanVersion !== this.lastFlightPlanVersion && !this.flightPlanManager.isCurrentFlightPlanTemporary())
-            || this.lastParameters.cruiseAltitude !== newParameters.cruiseAltitude
-            || this.lastParameters.managedDescentSpeed !== newParameters.managedDescentSpeed
-            || this.lastParameters.managedDescentSpeedMach !== newParameters.managedDescentSpeedMach
-            || this.lastParameters.approachQnh !== newParameters.approachQnh
-            || this.lastParameters.approachTemperature !== newParameters.approachTemperature;
+            || numberOrNanChanged(this.lastParameters.cruiseAltitude, newParameters.cruiseAltitude)
+            || numberOrNanChanged(this.lastParameters.managedDescentSpeed, newParameters.managedDescentSpeed)
+            || numberOrNanChanged(this.lastParameters.managedDescentSpeedMach, newParameters.managedDescentSpeedMach)
+            || numberOrNanChanged(this.lastParameters.approachQnh, newParameters.approachQnh)
+            || numberOrNanChanged(this.lastParameters.approachTemperature, newParameters.approachTemperature);
     }
 
     public getDestinationPrediction(): VerticalWaypointPrediction | null {
         return this.currentNavGeometryProfile?.waypointPredictions?.get(this.flightPlanManager.getDestinationIndex());
     }
+}
+
+/// To check whether the value changed from old to new, but not if both values are NaN. (NaN !== NaN in JS)
+function numberOrNanChanged(oldValue: number, newValue: number): boolean {
+    return Number.isNaN(oldValue) !== Number.isNaN(newValue) && oldValue !== newValue;
 }
