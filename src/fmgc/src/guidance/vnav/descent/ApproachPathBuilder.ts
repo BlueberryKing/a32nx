@@ -4,7 +4,7 @@
 import { Predictions, StepResults } from '@fmgc/guidance/vnav/Predictions';
 import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { DescentAltitudeConstraint, NavGeometryProfile, VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
-import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
+import { VerticalProfileComputationParameters, VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { ManagedSpeedType, SpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { DescentStrategy, IdleDescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
@@ -16,29 +16,29 @@ import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 
 class FlapConfigurationProfile {
-    static getBySpeed(speed: Knots): FlapConf {
-        if (speed > 230) {
+    static getBySpeed(speed: Knots, parameters: VerticalProfileComputationParameters): FlapConf {
+        if (speed > parameters.cleanSpeed) {
             return FlapConf.CLEAN;
-        } if (speed > 200) {
+        } if (speed > parameters.slatRetractionSpeed) {
             return FlapConf.CONF_1;
-        } if (speed > 185) {
+        } if (speed > parameters.flapRetractionSpeed) {
             return FlapConf.CONF_2;
-        } if (speed > 177) {
+        } if (speed > (parameters.flapRetractionSpeed + parameters.approachSpeed) / 2) {
             return FlapConf.CONF_3;
         }
 
         return FlapConf.CONF_FULL;
     }
 
-    static findNextExtensionSpeed(speed: Knots) {
-        if (speed < 177) {
-            return 177;
-        } if (speed < 185) {
-            return 185;
-        } if (speed < 200) {
-            return 200;
-        } if (speed < 230) {
-            return 230;
+    static findNextExtensionSpeed(speed: Knots, parameters: VerticalProfileComputationParameters) {
+        if (speed < (parameters.flapRetractionSpeed + parameters.approachSpeed) / 2) {
+            return (parameters.flapRetractionSpeed + parameters.approachSpeed) / 2;
+        } if (speed < parameters.flapRetractionSpeed) {
+            return parameters.flapRetractionSpeed;
+        } if (speed < parameters.slatRetractionSpeed) {
+            return parameters.slatRetractionSpeed;
+        } if (speed < parameters.cleanSpeed) {
+            return parameters.cleanSpeed;
         }
 
         return Infinity;
@@ -52,11 +52,11 @@ export interface AircraftConfiguration {
 }
 
 export class AircraftConfigurationProfile {
-    static getBySpeed(speed: Knots): AircraftConfiguration {
+    static getBySpeed(speed: Knots, parameters: VerticalProfileComputationParameters): AircraftConfiguration {
         return {
-            flapConfig: FlapConfigurationProfile.getBySpeed(speed),
+            flapConfig: FlapConfigurationProfile.getBySpeed(speed, parameters),
             speedbrakesExtended: false,
-            gearExtended: speed < 200, // Below 200 kts, you will have the flaps extended, so we assume the gear to be down
+            gearExtended: speed < parameters.flapRetractionSpeed,
         };
     }
 }
@@ -127,7 +127,8 @@ export class ApproachPathBuilder {
         const speedTarget = speedProfile.getTarget(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
 
         if (speedTarget - sequence.lastCheckpoint.speed > 0.1) {
-            const decelerationToDescentSpeed = this.buildDecelerationPath(sequence, this.idleStrategy, speedProfile, windProfile, 0);
+            // We use -Infinty because we just want to decelerate to the descent speed without and constraint on distance
+            const decelerationToDescentSpeed = this.buildDecelerationPath(sequence, this.idleStrategy, speedProfile, windProfile, -Infinity);
             sequence.push(...decelerationToDescentSpeed.get());
         }
 
@@ -186,7 +187,7 @@ export class ApproachPathBuilder {
                 managedDescentSpeedMach,
                 decelerationSequence.lastCheckpoint.remainingFuelOnBoard,
                 windProfile.getHeadwindComponent(distanceFromStart - decelerationSegmentDistance, minimumAltitude),
-                AircraftConfigurationProfile.getBySpeed(decelerationSequence.lastCheckpoint.speed),
+                AircraftConfigurationProfile.getBySpeed(decelerationSequence.lastCheckpoint.speed, this.observer.get()),
             );
 
             const distanceTraveled = descentSegment.distanceTraveled + (distanceFromStart - decelerationSequence.lastCheckpoint.distanceFromStart);
@@ -239,7 +240,8 @@ export class ApproachPathBuilder {
     ): TemporaryCheckpointSequence {
         const decelerationSequence = new TemporaryCheckpointSequence(sequence.lastCheckpoint);
 
-        const { managedDescentSpeedMach } = this.observer.get();
+        const parameters = this.observer.get();
+        const { managedDescentSpeedMach } = parameters;
 
         let i = 0;
         while (i++ < 10
@@ -249,7 +251,7 @@ export class ApproachPathBuilder {
             const { distanceFromStart, altitude, speed, remainingFuelOnBoard } = decelerationSequence.lastCheckpoint;
 
             const speedConstraint = speedProfile.getMaxDescentSpeedConstraint(distanceFromStart - 1e-4);
-            const flapTargetSpeed = FlapConfigurationProfile.findNextExtensionSpeed(speed);
+            const flapTargetSpeed = FlapConfigurationProfile.findNextExtensionSpeed(speed, parameters);
 
             // This is the managed descent speed, or the speed limit speed.
             const limitingSpeed = speedProfile.getTargetWithoutConstraints(decelerationSequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
@@ -270,7 +272,7 @@ export class ApproachPathBuilder {
                     managedDescentSpeedMach,
                     remainingFuelOnBoard,
                     windProfile.getHeadwindComponent(distanceFromStart, altitude),
-                    AircraftConfigurationProfile.getBySpeed(speed),
+                    AircraftConfigurationProfile.getBySpeed(speed, parameters),
                 );
 
                 if (decelerationStep.distanceTraveled > 1e-4) {
@@ -292,7 +294,7 @@ export class ApproachPathBuilder {
                         managedDescentSpeedMach,
                         remainingFuelOnBoard - decelerationStep.fuelBurned,
                         windProfile.getHeadwindComponent(distanceFromStart, altitude),
-                        AircraftConfigurationProfile.getBySpeed(speedConstraint.maxSpeed),
+                        AircraftConfigurationProfile.getBySpeed(speedConstraint.maxSpeed, parameters),
                     );
 
                     decelerationSequence.addCheckpointFromStepBackwards(constantStep, VerticalCheckpointReason.SpeedConstraint);
@@ -312,7 +314,7 @@ export class ApproachPathBuilder {
                     managedDescentSpeedMach,
                     remainingFuelOnBoard,
                     windProfile.getHeadwindComponent(distanceFromStart, altitude),
-                    AircraftConfigurationProfile.getBySpeed(speed),
+                    AircraftConfigurationProfile.getBySpeed(speed, parameters),
                 );
 
                 if (decelerationStep.distanceTraveled > remainingDistance) {
@@ -323,7 +325,7 @@ export class ApproachPathBuilder {
                     return decelerationSequence;
                 }
 
-                decelerationSequence.addCheckpointFromStepBackwards(decelerationStep, this.getFlapCheckpointReasonByFlapConf(FlapConfigurationProfile.getBySpeed(targetSpeed)));
+                decelerationSequence.addCheckpointFromStepBackwards(decelerationStep, this.getFlapCheckpointReasonByFlapConf(FlapConfigurationProfile.getBySpeed(targetSpeed, parameters)));
             }
         }
 
