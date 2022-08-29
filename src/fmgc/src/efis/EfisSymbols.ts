@@ -12,7 +12,6 @@ import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { PathVector, PathVectorType } from '@fmgc/guidance/lnav/PathVector';
 import { SegmentType } from '@fmgc/wtsdk';
 import { distanceTo } from 'msfs-geo';
-import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { FlowEventSync } from '@shared/FlowEventSync';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { LegType, RunwaySurface, TurnDirection, VorType } from '../types/fstypes/FSEnums';
@@ -117,12 +116,6 @@ export class EfisSymbols {
             }
             return false;
         };
-
-        let waypointPredictions = new Map<number, VerticalWaypointPrediction>();
-        // Check we are in an AP mode where constraints are not ignored
-        if (this.guidanceController.vnavDriver.shouldObeyAltitudeConstraints()) {
-            waypointPredictions = this.guidanceController.vnavDriver.currentNavGeometryProfile?.waypointPredictions;
-        }
 
         for (const side of EfisSymbols.sides) {
             const range = rangeSettings[SimVar.GetSimVarValue(`L:A32NX_EFIS_${side}_ND_RANGE`, 'number')];
@@ -314,6 +307,10 @@ export class EfisSymbols {
                 }
             }
 
+            const isInManagedNav = this.guidanceController.vnavDriver.isInManagedNav();
+            const waypointPredictions = this.guidanceController.vnavDriver.currentNavGeometryProfile?.waypointPredictions;
+            const shouldObeyAltitudeConstraints = this.guidanceController.vnavDriver.shouldObeyAltitudeConstraints();
+
             // TODO don't send the waypoint before active once FP sequencing is properly implemented
             // (currently sequences with guidance which is too early)
             // eslint-disable-next-line no-lone-blocks
@@ -373,22 +370,20 @@ export class EfisSymbols {
                         direction = wp.additionalData.course;
                     }
 
-                    if (i === activeFp.activeWaypointIndex) {
-                        type |= NdSymbolTypeFlags.ActiveLegTermination;
-                    }
-
                     const isBehindAircraft = i < activeFp.activeWaypointIndex;
-                    const isInManagedNav = this.guidanceController.vnavDriver.isInManagedNav();
 
                     if (isInManagedNav && !isBehindAircraft && wp.legAltitudeDescription > 0 && wp.legAltitudeDescription < 6) {
-                        const predictionAtWaypoint = waypointPredictions.get(i);
+                        if (shouldObeyAltitudeConstraints) {
+                            type |= NdSymbolTypeFlags.Constraint;
 
-                        type |= NdSymbolTypeFlags.Constraint;
-
-                        if (predictionAtWaypoint?.isAltitudeConstraintMet) {
-                            type |= NdSymbolTypeFlags.MagentaColor;
-                        } else if (predictionAtWaypoint) {
-                            type |= NdSymbolTypeFlags.AmberColor;
+                            const predictionAtWaypoint = waypointPredictions.get(i);
+                            if (predictionAtWaypoint?.isAltitudeConstraintMet) {
+                                type |= NdSymbolTypeFlags.MagentaColor;
+                            } else if (predictionAtWaypoint) {
+                                type |= NdSymbolTypeFlags.AmberColor;
+                            }
+                        } else if (i === activeFp.activeWaypointIndex) {
+                            type |= NdSymbolTypeFlags.Constraint;
                         }
                     }
 
