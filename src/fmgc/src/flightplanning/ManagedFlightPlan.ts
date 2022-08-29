@@ -1625,24 +1625,35 @@ export class ManagedFlightPlan {
         return false;
     }
 
-    public tryAddStepAltitude(ident: string, toAltitude: Feet): boolean {
-        const waypoint = this.findWaypointByIdent(ident);
+    public tryAddOrUpdateCruiseStep(ident: string, toAltitude: Feet): boolean {
+        // TODO: Handle optimum steps
+        const waypointIndex = this.findWaypointIndexByIdent(ident);
+        const waypoint = this.getWaypoint(waypointIndex);
+        if (waypointIndex > 0) {
+            waypoint.additionalData.cruiseStep = {
+                distanceBeforeTermination: 0,
+                toAltitude,
+                waypointIndex: waypointIndex,
+            };
 
-        if (!waypoint) {
-            return false;
+            return true;
         }
 
-        const step: StepData = {
-            distanceBeforeTermination: 0,
-            toAltitude,
-        }
-
-        waypoint.additionalData.steps.push(step);
-
-        return true;
+        return false;
     }
 
-    private findWaypointByIdent(ident: string): WayPoint | undefined {
-        return this.waypoints.find(waypoint => waypoint.ident === ident);
+    public tryRemoveCruiseStep(waypointIndex: number): boolean {
+        const waypoint = this.getWaypoint(waypointIndex);
+
+        if (waypoint) {
+            waypoint.additionalData.cruiseStep = undefined;
+            return true;
+        }
+
+        return false
+    }
+
+    private findWaypointIndexByIdent(ident: string): number {
+        return this.waypoints.findIndex(waypoint => waypoint.ident === ident);
     }
 }

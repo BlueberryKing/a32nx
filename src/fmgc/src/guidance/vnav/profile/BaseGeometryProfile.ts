@@ -1,6 +1,13 @@
 import { Common } from '@fmgc/guidance/vnav/common';
 import { PseudoWaypointFlightPlanInfo } from '@fmgc/guidance/PseudoWaypoint';
-import { CruiseStep, DescentAltitudeConstraint, MaxAltitudeConstraint, MaxSpeedConstraint, VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import {
+    GeographicCruiseStep,
+    DescentAltitudeConstraint,
+    MaxAltitudeConstraint,
+    MaxSpeedConstraint,
+    VerticalCheckpoint,
+    VerticalCheckpointReason,
+} from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { MathUtils } from '@shared/MathUtils';
 
 export interface PerformancePagePrediction {
@@ -22,7 +29,7 @@ export abstract class BaseGeometryProfile {
 
     abstract get descentSpeedConstraints(): MaxSpeedConstraint[];
 
-    abstract get cruiseSteps(): CruiseStep[];
+    abstract get cruiseSteps(): GeographicCruiseStep[];
 
     abstract get distanceToPresentPosition(): NauticalMiles;
 

@@ -18,13 +18,13 @@ class CDUStepAltsPage {
             [""],
             CDUStepAltsPage.formatStepClimbLine(mcdu, 3, predictions, isFlying, transitionAltitude),
             [""],
-            CDUStepAltsPage.formatOptStepLine(coordinator.steps),
+            CDUStepAltsPage.formatOptStepLine(mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.cruiseSteps),
             [""],
             ["<RETURN"]
         ]);
 
         for (let i = 0; i < 4; i++) {
-            mcdu.onLeftInput[i] = (value) => CDUStepAltsPage.tryParseLeftInput(mcdu, coordinator, i, value);
+            mcdu.onLeftInput[i] = (value) => CDUStepAltsPage.tryParseLeftInput(mcdu, i, value);
         }
 
         mcdu.onLeftInput[4] = () => { };
@@ -66,6 +66,7 @@ class CDUStepAltsPage {
             return ["{cyan}" + emptyField + "/" + emptyField + "{end}"];
         } else {
             const step = enteredStepAlts[index];
+            const waypoint = mcdu.flightPlanManager.getWaypoint(step.waypointIndex);
 
             let distanceCell = "----";
             let timeCell = "----";
@@ -89,17 +90,17 @@ class CDUStepAltsPage {
 
             const lastColumn = step.isIgnored ? "IGNORED" : distanceCell + "\xa0" + timeCell;
 
-            return ["{cyan}" + CDUStepAltsPage.formatFl(step.toAltitude, transitionAltitude) + "/" + step.ident + "{end}", lastColumn];
+            return ["{cyan}" + CDUStepAltsPage.formatFl(step.toAltitude, transitionAltitude) + "/" + waypoint.ident + "{end}", lastColumn];
         }
     }
 
-    static tryParseLeftInput(mcdu, coordinator, index, input) {
-        if (index < coordinator.steps.length) {
-            return this.onClickExistingStepClimb(mcdu, coordinator, index, input);
+    static tryParseLeftInput(mcdu, index, input) {
+        if (index < mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.cruiseSteps.length) {
+            return this.onClickExistingStepClimb(mcdu, index, input);
         }
 
         // Create new step altitude
-        if (coordinator.steps.length >= 4) {
+        if (mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.cruiseSteps.length >= 4) {
             mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
             return false;
         }
@@ -109,9 +110,9 @@ class CDUStepAltsPage {
         const rawIdentInput = splitInputs[1];
 
         if (!rawIdentInput) {
-            mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
-            return false;
             // OPT STEP
+            mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
+            return false;
         }
 
         const alt = this.tryParseAltitude(mcdu, rawAltitudeInput);
@@ -119,7 +120,7 @@ class CDUStepAltsPage {
             return false;
         }
 
-        if (!mcdu.flightPlanManager.tryAddStepAltitude(rawIdentInput, alt)) {
+        if (!mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, alt)) {
             mcdu.setScratchpadMessage(NXSystemMessages.formatError);
             return false;
         }
@@ -151,16 +152,55 @@ class CDUStepAltsPage {
         return altValue;
     }
 
-    static onClickExistingStepClimb(mcdu, coordinator, index, input) {
-        if (input === FMCMainDisplay.clrValue) {
-            coordinator.removeStep(index);
-            CDUStepAltsPage.ShowPage(mcdu);
+    static onClickExistingStepClimb(mcdu, index, input) {
+        const existingStep = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.cruiseSteps[index];
 
+        if (input === FMCMainDisplay.clrValue) {
+            mcdu.flightPlanManager.removeCruiseStep(existingStep.waypointIndex);
+            CDUStepAltsPage.ShowPage(mcdu);
             return true;
         }
 
         // Edit step
+        const splitInputs = input.split("/");
+        if (splitInputs.length === 1) {
+            // Altitude only
+            mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
+            return false;
+        } else if (splitInputs.length === 2) {
+            const rawAltitudeInput = splitInputs[0];
+            const rawIdentInput = splitInputs[1];
 
+            if (rawAltitudeInput === "") {
+                // /Waypoint
+                if (mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, existingStep.toAltitude)) {
+                    mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
+
+                    CDUStepAltsPage.ShowPage(mcdu);
+                    return true;
+                }
+            } else {
+                // Altitude/waypoint
+                const altitude = this.tryParseAltitude(mcdu, rawAltitudeInput);
+                if (!altitude) {
+                    return false;
+                }
+
+                if (mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, altitude)) {
+                    mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
+
+                    CDUStepAltsPage.ShowPage(mcdu);
+                    return true;
+                }
+            }
+        } else if (splitInputs.length === 3) {
+            // Altitude/place/distance or
+            // /Place/distance
+            mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
+            return false;
+        }
+
+        mcdu.setScratchpadMessage(NXSystemMessages.formatError);
         return false;
     }
 }

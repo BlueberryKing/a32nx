@@ -9,7 +9,7 @@ import { WindComponent } from '@fmgc/guidance/vnav/wind';
 import { TemporaryCheckpointSequence } from '@fmgc/guidance/vnav/profile/TemporaryCheckpointSequence';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { Predictions, StepResults } from '../Predictions';
-import { CruiseStep, MaxSpeedConstraint, VerticalCheckpoint, VerticalCheckpointReason } from '../profile/NavGeometryProfile';
+import { GeographicCruiseStep, MaxSpeedConstraint, VerticalCheckpoint, VerticalCheckpointReason } from '../profile/NavGeometryProfile';
 import { AtmosphericConditions } from '../AtmosphericConditions';
 
 export class CruisePathBuilder {
@@ -120,7 +120,7 @@ export class CruisePathBuilder {
         sequence.addCheckpointFromStep(segmentResult, VerticalCheckpointReason.SpeedConstraint);
     }
 
-    private addStepFromLastCheckpoint(sequence: TemporaryCheckpointSequence, step: CruiseStep, stepClimbStrategy: ClimbStrategy, stepDescentStrategy: DescentStrategy) {
+    private addStepFromLastCheckpoint(sequence: TemporaryCheckpointSequence, step: GeographicCruiseStep, stepClimbStrategy: ClimbStrategy, stepDescentStrategy: DescentStrategy) {
         // TODO: What happens if the step is at cruise altitude?
         const { managedCruiseSpeed, managedCruiseSpeedMach } = this.computationParametersObserver.get();
         const { altitude, remainingFuelOnBoard } = sequence.lastCheckpoint;

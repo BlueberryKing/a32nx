@@ -71,4 +71,6 @@ export interface StepData {
     distanceBeforeTermination: NauticalMiles,
 
     toAltitude: Feet,
+
+    ident: string,
 }

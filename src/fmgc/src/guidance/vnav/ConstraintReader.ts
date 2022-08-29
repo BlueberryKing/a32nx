@@ -43,20 +43,16 @@ export class ConstraintReader {
             const leg = geometry.legs.get(i);
             const waypoint = fpm.getWaypoint(i, FlightPlans.Active);
 
-            this.updateDistanceFromStart(i, ppos);
+            if (waypoint.additionalData.cruiseStep) {
+                const { waypointIndex, toAltitude, distanceBeforeTermination } = waypoint.additionalData.cruiseStep;
 
-            // I think this is only hit for manual discontinuities
-            if (!leg) {
-                continue;
+                this.cruiseSteps.push({
+                    distanceFromStart: this.totalFlightPlanDistance - waypoint.additionalData.distanceToEnd - distanceBeforeTermination,
+                    toAltitude,
+                    waypointIndex,
+                    isIgnored: false,
+                });
             }
-
-            if ((waypoint.additionalData.steps?.length ?? 0) > 0) {
-                for (const step of waypoint.additionalData.steps) {
-                    this.cruiseSteps.push({
-                        distanceFromStart: this.totalFlightPlanDistance - step.distanceBeforeTermination,
-                        toAltitude: step.toAltitude,
-                    });
-                }
             }
 
             if (waypoint.additionalData.constraintType === WaypointConstraintType.CLB) {

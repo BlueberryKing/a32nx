@@ -1974,12 +1974,17 @@ export class FlightPlanManager {
         return FlightArea.Enroute;
     }
 
-    public tryAddStepAltitude(waypointIdent: string, toAltitude: Feet): boolean {
-        if (this._flightPlans[this._currentFlightPlanIndex].tryAddStepAltitude(waypointIdent, toAltitude)) {
+    public tryAddOrUpdateCruiseStep(waypointIdent: string, toAltitude: Feet): boolean {
+        if (this._flightPlans[this._currentFlightPlanIndex].tryAddOrUpdateCruiseStep(waypointIdent, toAltitude)) {
             this.updateFlightPlanVersion().catch(console.error);
             return true;
         }
 
         return false;
+    }
+
+    public tryRemoveCruiseStep(waypointIndex: number): void {
+        this._flightPlans[this._currentFlightPlanIndex].tryRemoveCruiseStep(waypointIndex);
+        this.updateFlightPlanVersion().catch(console.error);
     }
 }

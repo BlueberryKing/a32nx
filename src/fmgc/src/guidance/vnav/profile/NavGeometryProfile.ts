@@ -97,9 +97,11 @@ export interface ApproachPathAngleConstraint {
     pathAngle: PathAngleConstraint,
 }
 
-export interface CruiseStep {
+export interface GeographicCruiseStep {
     distanceFromStart: NauticalMiles,
     toAltitude: Feet,
+    waypointIndex: string,
+    isIgnored: boolean,
 }
 
 export class NavGeometryProfile extends BaseGeometryProfile {
@@ -134,7 +136,7 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         return this.constraintReader.distanceToPresentPosition;
     }
 
-    override get cruiseSteps(): CruiseStep[] {
+    override get cruiseSteps(): GeographicCruiseStep[] {
         return this.constraintReader.cruiseSteps;
     }
 
