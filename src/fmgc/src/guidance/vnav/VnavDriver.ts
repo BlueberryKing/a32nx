@@ -40,29 +40,25 @@ import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
 export class VnavDriver implements GuidanceComponent {
     version: number = 0;
 
-    takeoffPathBuilder: TakeoffPathBuilder;
+    private takeoffPathBuilder: TakeoffPathBuilder;
 
-    climbPathBuilder: ClimbPathBuilder;
+    private climbPathBuilder: ClimbPathBuilder;
 
-    cruisePathBuilder: CruisePathBuilder;
+    private cruisePathBuilder: CruisePathBuilder;
 
-    tacticalDescentPathBuilder: TacticalDescentPathBuilder;
+    private tacticalDescentPathBuilder: TacticalDescentPathBuilder;
 
-    managedDescentPathBuilder: DescentPathBuilder;
+    private managedDescentPathBuilder: DescentPathBuilder;
 
-    decelPathBuilder: DecelPathBuilder;
+    private approachPathBuilder: ApproachPathBuilder;
 
-    approachPathBuilder: ApproachPathBuilder;
-
-    cruiseToDescentCoordinator: CruiseToDescentCoordinator;
+    private cruiseToDescentCoordinator: CruiseToDescentCoordinator;
 
     currentNavGeometryProfile: NavGeometryProfile;
 
     currentSelectedGeometryProfile?: SelectedGeometryProfile;
 
     currentNdGeometryProfile?: BaseGeometryProfile;
-
-    currentApproachProfile?: DecelPathCharacteristics;
 
     private guidanceMode: RequestedVerticalMode;
 
