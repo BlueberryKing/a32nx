@@ -104,7 +104,9 @@ const NXSystemMessages = {
     cancelAtisUpdate:       new TypeIMessage("CANCEL UPDATE BEFORE"),
     keyNotActive:           new TypeIMessage("KEY NOT ACTIVE"),
     latLonAbreviated:       new TypeIMessage("LAT/LON DISPL ABREVIATED"),
-    stepAboveMaxFl:         new TypeIMessage("STEP ABOVE MAX FL"),
+    stepAboveMaxFl:         new TypeIIMessage("STEP ABOVE MAX FL"),
+    stepAhead:              new TypeIIMessage("STEP AHEAD"),
+    stepDeleted:            new TypeIIMessage("STEP DELETED"),
 };
 
 const NXFictionalMessages = {

@@ -2,6 +2,8 @@ class CDUStepAltsPage {
     static Return() {}
 
     static ShowPage(mcdu) {
+        mcdu.pageUpdate = () => { };
+
         const flightPhase = SimVar.GetSimVarValue("L:A32NX_FWC_FLIGHT_PHASE", "Enum");
         const isFlying = flightPhase >= 5 && flightPhase <= 7;
         const transitionAltitude = mcdu.flightPlanManager.originTransitionAltitude;
@@ -156,7 +158,7 @@ class CDUStepAltsPage {
         const existingStep = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.cruiseSteps[index];
 
         if (input === FMCMainDisplay.clrValue) {
-            mcdu.flightPlanManager.removeCruiseStep(existingStep.waypointIndex);
+            mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
             CDUStepAltsPage.ShowPage(mcdu);
             return true;
         }
@@ -164,9 +166,15 @@ class CDUStepAltsPage {
         // Edit step
         const splitInputs = input.split("/");
         if (splitInputs.length === 1) {
-            // Altitude only
-            mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
-            return false;
+            // Altitude
+            const altitude = this.tryParseAltitude(mcdu, splitInputs[0]);
+
+            if (altitude && mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(existingStep, altitude)) {
+                mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
+
+                CDUStepAltsPage.ShowPage(mcdu);
+                return true;
+            }
         } else if (splitInputs.length === 2) {
             const rawAltitudeInput = splitInputs[0];
             const rawIdentInput = splitInputs[1];
@@ -182,11 +190,8 @@ class CDUStepAltsPage {
             } else {
                 // Altitude/waypoint
                 const altitude = this.tryParseAltitude(mcdu, rawAltitudeInput);
-                if (!altitude) {
-                    return false;
-                }
 
-                if (mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, altitude)) {
+                if (altitude && mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, altitude)) {
                     mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
 
                     CDUStepAltsPage.ShowPage(mcdu);

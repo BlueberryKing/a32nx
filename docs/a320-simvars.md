@@ -1675,6 +1675,10 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - The estimation of available track miles is filtered using this constant.
     - **WARNING:** This is only used for testing purposes.
 
+- A32NX_FM_VNAV_TRIGGER_STEP_DELETED
+    - Bool
+    - Indicates whether to trigger a step deleted message on the MCDU
+
 ## Autopilot System
 
 - A32NX_FMA_LATERAL_MODE

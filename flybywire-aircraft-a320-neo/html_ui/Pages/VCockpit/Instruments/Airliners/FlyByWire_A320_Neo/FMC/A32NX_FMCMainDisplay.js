@@ -1717,9 +1717,30 @@ class FMCMainDisplay extends BaseAirliners {
             (this.flightPhaseManager.phase === FmgcFlightPhases.CLIMB && _targetFl > this.cruiseFlightLevel) ||
             (this.flightPhaseManager.phase === FmgcFlightPhases.CRUISE && _targetFl !== this.cruiseFlightLevel)
         ) {
+            this.deleteOutdatedCruiseSteps(this.cruiseFlightLevel, _targetFl);
             this.addMessageToQueue(NXSystemMessages.newCrzAlt.getModifiedMessage(_targetFl * 100));
             this.cruiseFlightLevel = _targetFl;
             this._cruiseFlightLevel = _targetFl;
+        }
+    }
+
+    deleteOutdatedCruiseSteps(oldCruiseLevel, newCruiseLevel) {
+        const isClimbVsDescent = newCruiseLevel > oldCruiseLevel;
+
+        for (let i = this.flightPlanManager.getActiveWaypointIndex(); i < this.flightPlanManager.getWaypointsCount(); i++) {
+            const waypoint = this.flightPlanManager.getWaypoint(i);
+            if (!waypoint || !waypoint.additionalData.cruiseStep) {
+                continue;
+            }
+
+            const stepLevel = Math.round(waypoint.additionalData.cruiseStep.toAltitude / 100);
+
+            if (isClimbVsDescent && stepLevel >= oldCruiseLevel && stepLevel <= newCruiseLevel ||
+                    !isClimbVsDescent && stepLevel <= oldCruiseLevel && stepLevel >= newCruiseLevel
+            ) {
+                waypoint.additionalData.cruiseStep = undefined;
+                this.removeMessageFromQueue(NXSystemMessages.stepAhead.text);
+            }
         }
     }
 

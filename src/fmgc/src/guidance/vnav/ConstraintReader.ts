@@ -20,7 +20,7 @@ export class ConstraintReader {
 
     public totalFlightPlanDistance = 0;
 
-    public distanceToEnd: NauticalMiles = -1;
+    public distanceToEnd: NauticalMiles = 0;
 
     public get distanceToPresentPosition(): NauticalMiles {
         return this.totalFlightPlanDistance - this.distanceToEnd;
@@ -39,14 +39,20 @@ export class ConstraintReader {
             const waypoint = fpm.getWaypoint(i, FlightPlans.Active);
 
             if (waypoint.additionalData.cruiseStep) {
-                const { waypointIndex, toAltitude, distanceBeforeTermination } = waypoint.additionalData.cruiseStep;
+                if (i >= fpm.getActiveWaypointIndex()) {
+                    const { waypointIndex, toAltitude, distanceBeforeTermination } = waypoint.additionalData.cruiseStep;
 
-                this.cruiseSteps.push({
-                    distanceFromStart: this.totalFlightPlanDistance - waypoint.additionalData.distanceToEnd - distanceBeforeTermination,
-                    toAltitude,
-                    waypointIndex,
-                    isIgnored: false,
-                });
+                    this.cruiseSteps.push({
+                        distanceFromStart: this.totalFlightPlanDistance - waypoint.additionalData.distanceToEnd - distanceBeforeTermination,
+                        toAltitude,
+                        waypointIndex,
+                        isIgnored: false,
+                    });
+                } else {
+                    // We've already passed the waypoint
+                    waypoint.additionalData.cruiseStep = undefined;
+                    SimVar.SetSimVarValue('L:A32NX_FM_VNAV_TRIGGER_STEP_DELETED', 'boolean', true);
+                }
             }
 
             const altConstraint = getAltitudeConstraintFromWaypoint(waypoint);

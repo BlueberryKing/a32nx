@@ -542,6 +542,10 @@ export class VnavDriver implements GuidanceComponent {
     public getDestinationPrediction(): VerticalWaypointPrediction | null {
         return this.currentNavGeometryProfile?.waypointPredictions?.get(this.flightPlanManager.getDestinationIndex());
     }
+
+    public get distanceToEnd(): NauticalMiles {
+        return this.constraintReader.distanceToEnd;
+    }
 }
 
 /// To check whether the value changed from old to new, but not if both values are NaN. (NaN !== NaN in JS)

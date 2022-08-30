@@ -53,7 +53,7 @@ export class CruisePathBuilder {
 
             const speed = speedProfile.getTarget(distanceFromStart, altitude, ManagedSpeedType.Cruise);
             const headwind = windProfile.getHeadwindComponent(distanceFromStart, altitude);
-            const segmentToStep = this.computeCruiseSegment(step.distanceFromStart - distanceFromStart, remainingFuelOnBoard, speed, headwind);
+            const segmentToStep = this.computeCruiseSegment(altitude, step.distanceFromStart - distanceFromStart, remainingFuelOnBoard, speed, headwind);
             sequence.addCheckpointFromStep(segmentToStep, VerticalCheckpointReason.AtmosphericConditions);
 
             this.addStepFromLastCheckpoint(sequence, step, stepClimbStrategy, stepDescentStrategy);
@@ -91,6 +91,7 @@ export class CruisePathBuilder {
         }
 
         const step = this.computeCruiseSegment(
+            sequence.lastCheckpoint.altitude,
             targetDistanceFromStart - sequence.lastCheckpoint.distanceFromStart,
             startOfCruise.remainingFuelOnBoard,
             speedTarget,
@@ -111,6 +112,7 @@ export class CruisePathBuilder {
 
         const speed = speedProfile.getTarget(distanceFromStart, altitude, ManagedSpeedType.Cruise);
         const segmentResult = this.computeCruiseSegment(
+            altitude,
             speedConstraint.distanceFromStart - distanceFromStart,
             remainingFuelOnBoard,
             speed,
@@ -140,11 +142,11 @@ export class CruisePathBuilder {
         sequence.addCheckpointFromStep(stepResults, isClimbVsDescent ? VerticalCheckpointReason.TopOfStepClimb : VerticalCheckpointReason.BottomOfStepDescent);
     }
 
-    private computeCruiseSegment(distance: NauticalMiles, remainingFuelOnBoard: number, speed: Knots, headwind: WindComponent): StepResults {
-        const { zeroFuelWeight, cruiseAltitude, managedCruiseSpeedMach } = this.computationParametersObserver.get();
+    private computeCruiseSegment(altitude: Feet, distance: NauticalMiles, remainingFuelOnBoard: number, speed: Knots, headwind: WindComponent): StepResults {
+        const { zeroFuelWeight, managedCruiseSpeedMach } = this.computationParametersObserver.get();
 
         return Predictions.levelFlightStep(
-            cruiseAltitude,
+            altitude,
             distance,
             speed,
             managedCruiseSpeedMach,

@@ -17,12 +17,6 @@ export enum PseudoWaypointSequencingAction {
      * Used for approach phase auto-engagement condition eg. (DECEL)
      */
     APPROACH_PHASE_AUTO_ENGAGE,
-
-    /**
-     * Used to delete the step waypoint
-     */
-    STEP_REACHED,
-
 }
 
 export interface PseudoWaypoint {
