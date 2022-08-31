@@ -383,7 +383,7 @@ export class PseudoWaypoints implements GuidanceComponent {
 
     private createPseudoWaypointFromVerticalCheckpoint(geometry: Geometry, wptCount: number, totalDistance: number, checkpoint: VerticalCheckpoint): PseudoWaypoint | undefined {
         let [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = [undefined, undefined, undefined];
-        if (this.guidanceController.vnavDriver.isInManagedNav()) {
+        if (this.guidanceController.vnavDriver.isInManagedNav() || checkpoint.reason === VerticalCheckpointReason.Decel) {
             const pwp = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - checkpoint?.distanceFromStart);
 
             if (pwp) {
