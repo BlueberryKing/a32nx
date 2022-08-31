@@ -327,7 +327,7 @@ export class PseudoWaypoints implements GuidanceComponent {
             }
 
             if (accumulator > distanceFromEnd) {
-                if (accumulator - totalLegPathLength > distanceFromEnd) {
+                if (distanceInDiscontinuity > 0 && accumulator - totalLegPathLength > distanceFromEnd) {
                     // Points lies on discontinuity (on the direct line between the two fixes)
                     // In this case, we don't want to place the
                     return undefined;
