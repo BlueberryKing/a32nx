@@ -14,6 +14,7 @@ import { WindComponent } from '@fmgc/guidance/vnav/wind';
 import { TemporaryCheckpointSequence } from '@fmgc/guidance/vnav/profile/TemporaryCheckpointSequence';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
+import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 
 class FlapConfigurationProfile {
     static getBySpeed(speed: Knots, parameters: VerticalProfileComputationParameters): FlapConf {
@@ -71,7 +72,7 @@ export class ApproachPathBuilder {
     computeApproachPath(
         profile: NavGeometryProfile, speedProfile: SpeedProfile, windProfile: HeadwindProfile, estimatedFuelOnBoardAtDestination: number, estimatedSecondsFromPresentAtDestination: number,
     ): TemporaryCheckpointSequence {
-        const { approachSpeed, managedDescentSpeedMach, zeroFuelWeight, tropoPause, destinationAirfieldElevation } = this.observer.get();
+        const { approachSpeed, managedDescentSpeedMach, zeroFuelWeight, tropoPause, destinationAirfieldElevation, cleanSpeed } = this.observer.get();
 
         const approachConstraints = profile.descentAltitudeConstraints.slice().reverse();
 
@@ -119,7 +120,8 @@ export class ApproachPathBuilder {
             this.handleAltitudeConstraint(sequence, speedProfile, windProfile, altitudeConstraint);
 
             // If you're at or above your descent speed (taking speed limit into account, place the decel point)
-            if (sequence.lastCheckpoint.speed - speedProfile.getTargetWithoutConstraints(sequence.lastCheckpoint.altitude, ManagedSpeedType.Descent) > -1) {
+            const speedTarget = speedProfile.getTarget(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
+            if (sequence.lastCheckpoint.reason === VerticalCheckpointReason.Decel || sequence.lastCheckpoint.speed > cleanSpeed && sequence.lastCheckpoint.speed > speedTarget) {
                 break;
             }
         }
@@ -148,7 +150,7 @@ export class ApproachPathBuilder {
 
         // Going in reverse:
         // We try to choose make the deceleration segment just as long that we manage to make the descent part
-        const { managedDescentSpeedMach } = this.observer.get();
+        const { managedDescentSpeedMach, cleanSpeed } = this.observer.get();
         const { distanceFromStart, altitude } = sequence.lastCheckpoint;
 
         if (distanceFromStart < constraint.distanceFromStart
@@ -164,15 +166,16 @@ export class ApproachPathBuilder {
 
         const desiredDistanceToCover = distanceFromStart - constraint.distanceFromStart;
 
-        let i = 0;
-        let decelerationSegmentDistance = 0;
+        const initialGuessForDescentDistance = 3 * (minimumAltitude - altitude) / 1000;
+        let decelerationSegmentDistance = Math.min(10, Math.max(0, desiredDistanceToCover - initialGuessForDescentDistance));
         let decelerationSegmentDistanceError = Infinity;
 
         let decelerationSequence: TemporaryCheckpointSequence = null;
-        let descentSegment = null;
+        let descentSegment: StepResults = null;
 
-        while (i++ < 4 && Math.abs(decelerationSegmentDistanceError) > 0.05) {
-            decelerationSequence = this.buildDecelerationPath(
+        let i = 0;
+        for (; i < 10 && Math.abs(decelerationSegmentDistanceError) > 0.05; i++) {
+            const newDecelerationSequence = this.buildDecelerationPath(
                 sequence,
                 this.idleStrategy,
                 speedProfile,
@@ -180,26 +183,44 @@ export class ApproachPathBuilder {
                 distanceFromStart - decelerationSegmentDistance,
             );
 
-            descentSegment = this.idleStrategy.predictToAltitude(
+            const newDescentSegment = this.idleStrategy.predictToAltitude(
                 minimumAltitude,
                 altitude,
-                decelerationSequence.lastCheckpoint.speed,
+                newDecelerationSequence.lastCheckpoint.speed,
                 managedDescentSpeedMach,
-                decelerationSequence.lastCheckpoint.remainingFuelOnBoard,
+                newDecelerationSequence.lastCheckpoint.remainingFuelOnBoard,
                 windProfile.getHeadwindComponent(distanceFromStart - decelerationSegmentDistance, minimumAltitude),
-                AircraftConfigurationProfile.getBySpeed(decelerationSequence.lastCheckpoint.speed, this.observer.get()),
+                AircraftConfigurationProfile.getBySpeed(newDecelerationSequence.lastCheckpoint.speed, this.observer.get()),
             );
 
-            const distanceTraveled = descentSegment.distanceTraveled + (distanceFromStart - decelerationSequence.lastCheckpoint.distanceFromStart);
+            const distanceTraveled = newDescentSegment.distanceTraveled + (distanceFromStart - newDecelerationSequence.lastCheckpoint.distanceFromStart);
+            const hasFoundSolution = newDecelerationSequence.lastCheckpoint.reason === VerticalCheckpointReason.Decel && distanceTraveled - desiredDistanceToCover < 0.05;
+            const newDecelerationSegmentDistanceError = hasFoundSolution ? 0 : distanceTraveled - desiredDistanceToCover;
 
-            decelerationSegmentDistanceError = distanceTraveled - desiredDistanceToCover;
+            if (VnavConfig.DEBUG_PROFILE && Math.abs(newDecelerationSegmentDistanceError) > Math.abs(decelerationSegmentDistanceError)) {
+                console.log(`[FMS/VNAV] Breaking out after ${i} iterations because ${newDecelerationSegmentDistanceError} > ${decelerationSegmentDistanceError}`);
+                break;
+            } else if (VnavConfig.DEBUG_PROFILE && decelerationSegmentDistance < 1e-4 && newDecelerationSegmentDistanceError > 0) {
+                console.log(`[FMS/VNAV] Breaking out after ${i} iterations because constraint is not even met without deceleration`);
+                break;
+            }
+
+            decelerationSequence = newDecelerationSequence;
+            descentSegment = newDescentSegment;
+
+            decelerationSegmentDistanceError = newDecelerationSegmentDistanceError;
             decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError / 3);
+        }
+
+        if (VnavConfig.DEBUG_PROFILE) {
+            console.log(`[FMS/VNAV] Final error: ${decelerationSegmentDistanceError} after ${i} iterations`);
         }
 
         sequence.push(...decelerationSequence.get());
 
+        const speedTarget = speedProfile.getTarget(decelerationSequence.lastCheckpoint.distanceFromStart, decelerationSequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
         // Don't bother considering the climb step in the profile if we have already reached the target speed in the deceleration segment
-        if (speedProfile.getTargetWithoutConstraints(decelerationSequence.lastCheckpoint.altitude, ManagedSpeedType.Descent) - decelerationSequence.lastCheckpoint.speed > 1) {
+        if (speedTarget - decelerationSequence.lastCheckpoint.speed > 1 || decelerationSequence.lastCheckpoint.speed < cleanSpeed) {
             sequence.addCheckpointFromStepBackwards(descentSegment, VerticalCheckpointReason.AltitudeConstraint);
         }
     }
@@ -243,10 +264,10 @@ export class ApproachPathBuilder {
         const parameters = this.observer.get();
         const { managedDescentSpeedMach } = parameters;
 
-        let i = 0;
-        while (i++ < 10
+        for (let i = 0; i < 10
             && decelerationSequence.lastCheckpoint.reason !== VerticalCheckpointReason.Decel
-            && Math.abs(decelerationSequence.lastCheckpoint.distanceFromStart - targetDistanceFromStart) > 0.1
+            && decelerationSequence.lastCheckpoint.distanceFromStart - targetDistanceFromStart > 0.05;
+            i++
         ) {
             const { distanceFromStart, altitude, speed, remainingFuelOnBoard } = decelerationSequence.lastCheckpoint;
 
@@ -284,9 +305,13 @@ export class ApproachPathBuilder {
 
                 const remainingDistanceToConstraint = distanceFromStart - decelerationStep.distanceTraveled - Math.max(speedConstraint.distanceFromStart, targetDistanceFromStart);
 
-                if (remainingDistanceToConstraint > 0.1) {
-                    // If we decelerated, but aren't at the constraint yet, fly level, at constant speed to the constraint
+                if (remainingDistanceToConstraint > 0.05) {
+                    if (speedConstraint.maxSpeed > parameters.cleanSpeed) {
+                        decelerationSequence.lastCheckpoint.reason = VerticalCheckpointReason.Decel;
+                        return decelerationSequence;
+                    }
 
+                    // If we decelerated, but aren't at the constraint yet, fly level, at constant speed to the constraint
                     const constantStep = this.levelFlightSegment(
                         altitude,
                         remainingDistanceToConstraint,
