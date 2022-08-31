@@ -69,7 +69,7 @@ export class AircraftToDescentProfileRelation {
         }
 
         if (VnavConfig.DEBUG_PROFILE) {
-            this.distanceToEnd.weight = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_FILTER_CONSTANT', 'number');
+            this.distanceToEnd.weight = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_FILTER_CONSTANT', 'number') ?? 1;
         }
 
         this.distanceToEnd.update(distanceToEnd);

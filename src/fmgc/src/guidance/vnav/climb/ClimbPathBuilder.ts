@@ -326,10 +326,6 @@ export class ClimbPathBuilder {
         const { fcuAltitude, presentPosition, cruiseAltitude } = this.computationParametersObserver.get();
 
         if (fcuAltitude <= presentPosition.alt || fcuAltitude > cruiseAltitude) {
-            if (VnavConfig.DEBUG_PROFILE) {
-                console.warn(`[FMS/VNAV] FCU altitude was above cruise altitude (${fcuAltitude} > ${cruiseAltitude})`);
-            }
-
             return;
         }
 

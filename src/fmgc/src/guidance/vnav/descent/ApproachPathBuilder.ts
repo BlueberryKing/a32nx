@@ -173,6 +173,36 @@ export class ApproachPathBuilder {
         let decelerationSequence: TemporaryCheckpointSequence = null;
         let descentSegment: StepResults = null;
 
+        const computeDistance = (decelDistance: NauticalMiles): NauticalMiles => {
+            const newDecelerationSequence = this.buildDecelerationPath(
+                sequence,
+                this.idleStrategy,
+                speedProfile,
+                windProfile,
+                distanceFromStart - decelDistance,
+            );
+
+            const newDescentSegment = this.idleStrategy.predictToAltitude(
+                minimumAltitude,
+                altitude,
+                newDecelerationSequence.lastCheckpoint.speed,
+                managedDescentSpeedMach,
+                newDecelerationSequence.lastCheckpoint.remainingFuelOnBoard,
+                windProfile.getHeadwindComponent(distanceFromStart - decelDistance, minimumAltitude),
+                AircraftConfigurationProfile.getBySpeed(newDecelerationSequence.lastCheckpoint.speed, this.observer.get()),
+            );
+
+            const distanceTraveled = newDescentSegment.distanceTraveled + (distanceFromStart - newDecelerationSequence.lastCheckpoint.distanceFromStart);
+            return distanceTraveled;
+        };
+
+        if (VnavConfig.DEBUG_PROFILE) {
+            console.log(
+                `To travel from ${sequence.lastCheckpoint.altitude} to ${minimumAltitude} in ${desiredDistanceToCover} NM: \
+                ${JSON.stringify([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((distance) => computeDistance(distance).toFixed(3)))}`,
+            );
+        }
+
         let i = 0;
         for (; i < 10 && Math.abs(decelerationSegmentDistanceError) > 0.05; i++) {
             const newDecelerationSequence = this.buildDecelerationPath(
@@ -197,11 +227,17 @@ export class ApproachPathBuilder {
             const hasFoundSolution = newDecelerationSequence.lastCheckpoint.reason === VerticalCheckpointReason.Decel && distanceTraveled - desiredDistanceToCover < 0.05;
             const newDecelerationSegmentDistanceError = hasFoundSolution ? 0 : distanceTraveled - desiredDistanceToCover;
 
-            if (VnavConfig.DEBUG_PROFILE && Math.abs(newDecelerationSegmentDistanceError) > Math.abs(decelerationSegmentDistanceError)) {
-                console.log(`[FMS/VNAV] Breaking out after ${i} iterations because ${newDecelerationSegmentDistanceError} > ${decelerationSegmentDistanceError}`);
+            if (Math.abs(newDecelerationSegmentDistanceError) > Math.abs(decelerationSegmentDistanceError)) {
+                if (VnavConfig.DEBUG_PROFILE) {
+                    console.log(`[FMS/VNAV] Breaking out after ${i} iterations because ${newDecelerationSegmentDistanceError} > ${decelerationSegmentDistanceError}`);
+                }
+
                 break;
-            } else if (VnavConfig.DEBUG_PROFILE && decelerationSegmentDistance < 1e-4 && newDecelerationSegmentDistanceError > 0) {
-                console.log(`[FMS/VNAV] Breaking out after ${i} iterations because constraint is not even met without deceleration`);
+            } else if (decelerationSegmentDistance < 1e-4 && newDecelerationSegmentDistanceError > 0) {
+                if (VnavConfig.DEBUG_PROFILE) {
+                    console.log(`[FMS/VNAV] Breaking out after ${i} iterations because constraint is not even met without deceleration`);
+                }
+
                 break;
             }
 
@@ -209,7 +245,7 @@ export class ApproachPathBuilder {
             descentSegment = newDescentSegment;
 
             decelerationSegmentDistanceError = newDecelerationSegmentDistanceError;
-            decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError / 3);
+            decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError);
         }
 
         if (VnavConfig.DEBUG_PROFILE) {
