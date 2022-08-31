@@ -558,12 +558,16 @@ class CDUPerformancePage {
         const isFlying = mcdu.flightPhaseManager.phase >= FmgcFlightPhases.TAKEOFF;
         const actModeCell = isSelected ? "SELECTED" : "MANAGED";
         const costIndexCell = isFinite(mcdu.costIndex) ? mcdu.costIndex.toFixed(0) + "[color]cyan" : "[][color]cyan";
-        let managedSpeedCell = "";
+        let managedSpeedCell = "---/---";
         const managedSpeed = isPhaseActive ? mcdu.managedSpeedTarget : mcdu.managedSpeedCruise;
         if (isFinite(managedSpeed)) {
-            managedSpeedCell = (isSelected ? "*" : "") + managedSpeed.toFixed(0);
+            managedSpeedCell = managedSpeed.toFixed(0) + "[color]green";
         }
-        const [selectedSpeedTitle, selectedSpeedCell] = CDUPerformancePage.getSelectedTitleAndValue(isPhaseActive, isSelected, mcdu.preSelectedCrzSpeed);
+        const preselTitle = isPhaseActive ? "" : "\xa0PRESEL";
+        let preselCell = "";
+        if (!isPhaseActive) {
+            preselCell = (isFinite(mcdu.preSelectedCrzSpeed) ? Math.round(mcdu.preSelectedCrzSpeed).toFixed(0) : "\xa0*[ ]") + "[color]cyan";
+        }
         mcdu.onLeftInput[1] = (value, scratchpadCallback) => {
             if (mcdu.tryUpdateCostIndex(value)) {
                 CDUPerformancePage.ShowCRZPage(mcdu);
@@ -576,6 +580,8 @@ class CDUPerformancePage {
             timeLabel = "UTC";
         }
         const [destEfobCell, destTimeCell] = CDUPerformancePage.formatDestEfobAndTime(mcdu, isFlying);
+        const desCabinRateCell = "{small}-350{end}";
+        const shouldShowStepAltsOption = mcdu.flightPhaseManager.phase <= FmgcFlightPhases.CRUISE && mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.isReadyToDisplay;
 
         const bottomRowLabels = ["\xa0PREV", "NEXT\xa0"];
         const bottomRowCells = ["<PHASE", "PHASE>"];
@@ -610,6 +616,18 @@ class CDUPerformancePage {
                 CDUPerformancePage.ShowCLBPage(mcdu);
             };
         }
+        mcdu.onRightInput[3] = () => {
+            // DES CABIN RATE
+            mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
+        };
+        if (shouldShowStepAltsOption) {
+            CDUStepAltsPage.Return = () => {
+                CDUPerformancePage.ShowCRZPage(mcdu, false);
+            };
+            mcdu.onRightInput[4] = () => {
+                CDUStepAltsPage.ShowPage(mcdu);
+            };
+        }
         mcdu.rightInputDelay[5] = () => {
             return mcdu.getDelaySwitchPage();
         };
@@ -623,11 +641,11 @@ class CDUPerformancePage {
             ["\xa0CI"],
             [costIndexCell + "[color]cyan"],
             ["\xa0MANAGED"],
-            ["\xa0" + managedSpeedCell + "[color]green"],
-            ["\xa0" + selectedSpeedTitle],
-            ["\xa0" + selectedSpeedCell],
-            ["", "DES CABIN RATE>"],
-            ["", "-350FT/MIN[color]green"],
+            ["\xa0" + managedSpeedCell],
+            [preselTitle, "DES CABIN RATE"],
+            [preselCell, `\xa0{cyan}${desCabinRateCell}{end}{white}{small}FT/MN{end}{end}`],
+            [""],
+            ["", shouldShowStepAltsOption ? "STEP ALTS>" : ""],
             bottomRowLabels,
             bottomRowCells
         ]);
