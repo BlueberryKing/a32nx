@@ -166,46 +166,11 @@ export class ApproachPathBuilder {
 
         const desiredDistanceToCover = distanceFromStart - constraint.distanceFromStart;
 
-        const initialGuessForDescentDistance = 3 * (minimumAltitude - altitude) / 1000;
-        let decelerationSegmentDistance = Math.min(10, Math.max(0, desiredDistanceToCover - initialGuessForDescentDistance));
-        let decelerationSegmentDistanceError = Infinity;
-
         let decelerationSequence: TemporaryCheckpointSequence = null;
         let descentSegment: StepResults = null;
 
-        const computeDistance = (decelDistance: NauticalMiles): NauticalMiles => {
-            const newDecelerationSequence = this.buildDecelerationPath(
-                sequence,
-                this.idleStrategy,
-                speedProfile,
-                windProfile,
-                distanceFromStart - decelDistance,
-            );
-
-            const newDescentSegment = this.idleStrategy.predictToAltitude(
-                minimumAltitude,
-                altitude,
-                newDecelerationSequence.lastCheckpoint.speed,
-                managedDescentSpeedMach,
-                newDecelerationSequence.lastCheckpoint.remainingFuelOnBoard,
-                windProfile.getHeadwindComponent(distanceFromStart - decelDistance, minimumAltitude),
-                AircraftConfigurationProfile.getBySpeed(newDecelerationSequence.lastCheckpoint.speed, this.observer.get()),
-            );
-
-            const distanceTraveled = newDescentSegment.distanceTraveled + (distanceFromStart - newDecelerationSequence.lastCheckpoint.distanceFromStart);
-            return distanceTraveled;
-        };
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            console.log(
-                `To travel from ${sequence.lastCheckpoint.altitude} to ${minimumAltitude} in ${desiredDistanceToCover} NM: \
-                ${JSON.stringify([0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1].map((distance) => computeDistance(distance).toFixed(3)))}`,
-            );
-        }
-
-        let i = 0;
-        for (; i < 10 && Math.abs(decelerationSegmentDistanceError) > 0.05; i++) {
-            const newDecelerationSequence = this.buildDecelerationPath(
+        const tryDecelDistance = (decelerationSegmentDistance: NauticalMiles): NauticalMiles => {
+            decelerationSequence = this.buildDecelerationPath(
                 sequence,
                 this.idleStrategy,
                 speedProfile,
@@ -213,43 +178,60 @@ export class ApproachPathBuilder {
                 distanceFromStart - decelerationSegmentDistance,
             );
 
-            const newDescentSegment = this.idleStrategy.predictToAltitude(
+            descentSegment = this.idleStrategy.predictToAltitude(
                 minimumAltitude,
                 altitude,
-                newDecelerationSequence.lastCheckpoint.speed,
+                decelerationSequence.lastCheckpoint.speed,
                 managedDescentSpeedMach,
-                newDecelerationSequence.lastCheckpoint.remainingFuelOnBoard,
+                decelerationSequence.lastCheckpoint.remainingFuelOnBoard,
                 windProfile.getHeadwindComponent(distanceFromStart - decelerationSegmentDistance, minimumAltitude),
-                AircraftConfigurationProfile.getBySpeed(newDecelerationSequence.lastCheckpoint.speed, this.observer.get()),
+                AircraftConfigurationProfile.getBySpeed(decelerationSequence.lastCheckpoint.speed, this.observer.get()),
             );
 
-            const distanceTraveled = newDescentSegment.distanceTraveled + (distanceFromStart - newDecelerationSequence.lastCheckpoint.distanceFromStart);
-            const hasFoundSolution = newDecelerationSequence.lastCheckpoint.reason === VerticalCheckpointReason.Decel && distanceTraveled - desiredDistanceToCover < 0.05;
-            const newDecelerationSegmentDistanceError = hasFoundSolution ? 0 : distanceTraveled - desiredDistanceToCover;
+            const distanceTraveled = descentSegment.distanceTraveled + (distanceFromStart - decelerationSequence.lastCheckpoint.distanceFromStart);
 
-            if (Math.abs(newDecelerationSegmentDistanceError) > Math.abs(decelerationSegmentDistanceError)) {
-                if (VnavConfig.DEBUG_PROFILE) {
-                    console.log(`[FMS/VNAV] Breaking out after ${i} iterations because ${newDecelerationSegmentDistanceError} > ${decelerationSegmentDistanceError}`);
+            return distanceTraveled - desiredDistanceToCover;
+        };
+
+        let a = 0;
+        let b = desiredDistanceToCover;
+
+        let fa = tryDecelDistance(0);
+        // We can't reach the altitude constraint even if we do not decelerate at all
+        if (fa < 0) {
+            let i = 0;
+            while (i++ < 10) {
+                const c = (a + b) / 2;
+                const fc = tryDecelDistance(c);
+
+                if (fc < 0.05 && decelerationSequence.lastCheckpoint.reason === VerticalCheckpointReason.Decel) {
+                    if (VnavConfig.DEBUG_PROFILE) {
+                        console.log('[FMS/VNAV] Stopping iteration because DECEL point was found.');
+                    }
+
+                    break;
                 }
 
-                break;
-            } else if (decelerationSegmentDistance < 1e-4 && newDecelerationSegmentDistanceError > 0) {
-                if (VnavConfig.DEBUG_PROFILE) {
-                    console.log(`[FMS/VNAV] Breaking out after ${i} iterations because constraint is not even met without deceleration`);
+                if (Math.abs(fc) < 0.05 || b - a < 1e-3) {
+                    if (VnavConfig.DEBUG_PROFILE) {
+                        console.log(`[FMS/VNAV] Final error ${fc} after ${i} iterations.`);
+                    }
+
+                    break;
                 }
 
-                break;
+                if (fa * fc > 0) {
+                    a = c;
+                } else {
+                    b = c;
+                }
+
+                fa = tryDecelDistance(a);
             }
 
-            decelerationSequence = newDecelerationSequence;
-            descentSegment = newDescentSegment;
-
-            decelerationSegmentDistanceError = newDecelerationSegmentDistanceError;
-            decelerationSegmentDistance = Math.max(0, decelerationSegmentDistance - decelerationSegmentDistanceError);
-        }
-
-        if (VnavConfig.DEBUG_PROFILE) {
-            console.log(`[FMS/VNAV] Final error: ${decelerationSegmentDistanceError} after ${i} iterations`);
+            if (i > 10) {
+                console.log(`[FMS/VNAV] Iteration did not terminate when going from ${altitude} ft to ${minimumAltitude} ft in ${desiredDistanceToCover} NM.`);
+            }
         }
 
         sequence.push(...decelerationSequence.get());
