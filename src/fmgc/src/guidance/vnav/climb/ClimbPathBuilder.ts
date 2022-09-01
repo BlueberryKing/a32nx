@@ -4,7 +4,6 @@ import { ArmedVerticalMode, isArmed, VerticalMode } from '@shared/autopilot';
 import { ClimbStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { WindComponent } from '@fmgc/guidance/vnav/wind';
-import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { Predictions, StepResults } from '../Predictions';
 import { VerticalCheckpoint, VerticalCheckpointReason } from '../profile/NavGeometryProfile';
