@@ -207,7 +207,7 @@ export class DescentGuidance {
             : 0;
 
         const airspeed = SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots');
-        const guidanceTarget = this.speedState === DescentSpeedGuidanceState.TargetAndMargins
+        const guidanceTarget = this.requestedVerticalMode === RequestedVerticalMode.SpeedThrust || this.requestedVerticalMode === RequestedVerticalMode.VpathThrust
             ? this.speedMargin.getTarget(airspeed + speedBias, this.speedTarget)
             : this.speedTarget;
         SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'knots', guidanceTarget);
