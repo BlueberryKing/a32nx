@@ -271,21 +271,6 @@ export abstract class BaseGeometryProfile {
         return [speedLimit.distanceFromStart, speedLimit.speed];
     }
 
-    // TODO: Make this not iterate over map
-    findDistancesToSpeedChanges(): NauticalMiles[] {
-        const result: NauticalMiles[] = [];
-
-        const speedLimitCrossing = this.findSpeedLimitCrossing();
-        if (!speedLimitCrossing) {
-            return [];
-        }
-
-        const [speedLimitDistance, _] = speedLimitCrossing;
-        result.push(speedLimitDistance);
-
-        return result;
-    }
-
     findNextSpeedTarget(distanceFromStart: NauticalMiles): Knots {
         if (distanceFromStart < this.checkpoints[0].distanceFromStart) {
             return this.checkpoints[0].speed;

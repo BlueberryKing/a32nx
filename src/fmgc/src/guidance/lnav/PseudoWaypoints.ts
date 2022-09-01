@@ -122,9 +122,9 @@ export class PseudoWaypoints implements GuidanceComponent {
         }
 
         // Speed Changes
-        const firstSpeedChange = ndGeometryProfile.findDistancesToSpeedChanges()[0];
+        const firstSpeedChange = this.guidanceController.vnavDriver.findNextSpeedChange();
 
-        if (firstSpeedChange) {
+        if (Number.isFinite(firstSpeedChange)) {
             let [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = [undefined, undefined, undefined];
             if (this.guidanceController.vnavDriver.isInManagedNav()) {
                 const pwp = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - firstSpeedChange);

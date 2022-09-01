@@ -207,31 +207,6 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         return predictions;
     }
 
-    override findDistancesToSpeedChanges(): NauticalMiles[] {
-        const result = [];
-
-        const checkpointBlacklist = [
-            VerticalCheckpointReason.AccelerationAltitude,
-            VerticalCheckpointReason.PresentPosition,
-            VerticalCheckpointReason.CrossingFcuAltitudeClimb,
-            VerticalCheckpointReason.CrossingFcuAltitudeDescent,
-        ];
-
-        for (let i = 0; i < this.checkpoints.length - 1; i++) {
-            const checkpoint = this.checkpoints[i];
-
-            if (checkpointBlacklist.includes(checkpoint.reason)) {
-                continue;
-            }
-
-            if (this.checkpoints[i + 1].speed - checkpoint.speed > 5) {
-                result.push(checkpoint.distanceFromStart);
-            }
-        }
-
-        return result;
-    }
-
     private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
         if (!constraint) {
             return true;

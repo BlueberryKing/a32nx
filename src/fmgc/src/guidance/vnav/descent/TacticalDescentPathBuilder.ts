@@ -68,7 +68,7 @@ class TacticalDescentPathPlanner {
         const constraintAlongTrack = this.constraints[this.currentConstraintIndex];
 
         // If the constraint is before where we are now, just move along
-        if (constraintAlongTrack.distanceFromStart > this.currentCheckpoint.distanceFromStart) {
+        if (constraintAlongTrack.distanceFromStart < this.currentCheckpoint.distanceFromStart) {
             this.currentConstraintIndex++;
 
             return;

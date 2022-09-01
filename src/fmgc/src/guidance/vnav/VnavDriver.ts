@@ -13,7 +13,7 @@ import { VerticalProfileComputationParameters, VerticalProfileComputationParamet
 import { CruisePathBuilder } from '@fmgc/guidance/vnav/cruise/CruisePathBuilder';
 import { CruiseToDescentCoordinator } from '@fmgc/guidance/vnav/CruiseToDescentCoordinator';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
-import { McduSpeedProfile, ExpediteSpeedProfile, NdSpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
+import { McduSpeedProfile, ExpediteSpeedProfile, NdSpeedProfile, ManagedSpeedType } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { SelectedGeometryProfile } from '@fmgc/guidance/vnav/profile/SelectedGeometryProfile';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { TakeoffPathBuilder } from '@fmgc/guidance/vnav/takeoff/TakeoffPathBuilder';
@@ -545,6 +545,51 @@ export class VnavDriver implements GuidanceComponent {
 
     public get distanceToEnd(): NauticalMiles {
         return this.constraintReader.distanceToEnd;
+    }
+
+    public findNextSpeedChange(): NauticalMiles | null {
+        const { presentPosition, flightPhase } = this.computationParametersObserver.get();
+
+        if (!Simplane.getAutoPilotAirspeedManaged() || SimVar.GetSimVarValue('L:A32NX_FMA_EXPEDITE_MODE', 'number') === 1) {
+            return null;
+        }
+
+        let speedTargetType: ManagedSpeedType = ManagedSpeedType.Climb;
+        if (flightPhase === FmgcFlightPhase.Cruise) {
+            speedTargetType = ManagedSpeedType.Cruise;
+        } else if (flightPhase === FmgcFlightPhase.Descent || flightPhase === FmgcFlightPhase.Approach) {
+            speedTargetType = ManagedSpeedType.Descent;
+        }
+
+        const distanceToPresentPosition = this.constraintReader.distanceToPresentPosition;
+
+        // We don't want to show the speed change dot at acceleration altiude, so we have to make sure the speed target is econ speed, not SRS speed.
+        const speedTarget = flightPhase < FmgcFlightPhase.Climb
+            ? this.currentMcduSpeedProfile.getTarget(distanceToPresentPosition, presentPosition.alt, ManagedSpeedType.Climb)
+            : SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots');
+
+        for (let i = 1; i < this.currentNdGeometryProfile.checkpoints.length; i++) {
+            const checkpoint = this.currentNdGeometryProfile.checkpoints[i];
+
+            if (checkpoint.distanceFromStart < distanceToPresentPosition) {
+                continue;
+            } else if (checkpoint.reason === VerticalCheckpointReason.TopOfClimb || checkpoint.reason === VerticalCheckpointReason.TopOfDescent) {
+                return null;
+            }
+
+            if (checkpoint.speed - Math.max(this.currentNdGeometryProfile.checkpoints[i - 1].speed, speedTarget) > 1) {
+                // Candiate for a climb speed change
+                if (speedTargetType === ManagedSpeedType.Climb) {
+                    return this.currentNdGeometryProfile.checkpoints[i - 1].distanceFromStart;
+                }
+            } else if (checkpoint.speed - Math.min(speedTarget, this.currentNdGeometryProfile.checkpoints[i - 1].speed) < -1) {
+                if (speedTargetType === ManagedSpeedType.Descent) {
+                    return this.currentNdGeometryProfile.checkpoints[i - 1].distanceFromStart;
+                }
+            }
+        }
+
+        return null;
     }
 }
 
