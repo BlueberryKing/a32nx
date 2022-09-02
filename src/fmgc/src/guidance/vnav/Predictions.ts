@@ -488,10 +488,10 @@ export class Predictions {
                 error = VnavStepError.TOO_LOW_DECELERATION;
             }
 
-            stepTime = Math.abs(finalTas - initialTas) / Math.abs(acceleration); // in seconds
+            stepTime = (finalTas - initialTas) / acceleration; // in seconds
             distanceTraveled = (stepTime / 3600) * (averageTas - headwindAtInitialAltitude);
-            finalAltitude = initialAltitude + distanceTraveled * Math.tan(pathAngleRadians);
-            verticalSpeed = stepTime < 1e-12 ? 0 : (finalAltitude - initialAltitude) / stepTime / 60; // in feet per minute
+            finalAltitude = initialAltitude + 6076.12 * distanceTraveled * Math.tan(pathAngleRadians);
+            verticalSpeed = Math.abs(stepTime) < 1e-12 ? 0 : 60 * (finalAltitude - initialAltitude) / stepTime; // in feet per minute
             fuelBurned = (fuelFlow / 3600) * stepTime;
 
             // Adjust variables for better accuracy next iteration
@@ -808,6 +808,7 @@ export class Predictions {
             initialAltitude,
             finalAltitude,
             predictedN1,
+            speed: econCAS,
         };
     }
 

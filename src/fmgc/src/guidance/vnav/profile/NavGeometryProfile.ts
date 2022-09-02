@@ -159,6 +159,14 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         return this.checkpoints[this.checkpoints.length - 1];
     }
 
+    get finalDescentAngle(): Degrees {
+        return this.constraintReader.finalDescentAngle;
+    }
+
+    get fafDistanceToEnd(): NauticalMiles {
+        return this.constraintReader.fafDistanceToEnd;
+    }
+
     addCheckpointFromLast(checkpointBuilder: (lastCheckpoint: VerticalCheckpoint) => Partial<VerticalCheckpoint>) {
         this.checkpoints.push({ ...this.lastCheckpoint, ...checkpointBuilder(this.lastCheckpoint) });
     }

@@ -6,6 +6,8 @@ import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { PathCaptureTransition } from '@fmgc/guidance/lnav/transitions/PathCaptureTransition';
 import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
+import { MathUtils } from '@shared/MathUtils';
+import { FixTypeFlags } from '@fmgc/types/fstypes/FSEnums';
 
 export class ConstraintReader {
     public climbAlitudeConstraints: MaxAltitudeConstraint[] = [];
@@ -21,6 +23,10 @@ export class ConstraintReader {
     public totalFlightPlanDistance = 0;
 
     public distanceToEnd: NauticalMiles = 0;
+
+    public finalDescentAngle = 3;
+
+    public fafDistanceToEnd = 1000 / Math.tan(3 * MathUtils.DEGREES_TO_RADIANS) / 6076.12;
 
     public get distanceToPresentPosition(): NauticalMiles {
         return this.totalFlightPlanDistance - this.distanceToEnd;
@@ -86,6 +92,14 @@ export class ConstraintReader {
                         maxSpeed: speedConstraint.speed,
                     });
                 }
+            }
+
+            if (i === fpm.getDestinationIndex() && waypoint.verticalAngle) {
+                this.finalDescentAngle = waypoint.verticalAngle;
+            }
+
+            if ((waypoint.additionalData.fixTypeFlags & FixTypeFlags.FAF) > 0) {
+                this.fafDistanceToEnd = waypoint.additionalData.distanceToEnd;
             }
         }
 
@@ -153,6 +167,8 @@ export class ConstraintReader {
 
         this.totalFlightPlanDistance = 0;
         this.distanceToEnd = 0;
+        this.finalDescentAngle = 3;
+        this.fafDistanceToEnd = 1000 / Math.tan(3 * MathUtils.DEGREES_TO_RADIANS) / 6076.12;
     }
 
     private updateDistancesToEnd(geometry: Geometry) {
