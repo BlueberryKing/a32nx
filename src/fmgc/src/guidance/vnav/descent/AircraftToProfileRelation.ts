@@ -1,4 +1,3 @@
-import { Filter } from '@fmgc/guidance/vnav/descent/InertialDistanceAlongTrack';
 import { NavGeometryProfile, VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
@@ -13,13 +12,15 @@ export class AircraftToDescentProfileRelation {
 
     private geometricPathStart?: VerticalCheckpoint;
 
-    private distanceToEnd: Filter;
+    private distanceToEnd: NauticalMiles = 0;;
 
     private totalFlightPlanDistance: number = 0;
 
-    constructor(private observer: VerticalProfileComputationParametersObserver) {
-        this.distanceToEnd = new Filter(1);
+    private get distanceFromStart(): NauticalMiles {
+        return this.totalFlightPlanDistance - this.distanceToEnd;
     }
+
+    constructor(private observer: VerticalProfileComputationParametersObserver) { }
 
     updateProfile(profile: NavGeometryProfile) {
         const topOfDescent = profile?.findVerticalCheckpoint(VerticalCheckpointReason.TopOfDescent);
@@ -50,7 +51,7 @@ export class AircraftToDescentProfileRelation {
         this.currentProfile = profile;
         this.totalFlightPlanDistance = profile.totalFlightPlanDistance;
 
-        this.distanceToEnd.reset(profile.totalFlightPlanDistance - profile.distanceToPresentPosition);
+        this.distanceToEnd = profile.totalFlightPlanDistance - profile.distanceToPresentPosition;
     }
 
     private invalidate() {
@@ -59,20 +60,12 @@ export class AircraftToDescentProfileRelation {
         this.topOfDescent = undefined;
     }
 
-    private get distanceFromStart(): NauticalMiles {
-        return this.totalFlightPlanDistance - this.distanceToEnd.output;
-    }
-
     update(distanceToEnd: number) {
         if (!this.isValid) {
             return;
         }
 
-        if (VnavConfig.DEBUG_PROFILE) {
-            this.distanceToEnd.weight = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_FILTER_CONSTANT', 'number') ?? 1;
-        }
-
-        this.distanceToEnd.update(distanceToEnd);
+        this.distanceToEnd = distanceToEnd;
     }
 
     isPastTopOfDescent(): boolean {

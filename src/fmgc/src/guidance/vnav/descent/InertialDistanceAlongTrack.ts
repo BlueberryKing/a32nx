@@ -22,27 +22,3 @@ export class InertialDistanceAlongTrack {
         return this.currentDistanceAlongTrack;
     }
 }
-
-export class Filter {
-    private filteredOutput: number;
-
-    constructor(public weight: number) { }
-
-    public update(newInput: number): number {
-        if (!Number.isFinite(this.filteredOutput)) {
-            this.filteredOutput = newInput;
-        } else {
-            this.filteredOutput = (1 - this.weight) * this.filteredOutput + this.weight * newInput;
-        }
-
-        return this.filteredOutput;
-    }
-
-    public get output(): number {
-        return this.filteredOutput;
-    }
-
-    public reset(value: number) {
-        this.filteredOutput = value;
-    }
-}
