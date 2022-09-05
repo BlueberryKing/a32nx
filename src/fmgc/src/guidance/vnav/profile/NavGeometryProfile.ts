@@ -3,6 +3,7 @@ import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { FlightPlans } from '@fmgc/flightplanning/FlightPlanManager';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
+import { isAltitudeConstraintMet } from '@fmgc/guidance/vnav/descent/DescentPathBuilder';
 import {
     AltitudeConstraint,
     AltitudeConstraintType,
@@ -203,7 +204,7 @@ export class NavGeometryProfile extends BaseGeometryProfile {
                 altitude,
                 speed: this.atmosphericConditions.casOrMach(speed, mach, altitude),
                 altitudeConstraint,
-                isAltitudeConstraintMet: this.isAltitudeConstraintMet(altitude, altitudeConstraint),
+                isAltitudeConstraintMet: altitudeConstraint && isAltitudeConstraintMet(altitudeConstraint, altitude, 250),
                 speedConstraint,
                 isSpeedConstraintMet: this.isSpeedConstraintMet(speed, speedConstraint),
                 altError: this.computeAltError(altitude, altitudeConstraint),
@@ -213,26 +214,6 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         }
 
         return predictions;
-    }
-
-    private isAltitudeConstraintMet(altitude: Feet, constraint?: AltitudeConstraint): boolean {
-        if (!constraint) {
-            return true;
-        }
-
-        switch (constraint.type) {
-        case AltitudeConstraintType.at:
-            return Math.abs(altitude - constraint.altitude1) < 250;
-        case AltitudeConstraintType.atOrAbove:
-            return (altitude - constraint.altitude1) > -250;
-        case AltitudeConstraintType.atOrBelow:
-            return (altitude - constraint.altitude1) < 250;
-        case AltitudeConstraintType.range:
-            return (altitude - constraint.altitude2) > -250 && (altitude - constraint.altitude1) < 250;
-        default:
-            console.error('Invalid altitude constraint type');
-            return null;
-        }
     }
 
     private isSpeedConstraintMet(speed: Knots, constraint?: SpeedConstraint): boolean {

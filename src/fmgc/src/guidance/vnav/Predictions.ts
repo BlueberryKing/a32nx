@@ -415,6 +415,7 @@ export class Predictions {
         tropoAltitude: number,
         gearExtended = false,
         flapConfig = FlapConf.CLEAN,
+        speedbrakesExtended = false,
         minimumAbsoluteAcceleration?: number,
         perfFactorPercent = 0,
     ): StepResults {
@@ -455,8 +456,7 @@ export class Predictions {
 
         const weightEstimate = zeroFuelWeight + initialFuelWeight;
 
-        const pathAngleRadians = flightPathAngle * MathUtils.DEGREES_TO_RADIANS;
-
+        let pathAngleRadians = flightPathAngle * MathUtils.DEGREES_TO_RADIANS;
         let error: VnavStepError | null;
         let verticalSpeed: FeetPerMinute;
         let stepTime: Seconds;
@@ -469,23 +469,24 @@ export class Predictions {
         let iterations = 0;
         do {
             // Calculate the available gradient
-            const drag = FlightModel.getDrag(lift, averageMach, delta, false, gearExtended, flapConfig);
+            const drag = FlightModel.getDrag(lift, averageMach, delta, speedbrakesExtended, gearExtended, flapConfig);
             const availableGradient = FlightModel.getAvailableGradient(thrust, drag, weightEstimate);
 
+            pathAngleRadians = flightPathAngle * MathUtils.DEGREES_TO_RADIANS;
             if (Math.abs(availableGradient) < Math.abs(pathAngleRadians)) {
-                if (DEBUG) {
-                    console.warn('[FMS/VNAV/ConstantSlopeSegment] Desired path angle is greater than available gradient.');
-                }
                 error = VnavStepError.AVAILABLE_GRADIENT_INSUFFICIENT;
+                // Save the achievable gradient here, so it can be used by the caller
+                pathAngleRadians = availableGradient;
+
+                break;
             }
 
             const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngleRadians, FlightModel.gravityConstKNS); // in kts/s
 
             if (Math.abs(acceleration) < minimumAbsoluteAcceleration) {
-                if (DEBUG) {
-                    console.warn('[FMS/VNAV/ConstantSlopeSegment] Minimum absolute acceleration not achieved with given desired path angle.');
-                }
                 error = VnavStepError.TOO_LOW_DECELERATION;
+
+                break;
             }
 
             stepTime = (finalTas - initialTas) / acceleration; // in seconds
@@ -588,6 +589,7 @@ export class Predictions {
         tropoAltitude: number,
         gearExtended: boolean,
         flapConfig: FlapConf,
+        speedbrakesExtended: boolean,
     ): StepResults {
         const distanceInFeet = distance * 6076.12;
         const fpaRadians = Math.atan((finalAltitude - initialAltitude) / distanceInFeet);
@@ -626,7 +628,7 @@ export class Predictions {
         let iterations = 0;
         do {
             const liftCoefficient = FlightModel.getLiftCoefficientFromEAS(lift, eas);
-            const dragCoefficient = FlightModel.getDragCoefficient(liftCoefficient, false, gearExtended, flapConfig);
+            const dragCoefficient = FlightModel.getDragCoefficient(liftCoefficient, speedbrakesExtended, gearExtended, flapConfig);
             const accelFactor = Common.getAccelerationFactor(mach, midStepAltitude, isaDev, midStepAltitude > tropoAltitude, accelFactorMode);
 
             thrust = FlightModel.getThrustFromConstantPathAngleCoefficients(

@@ -1,6 +1,9 @@
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { DescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
 import { WindComponent } from '@fmgc/guidance/vnav/wind';
+import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
+import { AircraftConfiguration } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
+import { MathUtils } from '@shared/MathUtils';
 import { EngineModel } from '../EngineModel';
 import { FlapConf } from '../common';
 import { Predictions, StepResults } from '../Predictions';
@@ -81,12 +84,68 @@ export class VerticalSpeedStrategy implements ClimbStrategy, DescentStrategy {
         );
     }
 
-    predictToDistanceBackwards(_finalAltitude: number, _distance: NauticalMiles, _speed: Knots, _mach: Mach, _fuelOnBoard: number): StepResults {
-        throw new Error('[FMS/VNAV] Backwards distance predictions not implemented for V/S strategy');
-    }
-
     predictToSpeedBackwards(_finalAltitude: number, _finalSpeed: Knots, _speed: Knots, _mach: Mach, _fuelOnBoard: number): StepResults {
         throw new Error('[FMS/VNAV] Backwards speed predictions not implemented for V/S strategy');
+    }
+}
+
+export class FlightPathAngleStrategy implements ClimbStrategy {
+    constructor(private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions, public flightPathAngle: Radians) { }
+
+    predictToAltitude(_initialAltitude: Feet, _finalAltitude: Feet, _speed: Knots, _mach: Mach, _fuelOnBoard: number, _headwindComponent: WindComponent): StepResults {
+        throw new Error('[FMS/VNAV] Predictions to altitude not implemented for FPA strategy');
+    }
+
+    predictToDistance(
+        initialAltitude: Feet, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration,
+    ): StepResults {
+        const { zeroFuelWeight, perfFactor } = this.observer.get();
+
+        const finalAltitde = initialAltitude + 6076.12 * distance * Math.tan(this.flightPathAngle * MathUtils.DEGREES_TO_RADIANS);
+
+        return Predictions.geometricStep(
+            initialAltitude,
+            finalAltitde,
+            distance,
+            speed,
+            mach,
+            zeroFuelWeight,
+            fuelOnBoard,
+            this.atmosphericConditions.isaDeviation,
+            headwindComponent.value,
+            perfFactor,
+            config?.gearExtended ?? false,
+            config?.flapConfig ?? FlapConf.CLEAN,
+            config?.speedbrakesExtended ?? false,
+        );
+    }
+
+    predictToSpeed(initialAltitude: Feet, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration): StepResults {
+        const { zeroFuelWeight, perfFactor, tropoPause, managedClimbSpeedMach } = this.observer.get();
+
+        const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, speed), mach);
+        const predictedN1 = this.flightPathAngle > 0
+            ? getClimbThrustN1Limit(this.atmosphericConditions, initialAltitude, speed, managedClimbSpeedMach)
+            : EngineModel.getIdleN1(initialAltitude, computedMach) + VnavConfig.IDLE_N1_MARGIN;
+
+        return Predictions.speedChangeStep(
+            this.flightPathAngle,
+            initialAltitude,
+            speed,
+            finalSpeed,
+            mach,
+            mach,
+            predictedN1,
+            zeroFuelWeight,
+            fuelOnBoard,
+            headwindComponent.value,
+            this.atmosphericConditions.isaDeviation,
+            tropoPause,
+            config?.gearExtended ?? false,
+            config?.flapConfig ?? FlapConf.CLEAN,
+            config?.speedbrakesExtended ?? false,
+            perfFactor,
+        );
     }
 }
 

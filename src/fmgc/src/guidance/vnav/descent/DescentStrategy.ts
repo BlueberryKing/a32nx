@@ -39,18 +39,6 @@ export interface DescentStrategy {
         initialAltitude: number, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration
     ): StepResults;
 
-        /**
-     * Computes a descent step backwards
-     * @param finalAltitude Altitude that you should end up at after descending
-     * @param distance
-     * @param speed
-     * @param mach
-     * @param fuelOnBoard
-     */
-    predictToDistanceBackwards(
-        finalAltitude: number, distance: NauticalMiles, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration
-    ): StepResults;
-
     /**
      * Computes a step from an initial altitude until the aircraft reaches finalSpeed
      * @param initialAltitude
@@ -132,31 +120,6 @@ export class IdleDescentStrategy implements DescentStrategy {
         );
     }
 
-    predictToDistanceBackwards(
-        finalAltitude: number, distance: number, speed: number, mach: number, fuelOnBoard: number, headwindComponent: WindComponent, config: AircraftConfiguration = this.defaultConfig,
-    ): StepResults {
-        const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
-
-        const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(finalAltitude, speed), mach);
-        const predictedN1 = EngineModel.getIdleN1(finalAltitude, computedMach) + VnavConfig.IDLE_N1_MARGIN;
-
-        return Predictions.reverseDistanceStep(
-            finalAltitude,
-            distance,
-            speed,
-            mach,
-            predictedN1,
-            zeroFuelWeight,
-            fuelOnBoard,
-            headwindComponent.value,
-            this.atmosphericConditions.isaDeviation,
-            tropoPause,
-            config.speedbrakesExtended,
-            config.flapConfig,
-            perfFactor,
-        );
-    }
-
     predictToSpeed(
         initialAltitude: number, speed: Knots, finalSpeed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config: AircraftConfiguration = this.defaultConfig,
     ): StepResults {
@@ -183,7 +146,7 @@ export class IdleDescentStrategy implements DescentStrategy {
             tropoPause,
             config.gearExtended,
             config.flapConfig,
-            0,
+            config.speedbrakesExtended,
             perfFactor,
         );
     }

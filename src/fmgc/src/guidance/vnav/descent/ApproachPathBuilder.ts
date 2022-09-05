@@ -110,6 +110,7 @@ export class ApproachPathBuilder {
             tropoPause,
             true,
             FlapConf.CONF_FULL,
+            false,
         );
 
         sequence.addCheckpointFromStepBackwards(finalApproachStep, VerticalCheckpointReason.AtmosphericConditions);
@@ -264,7 +265,7 @@ export class ApproachPathBuilder {
         step.distanceTraveled *= scaling;
         step.fuelBurned *= scaling;
         step.timeElapsed *= scaling;
-        step.finalAltitude = (1 - scaling) * lastCheckpoint.altitude + scaling * step.initialAltitude;
+        step.finalAltitude = (1 - scaling) * lastCheckpoint.altitude + scaling * step.finalAltitude;
         step.speed = (1 - scaling) * lastCheckpoint.speed + scaling * step.speed;
     }
 
@@ -303,7 +304,8 @@ export class ApproachPathBuilder {
 
             // Constraint is constraining
             if (speedConstraint !== null && speedConstraint.maxSpeed < flapTargetSpeed && speedConstraint.maxSpeed < limitingSpeed) {
-                const remainingDistance = distanceFromStart - Math.max(speedConstraint.distanceFromStart, targetDistanceFromStart);
+                // This is meant to be negative
+                const remainingDistance = Math.max(speedConstraint.distanceFromStart, targetDistanceFromStart) - distanceFromStart;
 
                 // Decelerate to constraint
                 const decelerationStep = this.fpaDecelerationSegment(
@@ -317,9 +319,9 @@ export class ApproachPathBuilder {
                     AircraftConfigurationProfile.getBySpeed(speed, parameters),
                 );
 
-                if (decelerationStep.distanceTraveled > 1e-4) {
+                if (decelerationStep.distanceTraveled < 1e-4) {
                     // We tried to declerate, but it took us beyond targetDistanceFromStart, so we scale down the step
-                    const scaling = Math.min(1, remainingDistance / -decelerationStep.distanceTraveled);
+                    const scaling = Math.min(1, remainingDistance / decelerationStep.distanceTraveled);
                     this.scaleStepBasedOnLastCheckpoint(decelerationSequence.lastCheckpoint, decelerationStep, scaling);
                     decelerationSequence.addCheckpointFromStep(decelerationStep, VerticalCheckpointReason.AtmosphericConditions);
                 }
@@ -394,7 +396,7 @@ export class ApproachPathBuilder {
             speed,
             mach,
             mach,
-            EngineModel.getIdleN1(finalAltitude, actualMach),
+            EngineModel.getIdleN1(finalAltitude, actualMach) + VnavConfig.IDLE_N1_MARGIN,
             zeroFuelWeight,
             fuelOnBoard,
             headwindComponent.value,
@@ -426,6 +428,7 @@ export class ApproachPathBuilder {
             tropoPause,
             config.gearExtended,
             config.flapConfig,
+            config.speedbrakesExtended,
         );
     }
 

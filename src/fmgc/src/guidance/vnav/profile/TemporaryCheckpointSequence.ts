@@ -1,3 +1,4 @@
+import { Common } from '@fmgc/guidance/vnav/common';
 import { StepResults } from '@fmgc/guidance/vnav/Predictions';
 import { VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
@@ -16,8 +17,8 @@ export class TemporaryCheckpointSequence {
         return this.checkpoints.length;
     }
 
-    reset() {
-        this.checkpoints.splice(1);
+    reset(...checkpoints: VerticalCheckpoint[]): void {
+        this.checkpoints = checkpoints;
     }
 
     undoLastStep() {
@@ -65,5 +66,25 @@ export class TemporaryCheckpointSequence {
 
     push(...checkpoints: VerticalCheckpoint[]) {
         this.checkpoints.push(...checkpoints);
+    }
+
+    interpolateAltitudeBackwards(distanceFromStart: NauticalMiles): Feet {
+        if (distanceFromStart >= this.checkpoints[0].distanceFromStart) {
+            return this.checkpoints[0].altitude;
+        }
+
+        for (let i = 1; i < this.checkpoints.length - 1; i++) {
+            if (distanceFromStart >= this.checkpoints[i].distanceFromStart) {
+                return Common.interpolate(
+                    distanceFromStart,
+                    this.checkpoints[i - 1].distanceFromStart,
+                    this.checkpoints[i].distanceFromStart,
+                    this.checkpoints[i - 1].altitude,
+                    this.checkpoints[i].altitude,
+                );
+            }
+        }
+
+        return this.lastCheckpoint.altitude;
     }
 }
