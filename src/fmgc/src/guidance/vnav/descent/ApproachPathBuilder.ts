@@ -21,9 +21,9 @@ class FlapConfigurationProfile {
         if (speed > parameters.cleanSpeed) {
             return FlapConf.CLEAN;
         } if (speed > parameters.slatRetractionSpeed) {
-            return FlapConf.CONF_1;
+            return FlapConf.CONF_1; // Between S and O
         } if (speed > parameters.flapRetractionSpeed) {
-            return FlapConf.CONF_2;
+            return FlapConf.CONF_2; // Between F and S
         } if (speed > (parameters.flapRetractionSpeed + parameters.approachSpeed) / 2) {
             return FlapConf.CONF_3;
         }
@@ -272,7 +272,7 @@ export class ApproachPathBuilder {
     /**
      * This builds a level deceleration path, bringing out flaps as needed, and obeying speed constraints
      * @param sequence
-     * @param strategy
+     * @param fpa
      * @param speedProfile
      * @param targetDistanceFromStart
      * @returns
@@ -326,7 +326,7 @@ export class ApproachPathBuilder {
                     decelerationSequence.addCheckpointFromStep(decelerationStep, VerticalCheckpointReason.AtmosphericConditions);
                 }
 
-                const remainingDistanceToConstraint = distanceFromStart - decelerationStep.distanceTraveled - Math.max(speedConstraint.distanceFromStart, targetDistanceFromStart);
+                const remainingDistanceToConstraint = distanceFromStart + decelerationStep.distanceTraveled - Math.max(speedConstraint.distanceFromStart, targetDistanceFromStart);
 
                 if (remainingDistanceToConstraint > 0.05) {
                     if (speedConstraint.maxSpeed > parameters.cleanSpeed) {
@@ -351,7 +351,7 @@ export class ApproachPathBuilder {
                     decelerationSequence.copyLastCheckpoint({ reason: VerticalCheckpointReason.SpeedConstraint });
                 }
             } else {
-                const remainingDistance = distanceFromStart - targetDistanceFromStart;
+                const remainingDistance = targetDistanceFromStart - distanceFromStart; // This should be negative
                 const speedTargetWithConstraints = speedProfile.getTarget(distanceFromStart, decelerationSequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
 
                 const targetSpeed = Math.min(flapTargetSpeed, speedTargetWithConstraints);
@@ -367,8 +367,8 @@ export class ApproachPathBuilder {
                     AircraftConfigurationProfile.getBySpeed(speed, parameters),
                 );
 
-                if (decelerationStep.distanceTraveled > remainingDistance) {
-                    const scaling = Math.min(1, remainingDistance / -decelerationStep.distanceTraveled);
+                if (decelerationStep.distanceTraveled < remainingDistance) {
+                    const scaling = Math.min(1, remainingDistance / decelerationStep.distanceTraveled);
                     this.scaleStepBasedOnLastCheckpoint(decelerationSequence.lastCheckpoint, decelerationStep, scaling);
                     decelerationSequence.addCheckpointFromStep(decelerationStep, VerticalCheckpointReason.AtmosphericConditions);
 
