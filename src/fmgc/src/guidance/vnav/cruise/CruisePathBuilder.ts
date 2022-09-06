@@ -69,6 +69,10 @@ export class CruisePathBuilder {
             this.addSegmentToSpeedConstraint(sequence, speedConstraint, speedProfile, windProfile);
         }
 
+        if (sequence.lastCheckpoint.distanceFromStart >= targetDistanceFromStart) {
+            return sequence;
+        }
+
         const speedTarget = speedProfile.getTarget(
             sequence.lastCheckpoint.distanceFromStart,
             sequence.lastCheckpoint.altitude,

@@ -3,7 +3,7 @@ import { StepResults } from '@fmgc/guidance/vnav/Predictions';
 import { VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 export class TemporaryCheckpointSequence {
-    private checkpoints: VerticalCheckpoint[];
+    checkpoints: VerticalCheckpoint[];
 
     constructor(...checkpoints: VerticalCheckpoint[]) {
         this.checkpoints = checkpoints;

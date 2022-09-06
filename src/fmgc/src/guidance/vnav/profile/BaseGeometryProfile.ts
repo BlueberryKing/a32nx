@@ -285,7 +285,7 @@ export abstract class BaseGeometryProfile {
         return this.lastCheckpoint.speed;
     }
 
-    addInterpolatedCheckpoint(distanceFromStart: NauticalMiles, additionalProperties: HasAtLeast<VerticalCheckpoint, 'reason'>) {
+    addInterpolatedCheckpoint(distanceFromStart: NauticalMiles, additionalProperties: HasAtLeast<VerticalCheckpoint, 'reason'>): VerticalCheckpoint {
         if (distanceFromStart <= this.checkpoints[0].distanceFromStart) {
             this.checkpoints.unshift({
                 distanceFromStart,
@@ -297,7 +297,7 @@ export abstract class BaseGeometryProfile {
                 ...additionalProperties,
             });
 
-            return;
+            return this.checkpoints[0];
         }
 
         for (let i = 0; i < this.checkpoints.length - 1; i++) {
@@ -342,7 +342,7 @@ export abstract class BaseGeometryProfile {
                     ...additionalProperties,
                 });
 
-                return;
+                return this.checkpoints[i + 1];
             }
         }
 
@@ -355,6 +355,8 @@ export abstract class BaseGeometryProfile {
             mach: this.lastCheckpoint.mach,
             ...additionalProperties,
         });
+
+        return this.lastCheckpoint;
     }
 
     addCheckpointAtDistanceFromStart(distanceFromStart: NauticalMiles, ...checkpoints: VerticalCheckpoint[]) {

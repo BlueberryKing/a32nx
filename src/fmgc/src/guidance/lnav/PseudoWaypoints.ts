@@ -271,6 +271,7 @@ export class PseudoWaypoints implements GuidanceComponent {
         wptCount: number,
         distanceFromEnd: NauticalMiles,
         debugString?: string,
+        forcePlacementInDiscontinuity: boolean = false,
     ): [lla: Coordinates, distanceFromLegTermination: number, legIndex: number] | undefined {
         if (!distanceFromEnd || distanceFromEnd < 0) {
             if (VnavConfig.DEBUG_PROFILE) {
@@ -297,8 +298,13 @@ export class PseudoWaypoints implements GuidanceComponent {
             const nextLeg = path.legs.get(i + 1);
             const previousLeg = path.legs.get(i - 1);
 
-            if (leg instanceof XFLeg && leg.fix.endsInDiscontinuity && nextLeg instanceof XFLeg) {
-                distanceInDiscontinuity = Avionics.Utils.computeGreatCircleDistance(leg.fix.infos.coordinates, nextLeg.fix.infos.coordinates);
+            if (leg instanceof XFLeg && leg.fix.endsInDiscontinuity) {
+                if (nextLeg instanceof XFLeg) {
+                    distanceInDiscontinuity = Avionics.Utils.computeGreatCircleDistance(leg.fix.infos.coordinates, nextLeg.fix.infos.coordinates);
+                } else if (!nextLeg && leg.fix.additionalData.distanceToEnd > 0) {
+                    // This is a filthy hack
+                    distanceInDiscontinuity = leg.fix.additionalData.distanceToEnd;
+                }
             } else if (leg instanceof VMLeg && previousLeg instanceof XFLeg && nextLeg instanceof XFLeg) {
                 distanceInDiscontinuity = Avionics.Utils.computeGreatCircleDistance(previousLeg.fix.infos.coordinates, nextLeg.fix.infos.coordinates);
             }
@@ -329,7 +335,11 @@ export class PseudoWaypoints implements GuidanceComponent {
             if (accumulator > distanceFromEnd) {
                 if (distanceInDiscontinuity > 0 && accumulator - totalLegPathLength > distanceFromEnd) {
                     // Points lies on discontinuity (on the direct line between the two fixes)
-                    // In this case, we don't want to place the
+                    // In this case, we don't want to place the PWP unless we force placement. In this case, we place it on the termination
+                    if (forcePlacementInDiscontinuity && leg instanceof XFLeg) {
+                        return [leg.fix.infos.coordinates, distanceFromEnd - (accumulator - totalLegPathLength), i];
+                    }
+
                     return undefined;
                 }
 
@@ -384,8 +394,11 @@ export class PseudoWaypoints implements GuidanceComponent {
     private createPseudoWaypointFromVerticalCheckpoint(geometry: Geometry, wptCount: number, totalDistance: number, checkpoint: VerticalCheckpoint): PseudoWaypoint | undefined {
         let [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = [undefined, undefined, undefined];
         // We want the decel point and T/D to be drawn along the track line even if not in NAV mode
-        if (this.guidanceController.vnavDriver.isInManagedNav() || checkpoint.reason === VerticalCheckpointReason.Decel || checkpoint.reason === VerticalCheckpointReason.TopOfDescent) {
-            const pwp = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - checkpoint?.distanceFromStart);
+        const shouldForcePlacementOnFlightplan = checkpoint.reason === VerticalCheckpointReason.Decel || checkpoint.reason === VerticalCheckpointReason.TopOfDescent;
+
+        if (this.guidanceController.vnavDriver.isInManagedNav() || shouldForcePlacementOnFlightplan) {
+            // TODO: Pass in `shouldForcePlacementOnFlightplan`
+            const pwp = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - checkpoint?.distanceFromStart, checkpoint.reason);
 
             if (pwp) {
                 [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = pwp;

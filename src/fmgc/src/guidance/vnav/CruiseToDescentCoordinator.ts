@@ -9,6 +9,7 @@ import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vna
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { TemporaryCheckpointSequence } from '@fmgc/guidance/vnav/profile/TemporaryCheckpointSequence';
+import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
 
 export class CruiseToDescentCoordinator {
     private lastEstimatedFuelAtDestination: Pounds = 2300;
@@ -48,7 +49,7 @@ export class CruiseToDescentCoordinator {
             return;
         }
 
-        const startingPoint = profile.checkpoints[startingPointIndex];
+        let startingPoint = profile.checkpoints[startingPointIndex];
 
         let iterationCount = 0;
         let todFuelError = Infinity;
@@ -77,12 +78,38 @@ export class CruiseToDescentCoordinator {
                 return;
             }
 
-            // This means we are in the descent.
             if (descentPath.lastCheckpoint.distanceFromStart < startingPoint.distanceFromStart) {
-                // At this point, there will still be a PresentPosition checkpoint in the profile, but we use it and remove it in DescentGuidance
-                profile.checkpoints.push(...descentPath.get(true).reverse());
+                // Check if plane is past T/D.
+                if (startingPoint.reason === VerticalCheckpointReason.PresentPosition) {
+                    // At this point, there will still be a PresentPosition checkpoint in the profile, but we use it and remove it in DescentGuidance
+                    profile.checkpoints.push(...descentPath.get(true).reverse());
 
-                return;
+                    return;
+                } if (startingPoint.reason === VerticalCheckpointReason.TopOfClimb) {
+                    // Flight plan too short
+                    const climbDescentInterceptDistance = ProfileInterceptCalculator.calculateIntercept(profile.checkpoints, descentPath.checkpoints);
+
+                    // If we somehow don't find an intercept between climb and descent path, just build the cruise path until end of the path
+                    if (!climbDescentInterceptDistance) {
+                        cruisePath = this.cruisePathBuilder.computeCruisePath(
+                            profile, startingPoint, descentPath.at(0).distanceFromStart, stepClimbStrategy, stepDescentStrategy, speedProfile, cruiseWinds,
+                        );
+
+                        console.error('[FMS/VNAV] Edge case: Flight plan too short. However, no intercept between climb and descent path.');
+                        profile.checkpoints.push(...cruisePath.get());
+
+                        return;
+                    }
+
+                    // If there is an intercept, place the T/D wherever we need it
+                    const combinedTopOfClimbTopOfDescent = profile.addInterpolatedCheckpoint(climbDescentInterceptDistance, { reason: VerticalCheckpointReason.TopOfClimb });
+                    const savedTopOfDescent = descentPath.lastCheckpoint;
+                    descentPath.checkpoints = descentPath.checkpoints.filter((checkpoint) => checkpoint.distanceFromStart >= combinedTopOfClimbTopOfDescent.distanceFromStart);
+                    // TODO: We should interpolate this point along the descent path, so fuel and time are correct
+                    descentPath.push({ ...savedTopOfDescent, distanceFromStart: combinedTopOfClimbTopOfDescent.distanceFromStart, altitude: combinedTopOfClimbTopOfDescent.altitude });
+
+                    startingPoint = combinedTopOfClimbTopOfDescent;
+                }
             }
 
             cruisePath = this.cruisePathBuilder.computeCruisePath(
@@ -100,6 +127,8 @@ export class CruiseToDescentCoordinator {
             this.lastEstimatedFuelAtDestination += todFuelError;
             this.lastEstimatedTimeAtDestination += todTimeError;
         }
+
+        profile.checkpoints = profile.checkpoints.filter((checkpoint) => checkpoint.distanceFromStart <= startingPoint.distanceFromStart);
 
         profile.checkpoints.push(...cruisePath.get());
         profile.checkpoints.push(...descentPath.get(true).reverse());

@@ -183,7 +183,7 @@ export class ConstraintReader {
             const nextWaypoint = fpm.getWaypoint(i + 1, FlightPlans.Active);
 
             if (!leg || leg.isNull) {
-                return;
+                continue;
             }
 
             if (waypoint.endsInDiscontinuity) {
