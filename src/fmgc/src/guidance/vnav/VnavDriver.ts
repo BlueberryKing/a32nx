@@ -26,11 +26,12 @@ import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDesce
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
 import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
 import { ApproachPathBuilder } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { FlapConf } from '@fmgc/guidance/vnav/common';
+import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
+import { AltitudeConstraint, LegMetadata, SpeedConstraint } from '@fmgc/guidance/lnav/legs';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason, VerticalWaypointPrediction } from './profile/NavGeometryProfile';
@@ -116,7 +117,7 @@ export class VnavDriver implements GuidanceComponent {
 
     private lastParameters: VerticalProfileComputationParameters = null;
 
-    private lastFlightPlanVersion: number = -1;
+    private oldGeometry: Geometry = null;
 
     update(deltaTime: number): void {
         try {
@@ -145,14 +146,17 @@ export class VnavDriver implements GuidanceComponent {
         this.headingProfile.updateGeometry(geometry);
 
         this.computeVerticalProfileForMcdu(geometry);
-        this.computeVerticalProfileForNd();
 
-        if (this.shouldUpdateDescentProfile(newParameters)) {
-            this.lastFlightPlanVersion = this.flightPlanManager.currentFlightPlanVersion;
+        if (this.shouldUpdateDescentProfile(newParameters, geometry)) {
+            this.oldGeometry = geometry;
             this.lastParameters = newParameters;
-            this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
+
+            if (this.currentNavGeometryProfile?.isReadyToDisplay) {
+                this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
+            }
         }
 
+        this.computeVerticalProfileForNd();
         this.guidanceController.pseudoWaypoints.acceptVerticalProfile();
 
         this.version++;
@@ -295,7 +299,21 @@ export class VnavDriver implements GuidanceComponent {
             this.climbPathBuilder.computeClimbPath(this.currentNdGeometryProfile, climbStrategy, speedProfile, climbWinds, fcuAltitude);
         } else if (tacticalDescentModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) {
             // The idea here is that we compute a profile to FCU alt in the current modes, find the intercept with the managed profile. And then compute the managed profile from there.
-            const descentStrategy = this.getAppropriateTacticalDescentStrategy(fcuVerticalMode, fcuVerticalSpeed);
+            const pposIndex = this.currentNavGeometryProfile.findLastVerticalCheckpointIndex(VerticalCheckpointReason.PresentPosition);
+            // We want to figure out if we are above or below the current nav profile.
+            // We can't use this.aircraftToDescentProfileRelation.computeLinearDeviation() because
+            // the profile in `aircraftToDescentProfileRelation` is not updated during descent.
+            const vdev = pposIndex === 0
+                ? this.aircraftToDescentProfileRelation.computeLinearDeviation()
+                : this.currentNavGeometryProfile.checkpoints[pposIndex].altitude - Common.interpolate(
+                    this.currentNavGeometryProfile.checkpoints[pposIndex].distanceFromStart,
+                    this.currentNavGeometryProfile.checkpoints[pposIndex - 1].distanceFromStart,
+                    this.currentNavGeometryProfile.checkpoints[pposIndex + 1].distanceFromStart,
+                    this.currentNavGeometryProfile.checkpoints[pposIndex - 1].altitude,
+                    this.currentNavGeometryProfile.checkpoints[pposIndex + 1].altitude,
+                );
+
+            const descentStrategy = this.getAppropriateTacticalDescentStrategy(fcuVerticalMode, fcuVerticalSpeed, vdev);
 
             // Build path to FCU altitude.
             this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, speedProfile, fcuAltitude);
@@ -313,7 +331,7 @@ export class VnavDriver implements GuidanceComponent {
 
                     if (fcuVerticalMode === VerticalMode.DES) {
                         // Only draw intercept if it's far enough away
-                        const pposDistanceFromStart = this.currentNavGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.PresentPosition)?.distanceFromStart ?? 0;
+                        const pposDistanceFromStart = this.currentNdGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.PresentPosition)?.distanceFromStart ?? 0;
 
                         // We remove all subsequent checkpoints after the intercept, since those will just be on the managed profile
                         const interceptIndex = this.currentNdGeometryProfile.checkpoints.findIndex((checkpoint) => checkpoint.reason === reason);
@@ -372,14 +390,12 @@ export class VnavDriver implements GuidanceComponent {
         }
     }
 
-    private getAppropriateTacticalDescentStrategy(fcuVerticalMode: VerticalMode, fcuVerticalSpeed: FeetPerMinute) {
+    private getAppropriateTacticalDescentStrategy(fcuVerticalMode: VerticalMode, fcuVerticalSpeed: FeetPerMinute, vdev: Feet) {
         if (fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) {
             return new VerticalSpeedStrategy(this.computationParametersObserver, this.atmosphericConditions, fcuVerticalSpeed);
         }
 
         if (this.aircraftToDescentProfileRelation.isValid && fcuVerticalMode === VerticalMode.DES) {
-            const vdev = this.aircraftToDescentProfileRelation.computeLinearDeviation();
-
             if (vdev > 0 && this.aircraftToDescentProfileRelation.isPastTopOfDescent()) {
                 return new IdleDescentStrategy(
                     this.computationParametersObserver,
@@ -524,19 +540,39 @@ export class VnavDriver implements GuidanceComponent {
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
     }
 
-    private shouldUpdateDescentProfile(newParameters: VerticalProfileComputationParameters): boolean {
+    private shouldUpdateDescentProfile(newParameters: VerticalProfileComputationParameters, geometry: Geometry): boolean {
         // While in the descent phase, we don't want to update the profile anymore
         if (this.lastParameters === null) {
             return true;
         }
 
         return newParameters.flightPhase < FmgcFlightPhase.Descent || newParameters.flightPhase > FmgcFlightPhase.Approach
-            || (this.flightPlanManager.currentFlightPlanVersion !== this.lastFlightPlanVersion && !this.flightPlanManager.isCurrentFlightPlanTemporary())
+            || (!this.flightPlanManager.isCurrentFlightPlanTemporary() && this.didGeometryChange(this.oldGeometry, geometry))
             || numberOrNanChanged(this.lastParameters.cruiseAltitude, newParameters.cruiseAltitude)
             || numberOrNanChanged(this.lastParameters.managedDescentSpeed, newParameters.managedDescentSpeed)
             || numberOrNanChanged(this.lastParameters.managedDescentSpeedMach, newParameters.managedDescentSpeedMach)
             || numberOrNanChanged(this.lastParameters.approachQnh, newParameters.approachQnh)
             || numberOrNanChanged(this.lastParameters.approachTemperature, newParameters.approachTemperature);
+    }
+
+    private didGeometryChange(oldGeo: Geometry, newGeo: Geometry): boolean {
+        if (!oldGeo || !newGeo) {
+            return !!oldGeo === !!newGeo;
+        }
+
+        for (const [index, legA] of oldGeo.legs) {
+            const legB = newGeo.legs.get(index);
+
+            if (index > this.guidanceController.activeLegIndex) {
+                continue;
+            }
+
+            if (!legA !== !legB || !isMetadataEqual(legA.metadata, legB.metadata)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public getDestinationPrediction(): VerticalWaypointPrediction | null {
@@ -568,7 +604,7 @@ export class VnavDriver implements GuidanceComponent {
             ? this.currentMcduSpeedProfile.getTarget(distanceToPresentPosition, presentPosition.alt, ManagedSpeedType.Climb)
             : SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots');
 
-        for (let i = 1; i < this.currentNdGeometryProfile.checkpoints.length; i++) {
+        for (let i = 1; i < this.currentNdGeometryProfile.checkpoints.length - 1; i++) {
             const checkpoint = this.currentNdGeometryProfile.checkpoints[i];
 
             if (checkpoint.distanceFromStart < distanceToPresentPosition) {
@@ -594,6 +630,33 @@ export class VnavDriver implements GuidanceComponent {
 }
 
 /// To check whether the value changed from old to new, but not if both values are NaN. (NaN !== NaN in JS)
-function numberOrNanChanged(oldValue: number, newValue: number): boolean {
+export function numberOrNanChanged(oldValue: number, newValue: number): boolean {
     return Number.isNaN(oldValue) !== Number.isNaN(newValue) && oldValue !== newValue;
+}
+
+function isMetadataEqual(a: LegMetadata, b: LegMetadata): boolean {
+    return areAltitudeConstraintsEqual(a.altitudeConstraint, b.altitudeConstraint)
+        && a.pathAngleConstraint === b.pathAngleConstraint
+        && a.isOverfly === b.isOverfly
+        && !numberOrNanChanged(a.offset, b.offset)
+        && a.turnDirection === b.turnDirection
+        && !numberOrNanChanged(a.rtaUtcSeconds, b.rtaUtcSeconds)
+        && areSpeedConstraintsEqual(a.speedConstraint, b.speedConstraint)
+        && a.turnDirection === b.turnDirection;
+}
+
+function areAltitudeConstraintsEqual(a: AltitudeConstraint, b: AltitudeConstraint): boolean {
+    if (!a || !b) {
+        return !a === !b;
+    }
+
+    return a.type === b.type && !numberOrNanChanged(Math.round(a.altitude1), Math.round(b.altitude1)) && !numberOrNanChanged(Math.round(a.altitude2), Math.round(b.altitude2));
+}
+
+function areSpeedConstraintsEqual(a: SpeedConstraint, b: SpeedConstraint): boolean {
+    if (!a || !b) {
+        return !a === !b;
+    }
+
+    return a.type === b.type && !numberOrNanChanged(Math.round(a.speed), Math.round(b.speed));
 }

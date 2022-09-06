@@ -14,7 +14,7 @@ export class AircraftToDescentProfileRelation {
 
     private distanceToEnd: NauticalMiles = 0;;
 
-    private totalFlightPlanDistance: number = 0;
+    public totalFlightPlanDistance: number = 0;
 
     private get distanceFromStart(): NauticalMiles {
         return this.totalFlightPlanDistance - this.distanceToEnd;
