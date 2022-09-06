@@ -383,12 +383,13 @@ export class PseudoWaypoints implements GuidanceComponent {
 
     private createPseudoWaypointFromVerticalCheckpoint(geometry: Geometry, wptCount: number, totalDistance: number, checkpoint: VerticalCheckpoint): PseudoWaypoint | undefined {
         let [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = [undefined, undefined, undefined];
-        if (this.guidanceController.vnavDriver.isInManagedNav() || checkpoint.reason === VerticalCheckpointReason.Decel) {
+        // We want the decel point and T/D to be drawn along the track line even if not in NAV mode
+        if (this.guidanceController.vnavDriver.isInManagedNav() || checkpoint.reason === VerticalCheckpointReason.Decel || checkpoint.reason === VerticalCheckpointReason.TopOfDescent) {
             const pwp = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - checkpoint?.distanceFromStart);
 
             if (pwp) {
                 [efisSymbolLla, distanceFromLegTermination, alongLegIndex] = pwp;
-            } else {
+            } else if (VnavConfig.DEBUG_PROFILE) {
                 console.warn('[FMS/VNAV] Could not place checkpoint:', checkpoint.reason);
             }
         }
