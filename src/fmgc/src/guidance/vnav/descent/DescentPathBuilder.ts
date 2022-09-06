@@ -74,6 +74,12 @@ export class DescentPathBuilder {
             }
         }
 
+        if (geometricSequence.length > 1) {
+            geometricSequence.lastCheckpoint.reason = VerticalCheckpointReason.GeometricPathStart;
+        } else {
+            geometricSequence.copyLastCheckpoint({ reason: VerticalCheckpointReason.GeometricPathStart });
+        }
+
         sequence.push(...geometricSequence.get());
         sequence.push(...idleSequence.get());
     }
