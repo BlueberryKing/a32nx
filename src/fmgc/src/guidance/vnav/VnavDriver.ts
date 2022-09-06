@@ -586,14 +586,14 @@ export class VnavDriver implements GuidanceComponent {
     public findNextSpeedChange(): NauticalMiles | null {
         const { presentPosition, flightPhase } = this.computationParametersObserver.get();
 
-        if (!Simplane.getAutoPilotAirspeedManaged() || SimVar.GetSimVarValue('L:A32NX_FMA_EXPEDITE_MODE', 'number') === 1) {
+        if (!Simplane.getAutoPilotAirspeedManaged() || SimVar.GetSimVarValue('L:A32NX_FMA_EXPEDITE_MODE', 'number') === 1  || flightPhase === FmgcFlightPhase.Approach) {
             return null;
         }
 
         let speedTargetType: ManagedSpeedType = ManagedSpeedType.Climb;
         if (flightPhase === FmgcFlightPhase.Cruise) {
             speedTargetType = ManagedSpeedType.Cruise;
-        } else if (flightPhase === FmgcFlightPhase.Descent || flightPhase === FmgcFlightPhase.Approach) {
+        } else if (flightPhase === FmgcFlightPhase.Descent) {
             speedTargetType = ManagedSpeedType.Descent;
         }
 
