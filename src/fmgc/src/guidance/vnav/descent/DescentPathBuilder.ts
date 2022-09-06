@@ -63,7 +63,6 @@ export class DescentPathBuilder {
                 // Plan geometric path between decel point and geometric path point (point between geometric and idle path)
                 const geometricSegments: PlannedGeometricSegment[] = [];
                 GeometricPathPlanner.planDescentSegments(profile.descentAltitudeConstraints, decelPoint, geometricPathPoint, geometricSegments, TOL);
-                console.log('geometricSegments', geometricSegments);
 
                 // Execute
                 geometricSequence.reset(geometricSequence.at(0));
