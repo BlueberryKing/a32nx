@@ -43,7 +43,7 @@ export interface VerticalProfileComputationParameters {
     takeoffFlapsSetting?: FlapConf
 
     approachQnh: Millibar,
-    approachTemperature: Celcius,
+    approachTemperature: Celsius,
     approachSpeed: Knots,
     flapRetractionSpeed: Knots,
     slatRetractionSpeed: Knots,
