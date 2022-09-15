@@ -69,7 +69,7 @@ export class AircraftToDescentProfileRelation {
     }
 
     isPastTopOfDescent(): boolean {
-        return !this.topOfDescent || this.distanceFromStart > this.topOfDescent.distanceFromStart;
+        return this.distanceToTopOfDescent() < 0;
     }
 
     distanceToTopOfDescent(): number | null {
