@@ -83,13 +83,9 @@ export class VerticalSpeedStrategy implements ClimbStrategy, DescentStrategy {
             perfFactor,
         );
     }
-
-    predictToSpeedBackwards(_finalAltitude: number, _finalSpeed: Knots, _speed: Knots, _mach: Mach, _fuelOnBoard: number): StepResults {
-        throw new Error('[FMS/VNAV] Backwards speed predictions not implemented for V/S strategy');
-    }
 }
 
-export class FlightPathAngleStrategy implements ClimbStrategy {
+export class FlightPathAngleStrategy implements ClimbStrategy, DescentStrategy {
     constructor(private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions, public flightPathAngle: Radians) { }
 
     predictToAltitude(_initialAltitude: Feet, _finalAltitude: Feet, _speed: Knots, _mach: Mach, _fuelOnBoard: number, _headwindComponent: WindComponent): StepResults {
@@ -120,6 +116,10 @@ export class FlightPathAngleStrategy implements ClimbStrategy {
         );
     }
 
+    /**
+     * If the path is being built backwards and we are trying to calculate a deceleration segment, `finalSpeed` should be greater than `speed`.
+     * In this case, this predicts a segment where the aircraft decelerates to `finalSpeed` from `speed`.
+     */
     predictToSpeed(initialAltitude: Feet, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration): StepResults {
         const { zeroFuelWeight, perfFactor, tropoPause, managedClimbSpeedMach } = this.observer.get();
 

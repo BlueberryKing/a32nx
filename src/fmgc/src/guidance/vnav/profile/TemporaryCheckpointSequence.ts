@@ -25,18 +25,6 @@ export class TemporaryCheckpointSequence {
         this.checkpoints.splice(this.checkpoints.length - 1);
     }
 
-    addCheckpointFromStepBackwards(step: StepResults, reason: VerticalCheckpointReason) {
-        this.checkpoints.push({
-            reason,
-            distanceFromStart: this.lastCheckpoint.distanceFromStart - step.distanceTraveled,
-            altitude: step.initialAltitude,
-            secondsFromPresent: this.lastCheckpoint.secondsFromPresent - step.timeElapsed,
-            remainingFuelOnBoard: this.lastCheckpoint.remainingFuelOnBoard + step.fuelBurned,
-            speed: step.speed,
-            mach: this.lastCheckpoint.mach,
-        });
-    }
-
     addCheckpointFromStep(step: StepResults, reason: VerticalCheckpointReason) {
         this.checkpoints.push({
             reason,

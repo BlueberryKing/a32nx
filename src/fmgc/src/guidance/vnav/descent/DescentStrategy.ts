@@ -50,18 +50,6 @@ export interface DescentStrategy {
     predictToSpeed(
         initialAltitude: number, speed: Knots, finalSpeed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration
     ): StepResults
-
-    /**
-     * Computes a descending deceleration backwards
-     * @param finalAltitude Altitude that you should end up at after descending
-     * @param finalSpeed Speed that you should be at after decelerating
-     * @param speed
-     * @param mach
-     * @param fuelOnBoard
-     */
-    predictToSpeedBackwards(
-        finalAltitude: number, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration
-    ): StepResults;
 }
 
 export class IdleDescentStrategy implements DescentStrategy {
@@ -147,33 +135,6 @@ export class IdleDescentStrategy implements DescentStrategy {
             config.gearExtended,
             config.flapConfig,
             config.speedbrakesExtended,
-            perfFactor,
-        );
-    }
-
-    predictToSpeedBackwards(
-        finalAltitude: number, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config: AircraftConfiguration = this.defaultConfig,
-    ): StepResults {
-        const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
-
-        const initialMach = Math.min(this.atmosphericConditions.computeMachFromCas(finalAltitude, speed), mach);
-        const finalMach = Math.min(this.atmosphericConditions.computeMachFromCas(finalAltitude, finalSpeed), mach);
-
-        const predictedN1 = EngineModel.getIdleN1(finalAltitude, (initialMach + finalMach) / 2) + VnavConfig.IDLE_N1_MARGIN;
-
-        return Predictions.reverseAltitudeStepWithSpeedChange(
-            finalAltitude,
-            speed,
-            finalSpeed,
-            mach,
-            predictedN1,
-            zeroFuelWeight,
-            fuelOnBoard,
-            headwindComponent.value,
-            this.atmosphericConditions.isaDeviation,
-            tropoPause,
-            config.speedbrakesExtended,
-            config.flapConfig,
             perfFactor,
         );
     }
