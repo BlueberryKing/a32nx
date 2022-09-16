@@ -248,7 +248,7 @@ export class VnavDriver implements GuidanceComponent {
     private computeVerticalProfileForNd() {
         const { fcuAltitude, fcuVerticalMode, presentPosition, fuelOnBoard, fcuVerticalSpeed, flightPhase } = this.computationParametersObserver.get();
 
-        this.currentNdGeometryProfile = this.isInManagedNav()
+        this.currentNdGeometryProfile = this.isLatAutoControlActive()
             ? new NavGeometryProfile(this.guidanceController, this.constraintReader, this.atmosphericConditions, this.flightPlanManager.getWaypointsCount())
             : new SelectedGeometryProfile();
 
@@ -318,7 +318,7 @@ export class VnavDriver implements GuidanceComponent {
             // Build path to FCU altitude.
             this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, speedProfile, fcuAltitude);
 
-            if (this.isInManagedNav()) {
+            if (this.isLatAutoControlActive()) {
                 // Compute intercept between managed profile and tactical path.
                 const interceptDistance = ProfileInterceptCalculator.calculateIntercept(
                     this.currentNdGeometryProfile.checkpoints,
@@ -330,13 +330,10 @@ export class VnavDriver implements GuidanceComponent {
                     this.currentNdGeometryProfile.addInterpolatedCheckpoint(interceptDistance, { reason });
 
                     if (fcuVerticalMode === VerticalMode.DES) {
-                        // Only draw intercept if it's far enough away
-                        const pposDistanceFromStart = this.currentNdGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.PresentPosition)?.distanceFromStart ?? 0;
-
                         // We remove all subsequent checkpoints after the intercept, since those will just be on the managed profile
                         const interceptIndex = this.currentNdGeometryProfile.checkpoints.findIndex((checkpoint) => checkpoint.reason === reason);
                         const interceptCheckpoint = this.currentNdGeometryProfile.checkpoints[interceptIndex];
-                        const isTooCloseToDrawIntercept = interceptDistance - pposDistanceFromStart < 3;
+                        const isTooCloseToDrawIntercept = Math.abs(vdev) < 100;
                         const isInterceptOnlyAtFcuAlt = interceptCheckpoint.altitude - fcuAltitude < 100;
 
                         this.currentNdGeometryProfile.checkpoints.splice(isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt ? interceptIndex : interceptIndex + 1);
@@ -346,7 +343,7 @@ export class VnavDriver implements GuidanceComponent {
         }
 
         // After computing the tactical profile, we wish to finish it up in managed modes.
-        if (this.isInManagedNav() && this.currentNdGeometryProfile) {
+        if (this.isLatAutoControlActive() && this.currentNdGeometryProfile) {
             this.currentNdGeometryProfile.checkpoints.push(
                 ...this.currentNavGeometryProfile.checkpoints
                     .slice()
@@ -424,7 +421,7 @@ export class VnavDriver implements GuidanceComponent {
         const { fcuSpeed } = this.computationParametersObserver.get();
 
         // TODO: Take MACH into account
-        return this.isInManagedNav() && fcuSpeed <= 0;
+        return this.isLatAutoControlActive() && fcuSpeed <= 0;
     }
 
     shouldObeyAltitudeConstraints(): boolean {
@@ -474,10 +471,24 @@ export class VnavDriver implements GuidanceComponent {
         }
     }
 
-    isInManagedNav(): boolean {
-        const { fcuLateralMode, fcuArmedLateralMode } = this.computationParametersObserver.get();
+    isLatAutoControlActive(): boolean {
+        const { fcuLateralMode } = this.computationParametersObserver.get();
 
-        return fcuLateralMode === LateralMode.NAV || isArmed(fcuArmedLateralMode, ArmedLateralMode.NAV);
+        return fcuLateralMode === LateralMode.NAV
+            || fcuLateralMode === LateralMode.LOC_CPT
+            || fcuLateralMode === LateralMode.LOC_TRACK
+            || fcuLateralMode === LateralMode.RWY;
+    }
+
+    isSelectedVerticalModeActive(): boolean {
+        const { fcuVerticalMode } = this.computationParametersObserver.get();
+        const isExpediteModeActive = SimVar.GetSimVarValue('L:A32NX_FMA_EXPEDITE_MODE', 'number') === 1;
+
+        return isExpediteModeActive
+            || fcuVerticalMode === VerticalMode.VS
+            || fcuVerticalMode === VerticalMode.FPA
+            || fcuVerticalMode === VerticalMode.OP_CLB
+            || fcuVerticalMode === VerticalMode.OP_DES;
     }
 
     private updateGuidance(): void {

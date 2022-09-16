@@ -14,6 +14,8 @@ import { SegmentType } from '@fmgc/wtsdk';
 import { distanceTo } from 'msfs-geo';
 import { FlowEventSync } from '@shared/FlowEventSync';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
+import { getFlightPhaseManager } from '@fmgc/flightphase';
+import { FmgcFlightPhase } from '@shared/flightphase';
 import { LegType, RunwaySurface, TurnDirection, VorType } from '../types/fstypes/FSEnums';
 import { NearbyFacilities } from './NearbyFacilities';
 
@@ -307,9 +309,10 @@ export class EfisSymbols {
                 }
             }
 
-            const isInManagedNav = this.guidanceController.vnavDriver.isInManagedNav();
+            const isInLatAutoControl = this.guidanceController.vnavDriver.isLatAutoControlActive();
             const waypointPredictions = this.guidanceController.vnavDriver.currentNavGeometryProfile?.waypointPredictions;
-            const shouldObeyAltitudeConstraints = this.guidanceController.vnavDriver.shouldObeyAltitudeConstraints();
+            const isSelectedVerticalModeActive = this.guidanceController.vnavDriver.isSelectedVerticalModeActive();
+            const flightPhase = getFlightPhaseManager().phase;
 
             // TODO don't send the waypoint before active once FP sequencing is properly implemented
             // (currently sequences with guidance which is too early)
@@ -372,8 +375,8 @@ export class EfisSymbols {
 
                     const isBehindAircraft = i < activeFp.activeWaypointIndex;
 
-                    if (isInManagedNav && !isBehindAircraft && wp.legAltitudeDescription > 0 && wp.legAltitudeDescription < 6) {
-                        if (shouldObeyAltitudeConstraints) {
+                    if (isInLatAutoControl && !isBehindAircraft && wp.legAltitudeDescription > 0 && wp.legAltitudeDescription < 6) {
+                        if (!isSelectedVerticalModeActive && shouldShowConstraintCircleInPhase(flightPhase, wp)) {
                             type |= NdSymbolTypeFlags.Constraint;
 
                             const predictionAtWaypoint = waypointPredictions.get(i);
@@ -608,3 +611,9 @@ export class EfisSymbols {
         }
     }
 }
+
+const shouldShowConstraintCircleInPhase = (phase: FmgcFlightPhase, waypoint: WayPoint) => (
+    (phase === FmgcFlightPhase.Takeoff || phase === FmgcFlightPhase.Climb) && waypoint.additionalData.constraintType === WaypointConstraintType.CLB
+) || (
+    (phase === FmgcFlightPhase.Cruise || phase === FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Approach) && waypoint.additionalData.constraintType === WaypointConstraintType.DES
+);

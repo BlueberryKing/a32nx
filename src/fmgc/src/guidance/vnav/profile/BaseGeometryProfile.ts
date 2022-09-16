@@ -404,60 +404,6 @@ export abstract class BaseGeometryProfile {
         };
     }
 
-    getCheckpointsToDrawOnNd(): VerticalCheckpoint[] {
-        if (!this.isReadyToDisplay) {
-            return [];
-        }
-
-        const CHECKPOINTS_TO_DRAW_ON_ND = new Set([
-            VerticalCheckpointReason.TopOfClimb,
-            VerticalCheckpointReason.LevelOffForClimbConstraint,
-            VerticalCheckpointReason.ContinueClimb,
-            VerticalCheckpointReason.CrossingFcuAltitudeClimb,
-            VerticalCheckpointReason.TopOfDescent,
-            VerticalCheckpointReason.CrossingFcuAltitudeDescent,
-            VerticalCheckpointReason.ContinueDescent,
-            VerticalCheckpointReason.ContinueDescentArmed,
-            VerticalCheckpointReason.LevelOffForDescentConstraint,
-            VerticalCheckpointReason.InterceptDescentProfileManaged,
-            VerticalCheckpointReason.InterceptDescentProfileSelected,
-            VerticalCheckpointReason.Decel,
-            VerticalCheckpointReason.Flaps1,
-            VerticalCheckpointReason.Flaps2,
-            VerticalCheckpointReason.Flaps3,
-            VerticalCheckpointReason.FlapsFull,
-        ]);
-
-        return this.checkpoints.filter((checkpoint) => CHECKPOINTS_TO_DRAW_ON_ND.has(checkpoint.reason));
-    }
-
-    getCheckpointsInMcdu(): VerticalCheckpoint[] {
-        if (!this.isReadyToDisplay) {
-            return [];
-        }
-
-        const CHECKPOINTS_TO_PUT_IN_MCDU = new Set([
-            VerticalCheckpointReason.TopOfClimb,
-            VerticalCheckpointReason.CrossingClimbSpeedLimit,
-
-            VerticalCheckpointReason.StepClimb,
-            VerticalCheckpointReason.StepDescent,
-
-            // Descent
-            VerticalCheckpointReason.TopOfDescent,
-            VerticalCheckpointReason.CrossingDescentSpeedLimit,
-
-            // Approach
-            VerticalCheckpointReason.Decel,
-            VerticalCheckpointReason.Flaps1,
-            VerticalCheckpointReason.Flaps2,
-            VerticalCheckpointReason.Flaps3,
-            VerticalCheckpointReason.FlapsFull,
-        ]);
-
-        return this.checkpoints.filter((checkpoint) => CHECKPOINTS_TO_PUT_IN_MCDU.has(checkpoint.reason));
-    }
-
     addPresentPositionCheckpoint(presentPosition: LatLongAlt, remainingFuelOnBoard: number) {
         this.checkpoints.push({
             reason: VerticalCheckpointReason.PresentPosition,
