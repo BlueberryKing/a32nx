@@ -4,6 +4,13 @@ class CDUStepAltsPage {
     static ShowPage(mcdu) {
         mcdu.pageUpdate = () => { };
 
+        mcdu.page.Current = mcdu.page.StepAltsPage;
+        mcdu.page.SelfPtr = setTimeout(() => {
+            if (mcdu.page.Current === mcdu.page.StepAltsPage) {
+                CDUStepAltsPage.ShowPage(mcdu);
+            }
+        }, mcdu.PageTimeout.Medium);
+
         const flightPhase = SimVar.GetSimVarValue("L:A32NX_FWC_FLIGHT_PHASE", "Enum");
         const isFlying = flightPhase >= 5 && flightPhase <= 7;
         const transitionAltitude = mcdu.flightPlanManager.originTransitionAltitude;
@@ -127,7 +134,6 @@ class CDUStepAltsPage {
             return false;
         }
 
-        CDUStepAltsPage.ShowPage(mcdu);
         return true;
     }
 
@@ -159,7 +165,7 @@ class CDUStepAltsPage {
 
         if (input === FMCMainDisplay.clrValue) {
             mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
-            CDUStepAltsPage.ShowPage(mcdu);
+
             return true;
         }
 
@@ -172,7 +178,6 @@ class CDUStepAltsPage {
             if (altitude && mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(existingStep, altitude)) {
                 mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
 
-                CDUStepAltsPage.ShowPage(mcdu);
                 return true;
             }
         } else if (splitInputs.length === 2) {
@@ -184,7 +189,6 @@ class CDUStepAltsPage {
                 if (mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, existingStep.toAltitude)) {
                     mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
 
-                    CDUStepAltsPage.ShowPage(mcdu);
                     return true;
                 }
             } else {
@@ -194,7 +198,6 @@ class CDUStepAltsPage {
                 if (altitude && mcdu.flightPlanManager.tryAddOrUpdateCruiseStep(rawIdentInput, altitude)) {
                     mcdu.flightPlanManager.tryRemoveCruiseStep(existingStep.waypointIndex);
 
-                    CDUStepAltsPage.ShowPage(mcdu);
                     return true;
                 }
             }
