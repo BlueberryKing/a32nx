@@ -627,6 +627,12 @@ export class VnavDriver implements GuidanceComponent {
 
         return null;
     }
+
+    public invalidateFlightPlanProfile(): void {
+        if (this.currentNavGeometryProfile) {
+            this.currentNavGeometryProfile.isReadyToDisplay = false;
+        }
+    }
 }
 
 /// To check whether the value changed from old to new, but not if both values are NaN. (NaN !== NaN in JS)
