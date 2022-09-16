@@ -92,12 +92,11 @@ class CDUFlightPlanPage {
 
         // VNAV
         const fmsGeometryProfile = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile;
+        const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
 
-        let fmsPseudoWaypoints = [];
         let vnavPredictionsMapByWaypoint = null;
         if (fmsGeometryProfile && fmsGeometryProfile.isReadyToDisplay) {
             vnavPredictionsMapByWaypoint = fmsGeometryProfile.waypointPredictions;
-            fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
         }
 
         let cumulativeDistance = 0;
@@ -335,7 +334,6 @@ class CDUFlightPlanPage {
                 if (fpIndex === fpm.getDestinationIndex()) {
                     // Only for destination waypoint, show runway elevation.
                     altColor = "white";
-                    spdColor = "white";
                     const [rwTxt, rwAlt] = getRunwayInfo(fpm.getDestinationRunway());
                     if (rwTxt && rwAlt) {
                         altPrefix = "{magenta}*{end}";
@@ -388,7 +386,7 @@ class CDUFlightPlanPage {
                     altColor = "white";
                 }
 
-                if (fpIndex !== fpm.getDestinationIndex() && timeCell !== "----[s-text]") {
+                if (timeCell !== "----[s-text]") {
                     timeColor = color;
                 } else {
                     timeColor = "white";
@@ -488,7 +486,16 @@ class CDUFlightPlanPage {
                     });
 
             } else if (pwp) {
-                const color = (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green";
+                const color = "green";
+                let predictionColor = "green";
+
+                // I am not sure what happens with PWP while the profile is recomputed. I am pretty sure they are not shown at all,
+                // but if I don't show them, the flight plan jumps around because the offset is no longer correct if the number of items in the flight plan changes.
+                // Like this, they are still there, but have dashes for predictions.
+                if (!fmsGeometryProfile || !fmsGeometryProfile.isReadyToDisplay) {
+                    pwp.flightPlanInfo = null;
+                    predictionColor = "white";
+                }
 
                 let timeCell = "----[s-text]";
                 if (pwp.flightPlanInfo && isFinite(pwp.flightPlanInfo.secondsFromPresent)) {
@@ -508,18 +515,18 @@ class CDUFlightPlanPage {
                     fpIndex: fpIndex,
                     active: false,
                     ident: pwp.mcduIdent || pwp.ident,
-                    color: (fpm.isCurrentFlightPlanTemporary()) ? "yellow" : "green",
+                    color: "green",
                     distance: pwp.distanceInFP ? Math.round(pwp.distanceInFP).toFixed(0) : "",
-                    spdColor: pwp.flightPlanInfo ? "green" : "white",
+                    spdColor: predictionColor,
                     speedConstraint: speed,
-                    altColor: pwp.flightPlanInfo ? "green" : "white",
+                    altColor: predictionColor,
                     altitudeConstraint: { alt: pwp.flightPlanInfo ? formatAltitudeOrLevel(pwp.flightPlanInfo.altitude) : "-----", altPrefix: "\xa0" },
                     timeCell,
-                    timeColor: color,
+                    timeColor: predictionColor,
                     fixAnnotation: `{green}${pwp.mcduHeader || ''}{end}`,
                     bearingTrack: "",
                     isOverfly: false,
-                    slashColor: "green"
+                    slashColor: color
                 };
 
                 addLskAt(rowI, 0, (value, scratchpadCallback) => {
@@ -694,21 +701,22 @@ class CDUFlightPlanPage {
             }
             let destTimeCell = "----";
             let destDistCell = "---";
-            let destEFOBCell = "---";
+            let destEFOBCell = "-----";
 
-            if (fpm.getDestination() && fmsGeometryProfile) {
+            if (fpm.getDestination()) {
                 const destStats = stats.get(fpm.getCurrentFlightPlan().waypoints.length - 1);
-
                 if (destStats) {
                     destDistCell = destStats.distanceFromPpos.toFixed(0);
+                }
 
+                if (fmsGeometryProfile && fmsGeometryProfile.isReadyToDisplay) {
                     const destEfob = fmsGeometryProfile.getRemainingFuelAtDestination();
-                    if (isFinite(destEfob)) {
+                    if (Number.isFinite(destEfob)) {
                         destEFOBCell = (NXUnits.poundsToUser(destEfob) / 1000).toFixed(1);
                     }
 
                     const timeRemaining = fmsGeometryProfile.getTimeToDestination();
-                    if (isFinite(timeRemaining)) {
+                    if (Number.isFinite(timeRemaining)) {
                         const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                         destTimeCell = isFlying
@@ -718,8 +726,8 @@ class CDUFlightPlanPage {
                 }
             }
 
-            destText[0] = ["\xa0DEST", "DIST EFOB", isFlying ? "\xa0UTC{sp}{sp}{sp}{sp}" : "TIME{sp}{sp}{sp}{sp}"];
-            destText[1] = [destCell, `{small}${destDistCell}\xa0${destEFOBCell.padStart(4, '\xa0')}{end}`, `{small}${destTimeCell}{end}{sp}{sp}{sp}{sp}`];
+            destText[0] = ["\xa0DEST", "DIST\xa0\xa0EFOB", isFlying ? "\xa0UTC{sp}{sp}{sp}{sp}" : "TIME{sp}{sp}{sp}{sp}"];
+            destText[1] = [destCell, `{small}${destDistCell}\xa0${destEFOBCell.padStart(5, '\xa0')}{end}`, `{small}${destTimeCell}{end}{sp}{sp}{sp}{sp}`];
 
             addLskAt(5, () => mcdu.getDelaySwitchPage(),
                 () => {
@@ -833,8 +841,8 @@ function emptyFplnPage() {
         ["-----NO ALTN F-PLN-------"],
         [""],
         [""],
-        ["\xa0DEST", "DIST EFOB", "TIME{sp}{sp}{sp}{sp}"],
-        ["------", "---- ----", "----{sp}{sp}{sp}{sp}"]
+        ["\xa0DEST", "DIST\xa0\xa0EFOB", "TIME{sp}{sp}{sp}{sp}"],
+        ["-------", "----\xa0---.-", "----{sp}{sp}{sp}{sp}"]
     ];
 }
 
