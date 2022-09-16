@@ -402,6 +402,7 @@ class CDUVerticalRevisionPage {
 
         if (speed !== undefined) {
             mcdu.flightPlanManager.setWaypointSpeed(speed, mcdu.flightPlanManager.indexOfWaypoint(waypoint), () => {
+                mcdu.guidanceController.vnavDriver.invalidateFlightPlanProfile();
                 CDUFlightPlanPage.ShowPage(mcdu, offset);
             }, type === WaypointConstraintType.DES);
         }
@@ -409,6 +410,7 @@ class CDUVerticalRevisionPage {
         if (alt !== undefined) {
             mcdu.flightPlanManager.setLegAltitudeDescription(waypoint, code);
             mcdu.flightPlanManager.setWaypointAltitude(alt, mcdu.flightPlanManager.indexOfWaypoint(waypoint), () => {
+                mcdu.guidanceController.vnavDriver.invalidateFlightPlanProfile();
                 CDUFlightPlanPage.ShowPage(mcdu, offset);
             }, type === WaypointConstraintType.DES);
         }

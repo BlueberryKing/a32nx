@@ -90,13 +90,14 @@ class CDUFlightPlanPage {
         // FPM is trying to advance to the next one.
         const first = (mcdu.flightPhaseManager.phase <= FmgcFlightPhases.TAKEOFF) ? 0 : activeFirst;
 
-        // PWPs
-        const fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
+        // VNAV
         const fmsGeometryProfile = mcdu.guidanceController.vnavDriver.currentNavGeometryProfile;
 
+        let fmsPseudoWaypoints = [];
         let vnavPredictionsMapByWaypoint = null;
         if (fmsGeometryProfile && fmsGeometryProfile.isReadyToDisplay) {
             vnavPredictionsMapByWaypoint = fmsGeometryProfile.waypointPredictions;
+            fmsPseudoWaypoints = mcdu.guidanceController.currentPseudoWaypoints;
         }
 
         let cumulativeDistance = 0;
@@ -311,11 +312,17 @@ class CDUFlightPlanPage {
                 let speedConstraint = "---";
                 let speedPrefix = "";
 
-                if (verticalWaypoint && verticalWaypoint.speed) {
-                    speedConstraint = verticalWaypoint.speed < 1 ? formatMachNumber(verticalWaypoint.speed) : Math.round(verticalWaypoint.speed);
+                if (!fpm.isCurrentFlightPlanTemporary()) {
+                    if (verticalWaypoint && verticalWaypoint.speed) {
+                        speedConstraint = verticalWaypoint.speed < 1 ? formatMachNumber(verticalWaypoint.speed) : Math.round(verticalWaypoint.speed);
 
-                    if (wp.speedConstraint > 10) {
-                        speedPrefix = verticalWaypoint.isSpeedConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
+                        if (wp.speedConstraint > 100) {
+                            speedPrefix = verticalWaypoint.isSpeedConstraintMet ? "{magenta}*{end}" : "{amber}*{end}";
+                        }
+                    } else if (wp.speedConstraint > 100) {
+                        speedConstraint = Math.round(wp.speedConstraint);
+                        spdColor = "magenta";
+                        slashColor = "magenta";
                     }
                 }
 
@@ -346,10 +353,10 @@ class CDUFlightPlanPage {
                         altColor = color;
                     }
                     altitudeConstraint = altitudeConstraint.padStart(5,"\xa0");
-                } else {
+                } else if (!fpm.isCurrentFlightPlanTemporary()) {
                     let altitudeToFormat = wp.legAltitude1;
 
-                    if (hasAltConstraint && ident !== "(DECEL)") {
+                    if (hasAltConstraint) {
                         if (verticalWaypoint && verticalWaypoint.altitude) {
                             altitudeToFormat = verticalWaypoint.altitude;
                         }
