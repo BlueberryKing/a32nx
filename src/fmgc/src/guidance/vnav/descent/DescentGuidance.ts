@@ -201,7 +201,7 @@ export class DescentGuidance {
 
         SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots', this.speedTarget);
 
-        const maxBias = 4;
+        const maxBias = 8;
         const speedBias = this.requestedVerticalMode === RequestedVerticalMode.SpeedThrust
             ? Math.max(Math.min(this.aircraftToDescentProfileRelation.computeLinearDeviation() / 100, maxBias), 0)
             : 0;
