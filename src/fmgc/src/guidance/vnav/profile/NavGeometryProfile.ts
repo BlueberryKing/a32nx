@@ -266,6 +266,11 @@ export class NavGeometryProfile extends BaseGeometryProfile {
         this.waypointPredictions = this.computePredictionsAtWaypoints();
     }
 
+    invalidate(): void {
+        this.isReadyToDisplay = false;
+        this.waypointPredictions = new Map();
+    }
+
     getDistanceFromStart(distanceFromEnd: NauticalMiles): NauticalMiles {
         return this.constraintReader.totalFlightPlanDistance - distanceFromEnd;
     }

@@ -641,7 +641,7 @@ export class VnavDriver implements GuidanceComponent {
 
     public invalidateFlightPlanProfile(): void {
         if (this.currentNavGeometryProfile) {
-            this.currentNavGeometryProfile.isReadyToDisplay = false;
+            this.currentNavGeometryProfile.invalidate();
         }
     }
 }
