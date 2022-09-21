@@ -26,7 +26,7 @@ import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDesce
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
 import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
 import { ApproachPathBuilder } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
+import { FlapConf } from '@fmgc/guidance/vnav/common';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
@@ -297,32 +297,27 @@ export class VnavDriver implements GuidanceComponent {
             const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
 
             this.climbPathBuilder.computeClimbPath(this.currentNdGeometryProfile, climbStrategy, speedProfile, climbWinds, fcuAltitude);
-        } else if (tacticalDescentModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) {
+        } else if ((tacticalDescentModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) && fcuAltitude < presentPosition.alt) {
             // The idea here is that we compute a profile to FCU alt in the current modes, find the intercept with the managed profile. And then compute the managed profile from there.
-            const pposIndex = this.currentNavGeometryProfile.findLastVerticalCheckpointIndex(VerticalCheckpointReason.PresentPosition);
-            // We want to figure out if we are above or below the current nav profile.
-            // We can't use this.aircraftToDescentProfileRelation.computeLinearDeviation() because
-            // the profile in `aircraftToDescentProfileRelation` is not updated during descent.
-            const vdev = pposIndex === 0
-                ? this.aircraftToDescentProfileRelation.computeLinearDeviation()
-                : this.currentNavGeometryProfile.checkpoints[pposIndex].altitude - Common.interpolate(
-                    this.currentNavGeometryProfile.checkpoints[pposIndex].distanceFromStart,
-                    this.currentNavGeometryProfile.checkpoints[pposIndex - 1].distanceFromStart,
-                    this.currentNavGeometryProfile.checkpoints[pposIndex + 1].distanceFromStart,
-                    this.currentNavGeometryProfile.checkpoints[pposIndex - 1].altitude,
-                    this.currentNavGeometryProfile.checkpoints[pposIndex + 1].altitude,
-                );
 
+            const vdev = this.aircraftToDescentProfileRelation.computeLinearDeviation();
             const descentStrategy = this.getAppropriateTacticalDescentStrategy(fcuVerticalMode, fcuVerticalSpeed, vdev);
 
             // Build path to FCU altitude.
             this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, speedProfile, fcuAltitude);
 
-            if (this.isLatAutoControlActive()) {
+            if (this.isLatAutoControlActive() && this.aircraftToDescentProfileRelation.isValid) {
+                // The guidance profile is typically not refreshed after the descent is started, whereas the tactical profile is recomputed constantly,
+                // so the `distanceFromStart`s are very different in the profiles.
+                const guidanceDistanceFromStart = this.aircraftToDescentProfileRelation.distanceFromStart;
+                const tacticalDistanceFromStart = this.currentNdGeometryProfile.checkpoints[0].distanceFromStart;
+                const offset = tacticalDistanceFromStart - guidanceDistanceFromStart;
+
                 // Compute intercept between managed profile and tactical path.
                 const interceptDistance = ProfileInterceptCalculator.calculateIntercept(
                     this.currentNdGeometryProfile.checkpoints,
-                    this.currentNavGeometryProfile.checkpoints.filter(({ reason }) => reason !== VerticalCheckpointReason.PresentPosition),
+                    this.aircraftToDescentProfileRelation.currentProfile.checkpoints,
+                    offset,
                 );
 
                 if (interceptDistance) {
@@ -368,7 +363,7 @@ export class VnavDriver implements GuidanceComponent {
 
                     const previousCheckpoint = this.currentNdGeometryProfile.checkpoints[i - 1];
 
-                    if (Math.round(previousCheckpoint.altitude) > Math.round(checkpoint.altitude)) {
+                    if (previousCheckpoint.reason !== VerticalCheckpointReason.PresentPosition && Math.round(previousCheckpoint.altitude) > Math.round(checkpoint.altitude)) {
                         this.currentNdGeometryProfile.addInterpolatedCheckpoint(
                             Math.max(levelOffDistance, previousCheckpoint.distanceFromStart),
                             { reason: VerticalCheckpointReason.ContinueDescent },

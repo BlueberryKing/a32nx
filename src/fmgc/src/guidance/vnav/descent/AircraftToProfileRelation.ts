@@ -6,7 +6,7 @@ import { MathUtils } from '@shared/MathUtils';
 export class AircraftToDescentProfileRelation {
     public isValid: boolean = false;
 
-    private currentProfile?: NavGeometryProfile;
+    public currentProfile?: NavGeometryProfile;
 
     private topOfDescent?: VerticalCheckpoint;
 
@@ -16,7 +16,7 @@ export class AircraftToDescentProfileRelation {
 
     public totalFlightPlanDistance: number = 0;
 
-    private get distanceFromStart(): NauticalMiles {
+    get distanceFromStart(): NauticalMiles {
         return this.totalFlightPlanDistance - this.distanceToEnd;
     }
 
@@ -120,5 +120,9 @@ export class AircraftToDescentProfileRelation {
         const { destinationAirfieldElevation, presentPosition } = this.observer.get();
 
         return presentPosition.alt < destinationAirfieldElevation + 5000;
+    }
+
+    get currentDistanceToEnd(): NauticalMiles {
+        return this.distanceToEnd;
     }
 }
