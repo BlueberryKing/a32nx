@@ -118,17 +118,16 @@ export class DescentGuidance {
     }
 
     private updateLinearDeviation() {
-        const currentVerticalMode = this.observer.get().fcuVerticalMode;
-        const flightPhase = this.observer.get().flightPhase;
+        const { fcuVerticalMode, flightPhase } = this.observer.get();
 
         this.targetAltitude = this.aircraftToDescentProfileRelation.currentTargetAltitude();
 
-        this.showLinearDeviationOnPfd = (flightPhase >= FmgcFlightPhase.Descent || this.aircraftToDescentProfileRelation.isPastTopOfDescent())
-            && currentVerticalMode !== VerticalMode.GS_CPT
-            && currentVerticalMode !== VerticalMode.GS_TRACK
-            && currentVerticalMode !== VerticalMode.LAND
-            && currentVerticalMode !== VerticalMode.FLARE
-            && currentVerticalMode !== VerticalMode.ROLL_OUT;
+        this.showLinearDeviationOnPfd = flightPhase < FmgcFlightPhase.GoAround && (flightPhase >= FmgcFlightPhase.Descent || this.aircraftToDescentProfileRelation.isPastTopOfDescent())
+            && fcuVerticalMode !== VerticalMode.GS_CPT
+            && fcuVerticalMode !== VerticalMode.GS_TRACK
+            && fcuVerticalMode !== VerticalMode.LAND
+            && fcuVerticalMode !== VerticalMode.FLARE
+            && fcuVerticalMode !== VerticalMode.ROLL_OUT;
     }
 
     private updateDesModeGuidance() {
