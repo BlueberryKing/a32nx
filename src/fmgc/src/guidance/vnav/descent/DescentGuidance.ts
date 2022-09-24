@@ -207,7 +207,7 @@ export class DescentGuidance {
             : 0;
 
         const airspeed = SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots');
-        const guidanceTarget = this.requestedVerticalMode === RequestedVerticalMode.SpeedThrust || this.requestedVerticalMode === RequestedVerticalMode.VpathThrust
+        const guidanceTarget = this.useDynamicSpeedTarget()
             ? this.speedMargin.getTarget(airspeed + speedBias, this.speedTarget)
             : this.speedTarget;
         SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'knots', guidanceTarget);
@@ -218,6 +218,11 @@ export class DescentGuidance {
             SimVar.SetSimVarValue('L:A32NX_PFD_LOWER_SPEED_MARGIN', 'Knots', lower);
             SimVar.SetSimVarValue('L:A32NX_PFD_UPPER_SPEED_MARGIN', 'Knots', upper);
         }
+    }
+
+    private useDynamicSpeedTarget(): boolean {
+        return this.speedState === DescentSpeedGuidanceState.TargetAndMargins
+            && (this.requestedVerticalMode === RequestedVerticalMode.SpeedThrust || this.requestedVerticalMode === RequestedVerticalMode.VpathThrust);
     }
 
     private updateSpeedMarginState() {
