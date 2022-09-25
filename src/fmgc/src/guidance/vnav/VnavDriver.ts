@@ -321,18 +321,20 @@ export class VnavDriver implements GuidanceComponent {
                 );
 
                 if (interceptDistance) {
-                    const reason = fcuVerticalMode === VerticalMode.DES ? VerticalCheckpointReason.InterceptDescentProfileManaged : VerticalCheckpointReason.InterceptDescentProfileSelected;
-                    this.currentNdGeometryProfile.addInterpolatedCheckpoint(interceptDistance, { reason });
+                    const isManagedDescent = fcuVerticalMode === VerticalMode.DES;
+                    const reason = isManagedDescent ? VerticalCheckpointReason.InterceptDescentProfileManaged : VerticalCheckpointReason.InterceptDescentProfileSelected;
+                    const interceptCheckpoint = this.currentNdGeometryProfile.addInterpolatedCheckpoint(interceptDistance, { reason });
 
-                    if (fcuVerticalMode === VerticalMode.DES) {
-                        // We remove all subsequent checkpoints after the intercept, since those will just be on the managed profile
-                        const interceptIndex = this.currentNdGeometryProfile.checkpoints.findIndex((checkpoint) => checkpoint.reason === reason);
-                        const interceptCheckpoint = this.currentNdGeometryProfile.checkpoints[interceptIndex];
-                        const isTooCloseToDrawIntercept = Math.abs(vdev) < 100;
-                        const isInterceptOnlyAtFcuAlt = interceptCheckpoint.altitude - fcuAltitude < 100;
+                    const isTooCloseToDrawIntercept = Math.abs(vdev) < 100;
+                    const isInterceptOnlyAtFcuAlt = interceptCheckpoint.altitude - fcuAltitude < 100;
 
-                        this.currentNdGeometryProfile.checkpoints.splice(isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt ? interceptIndex : interceptIndex + 1);
-                    }
+                    // In managed mode, we remove all checkpoints after (maybe including) the intercept
+                    // In selected mode, we keep the checkpoints after the intercept
+                    const interceptIndex = this.currentNdGeometryProfile.checkpoints.findIndex((checkpoint) => checkpoint.reason === reason);
+                    this.currentNdGeometryProfile.checkpoints.splice(
+                        isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt ? interceptIndex : interceptIndex + 1,
+                        isManagedDescent ? this.currentNdGeometryProfile.checkpoints.length : 1,
+                    );
                 }
             }
         }
@@ -345,7 +347,7 @@ export class VnavDriver implements GuidanceComponent {
                     .filter(({ distanceFromStart }) => distanceFromStart > this.currentNdGeometryProfile.lastCheckpoint?.distanceFromStart ?? 0),
             );
 
-            if (flightPhase >= FmgcFlightPhase.Descent) {
+            if ((tacticalDescentModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) && fcuAltitude < presentPosition.alt) {
                 // It's possible that the level off arrow was spliced from the profile because we spliced it at the intercept, so we need to add it back.
                 const levelOffArrow = this.currentNdGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.CrossingFcuAltitudeDescent);
                 let levelOffDistance = levelOffArrow?.distanceFromStart ?? 0;
