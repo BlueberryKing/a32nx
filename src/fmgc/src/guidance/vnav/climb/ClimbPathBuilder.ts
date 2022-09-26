@@ -29,7 +29,7 @@ export class ClimbPathBuilder {
             this.addFcuAltitudeAsCheckpoint(profile);
         }
 
-        if (speedProfile.shouldTakeSpeedLimitIntoAccount()) {
+        if (speedProfile.shouldTakeClimbSpeedLimitIntoAccount()) {
             this.addSpeedLimitAsCheckpoint(profile);
         }
     }

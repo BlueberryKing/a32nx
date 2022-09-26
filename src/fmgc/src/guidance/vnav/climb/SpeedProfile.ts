@@ -1,4 +1,5 @@
 import { MaxSpeedConstraint } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
@@ -27,7 +28,8 @@ export interface SpeedProfile {
      * This is used for guidance.
      */
     getCurrentSpeedTarget(): Knots;
-    shouldTakeSpeedLimitIntoAccount(): boolean;
+    shouldTakeClimbSpeedLimitIntoAccount(): boolean;
+    shouldTakeDescentSpeedLimitIntoAccount(): boolean;
 
     /**
      * This is used for predictions
@@ -70,8 +72,12 @@ export class McduSpeedProfile implements SpeedProfile {
         private descentSpeedConstraints: MaxSpeedConstraint[],
     ) { }
 
-    private isValidSpeedLimit(): boolean {
-        const { speed, underAltitude } = this.parameters.get().climbSpeedLimit;
+    private isValidSpeedLimit(speedLimit: SpeedLimit): boolean {
+        if (!speedLimit) {
+            return false;
+        }
+
+        const { speed, underAltitude } = speedLimit;
 
         return Number.isFinite(speed) && Number.isFinite(underAltitude);
     }
@@ -102,10 +108,14 @@ export class McduSpeedProfile implements SpeedProfile {
 
     getTargetWithoutConstraints(altitude: Feet, managedSpeedType: ManagedSpeedType) {
         let managedSpeed = this.getManagedSpeedForType(managedSpeedType);
-        const { speed, underAltitude } = this.parameters.get().climbSpeedLimit;
+        const { climbSpeedLimit, descentSpeedLimit } = this.parameters.get();
 
-        if (this.isValidSpeedLimit() && altitude < underAltitude) {
-            managedSpeed = Math.min(speed, managedSpeed);
+        if (managedSpeedType === ManagedSpeedType.Climb || managedSpeedType === ManagedSpeedType.Cruise) {
+            if (this.shouldTakeClimbSpeedLimitIntoAccount() && altitude < climbSpeedLimit.underAltitude) {
+                managedSpeed = Math.min(climbSpeedLimit.speed, managedSpeed);
+            }
+        } else if (this.shouldTakeDescentSpeedLimitIntoAccount() && altitude < descentSpeedLimit.underAltitude) {
+            managedSpeed = Math.min(descentSpeedLimit.speed, managedSpeed);
         }
 
         return managedSpeed;
@@ -113,10 +123,14 @@ export class McduSpeedProfile implements SpeedProfile {
 
     private getManagedTarget(distanceFromStart: NauticalMiles, altitude: Feet, managedSpeedType: ManagedSpeedType): Knots {
         let managedSpeed = this.getManagedSpeedForType(managedSpeedType);
-        const { speed, underAltitude } = this.parameters.get().climbSpeedLimit;
+        const { climbSpeedLimit, descentSpeedLimit } = this.parameters.get();
 
-        if (this.isValidSpeedLimit() && altitude < underAltitude) {
-            managedSpeed = Math.min(speed, managedSpeed);
+        if (managedSpeedType === ManagedSpeedType.Climb || managedSpeedType === ManagedSpeedType.Cruise) {
+            if (this.shouldTakeClimbSpeedLimitIntoAccount() && altitude < climbSpeedLimit.underAltitude) {
+                managedSpeed = Math.min(climbSpeedLimit.speed, managedSpeed);
+            }
+        } else if (this.shouldTakeDescentSpeedLimitIntoAccount() && altitude < descentSpeedLimit.underAltitude) {
+            managedSpeed = Math.min(descentSpeedLimit.speed, managedSpeed);
         }
 
         return Math.min(managedSpeed, this.findMaxSpeedAtDistanceAlongTrack(distanceFromStart));
@@ -198,8 +212,12 @@ export class McduSpeedProfile implements SpeedProfile {
         );
     }
 
-    shouldTakeSpeedLimitIntoAccount(): boolean {
-        return this.isValidSpeedLimit();
+    shouldTakeClimbSpeedLimitIntoAccount(): boolean {
+        return this.isValidSpeedLimit(this.parameters.get().climbSpeedLimit);
+    }
+
+    shouldTakeDescentSpeedLimitIntoAccount(): boolean {
+        return this.isValidSpeedLimit(this.parameters.get().descentSpeedLimit);
     }
 
     private getManagedSpeedForType(managedSpeedType: ManagedSpeedType) {
@@ -233,7 +251,11 @@ export class ExpediteSpeedProfile implements SpeedProfile {
         return Infinity;
     }
 
-    shouldTakeSpeedLimitIntoAccount(): boolean {
+    shouldTakeClimbSpeedLimitIntoAccount(): boolean {
+        return false;
+    }
+
+    shouldTakeDescentSpeedLimitIntoAccount(): boolean {
         return false;
     }
 
@@ -264,8 +286,12 @@ export class NdSpeedProfile implements SpeedProfile {
         private descentSpeedConstraints: MaxSpeedConstraint[],
     ) { }
 
-    private isValidSpeedLimit(): boolean {
-        const { speed, underAltitude } = this.parameters.get().climbSpeedLimit;
+    private isValidSpeedLimit(speedLimit: SpeedLimit): boolean {
+        if (!speedLimit) {
+            return false;
+        }
+
+        const { speed, underAltitude } = speedLimit;
 
         return Number.isFinite(speed) && Number.isFinite(underAltitude);
     }
@@ -289,10 +315,14 @@ export class NdSpeedProfile implements SpeedProfile {
 
     getTargetWithoutConstraints(altitude: Feet, managedSpeedType: ManagedSpeedType) {
         let managedSpeed = this.getManagedSpeedForType(managedSpeedType);
-        const { speed, underAltitude } = this.parameters.get().climbSpeedLimit;
+        const { climbSpeedLimit, descentSpeedLimit } = this.parameters.get();
 
-        if (this.isValidSpeedLimit() && altitude < underAltitude) {
-            managedSpeed = Math.min(speed, managedSpeed);
+        if (managedSpeedType === ManagedSpeedType.Climb || managedSpeedType === ManagedSpeedType.Cruise) {
+            if (this.shouldTakeClimbSpeedLimitIntoAccount() && altitude < climbSpeedLimit.underAltitude) {
+                managedSpeed = Math.min(climbSpeedLimit.speed, managedSpeed);
+            }
+        } else if (this.shouldTakeDescentSpeedLimitIntoAccount() && altitude < descentSpeedLimit.underAltitude) {
+            managedSpeed = Math.min(descentSpeedLimit.speed, managedSpeed);
         }
 
         return managedSpeed;
@@ -300,10 +330,14 @@ export class NdSpeedProfile implements SpeedProfile {
 
     private getManaged(distanceFromStart: NauticalMiles, altitude: Feet, managedSpeedType: ManagedSpeedType): Knots {
         let managedSpeed = this.getManagedSpeedForType(managedSpeedType);
-        const { speed, underAltitude } = this.parameters.get().climbSpeedLimit;
+        const { climbSpeedLimit, descentSpeedLimit } = this.parameters.get();
 
-        if (this.isValidSpeedLimit() && altitude < underAltitude) {
-            managedSpeed = Math.min(speed, managedSpeed);
+        if (managedSpeedType === ManagedSpeedType.Climb || managedSpeedType === ManagedSpeedType.Cruise) {
+            if (this.shouldTakeClimbSpeedLimitIntoAccount() && altitude < climbSpeedLimit.underAltitude) {
+                managedSpeed = Math.min(climbSpeedLimit.speed, managedSpeed);
+            }
+        } else if (this.shouldTakeDescentSpeedLimitIntoAccount() && altitude < descentSpeedLimit.underAltitude) {
+            managedSpeed = Math.min(descentSpeedLimit.speed, managedSpeed);
         }
 
         return Math.min(managedSpeed, this.findMaxSpeedAtDistanceAlongTrack(distanceFromStart));
@@ -395,8 +429,12 @@ export class NdSpeedProfile implements SpeedProfile {
         );
     }
 
-    shouldTakeSpeedLimitIntoAccount(): boolean {
-        return this.isValidSpeedLimit() && !this.isSelectedSpeed();
+    shouldTakeClimbSpeedLimitIntoAccount(): boolean {
+        return this.isValidSpeedLimit(this.parameters.get().climbSpeedLimit) && !this.isSelectedSpeed();
+    }
+
+    shouldTakeDescentSpeedLimitIntoAccount(): boolean {
+        return this.isValidSpeedLimit(this.parameters.get().descentSpeedLimit) && !this.isSelectedSpeed();
     }
 
     private getManagedSpeedForType(managedSpeedType: ManagedSpeedType) {

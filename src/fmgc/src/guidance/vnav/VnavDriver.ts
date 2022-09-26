@@ -209,7 +209,7 @@ export class VnavDriver implements GuidanceComponent {
         if (profile instanceof NavGeometryProfile && this.cruiseToDescentCoordinator.canCompute(profile)) {
             this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(profile, this.currentMcduSpeedProfile, cruiseWinds, descentWinds, managedClimbStrategy, stepDescentStrategy);
 
-            if (this.currentMcduSpeedProfile.shouldTakeSpeedLimitIntoAccount()) {
+            if (this.currentMcduSpeedProfile.shouldTakeDescentSpeedLimitIntoAccount()) {
                 this.cruiseToDescentCoordinator.addSpeedLimitAsCheckpoint(profile);
             }
         }
