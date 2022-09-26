@@ -302,9 +302,10 @@ export class VnavDriver implements GuidanceComponent {
 
             const vdev = this.aircraftToDescentProfileRelation.computeLinearDeviation();
             const descentStrategy = this.getAppropriateTacticalDescentStrategy(fcuVerticalMode, fcuVerticalSpeed, vdev);
+            const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
 
             // Build path to FCU altitude.
-            this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, speedProfile, fcuAltitude);
+            this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, descentWinds, fcuAltitude);
 
             if (this.isLatAutoControlActive() && this.aircraftToDescentProfileRelation.isValid) {
                 // The guidance profile is typically not refreshed after the descent is started, whereas the tactical profile is recomputed constantly,

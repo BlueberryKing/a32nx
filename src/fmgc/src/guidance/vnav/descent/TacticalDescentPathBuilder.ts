@@ -1,10 +1,11 @@
-import { ManagedSpeedType, SpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { DescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
 import { StepResults } from '@fmgc/guidance/vnav/Predictions';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
-import { MaxSpeedConstraint, VerticalCheckpoint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { MaxSpeedConstraint, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { TemporaryCheckpointSequence } from '@fmgc/guidance/vnav/profile/TemporaryCheckpointSequence';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
-import { WindComponent } from '@fmgc/guidance/vnav/wind';
+import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
+import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 
 export class TacticalDescentPathBuilder {
     constructor(private observer: VerticalProfileComputationParametersObserver) { }
@@ -13,195 +14,109 @@ export class TacticalDescentPathBuilder {
      * Builds a path from the last checkpoint to the finalAltitude
      * @param profile
      * @param descentStrategy
-     * @param speedProfile
+     * @param windProfile
      * @param finalAltitude
      */
-    buildTacticalDescentPath(profile: BaseGeometryProfile, descentStrategy: DescentStrategy, speedProfile: SpeedProfile, finalAltitude: Feet) {
+    buildTacticalDescentPath(profile: BaseGeometryProfile, descentStrategy: DescentStrategy, windProfile: HeadwindProfile, finalAltitude: Feet) {
         const constraintsToUse = profile.descentSpeedConstraints
             .slice()
             .reverse()
             .sort((a, b) => a.distanceFromStart - b.distanceFromStart);
 
-        const planner = new TacticalDescentPathPlanner(
-            this.observer, speedProfile, descentStrategy, constraintsToUse, profile.lastCheckpoint, finalAltitude,
-        );
+        const sequence = new TemporaryCheckpointSequence(profile.lastCheckpoint);
+        const { managedDescentSpeedMach } = this.observer.get();
 
-        for (let i = 0; i < 100 && planner.currentConstraintIndex < constraintsToUse.length; i++) {
-            planner.stepAlong();
+        for (const constraint of constraintsToUse) {
+            this.handleSpeedConstraint(sequence, constraint, descentStrategy, windProfile);
+
+            if (sequence.lastCheckpoint.altitude <= finalAltitude) {
+                break;
+            }
         }
 
-        planner.planAltitudeStep();
-
-        const checkpointsToAdd = planner.finalize();
-
-        profile.checkpoints.push(...checkpointsToAdd);
-    }
-}
-
-class TacticalDescentPathPlanner {
-    public currentConstraintIndex: number = 0;
-
-    private steps: StepResults[] = []
-
-    public currentCheckpoint: VerticalCheckpoint = null;
-
-    private decelerationDistancesByConstraint: NauticalMiles[]
-
-    private maximumDecelerationDistances: NauticalMiles[]
-
-    constructor(
-        private observer: VerticalProfileComputationParametersObserver,
-        private speedProfile: SpeedProfile,
-        private descentStrategy: DescentStrategy,
-        private constraints: MaxSpeedConstraint[],
-        private startingPoint: VerticalCheckpoint,
-        private finalAltitude: Feet,
-    ) {
-        this.currentCheckpoint = { ...startingPoint };
-
-        this.decelerationDistancesByConstraint = new Array(this.constraints.length);
-
-        this.maximumDecelerationDistances = this.findMaximumDecelerationDistances();
-    }
-
-    stepAlong() {
-        const constraintAlongTrack = this.constraints[this.currentConstraintIndex];
-
-        // If the constraint is before where we are now, just move along
-        if (constraintAlongTrack.distanceFromStart < this.currentCheckpoint.distanceFromStart) {
-            this.currentConstraintIndex++;
-
-            return;
-        }
-
-        if (!this.decelerationDistancesByConstraint[this.currentConstraintIndex]) {
-            this.decelerationDistancesByConstraint[this.currentConstraintIndex] = 0;
-        }
-
-        const indexToResetTo = this.currentConstraintIndex;
-
-        this.planDistanceStep();
-        this.planDecelerationStep();
-
-        const overshoot = this.currentCheckpoint.distanceFromStart - constraintAlongTrack.distanceFromStart;
-
-        const decelerationDistance = this.decelerationDistancesByConstraint[this.currentConstraintIndex];
-        const maximumDecelerationDistance = this.maximumDecelerationDistances[this.currentConstraintIndex];
-        const yetAvailableDecelerationDistance = maximumDecelerationDistance - decelerationDistance;
-
-        // We overshoot in distance
-        if (overshoot > 0.1 && yetAvailableDecelerationDistance > 0.1) {
-            // Plan more decel distance next time
-            this.decelerationDistancesByConstraint[this.currentConstraintIndex] = Math.min(
-                decelerationDistance + overshoot,
-                maximumDecelerationDistance,
+        if (sequence.lastCheckpoint.altitude > finalAltitude) {
+            const descentSegment = descentStrategy.predictToAltitude(
+                sequence.lastCheckpoint.altitude,
+                finalAltitude,
+                sequence.lastCheckpoint.speed,
+                managedDescentSpeedMach,
+                sequence.lastCheckpoint.remainingFuelOnBoard,
+                windProfile.getHeadwindComponent(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
             );
 
-            this.resetToIndex(indexToResetTo);
-        } else {
-            this.currentConstraintIndex++;
+            sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.CrossingFcuAltitudeDescent);
         }
+
+        profile.checkpoints.push(...sequence.get());
     }
 
-    findMaximumDecelerationDistances() {
-        return this.constraints.map((constraint, index) => (index > 1 ? constraint.distanceFromStart - this.constraints[index - 1].distanceFromStart : 0));
-    }
-
-    planDistanceStep() {
-        const { managedDescentSpeedMach } = this.observer.get();
-        const { distanceFromStart, altitude, remainingFuelOnBoard } = this.currentCheckpoint;
-        const constraintAlongTrack = this.constraints[this.currentConstraintIndex];
-
-        const distanceForDistanceStep = Math.max(0, constraintAlongTrack.distanceFromStart - distanceFromStart);
-
-        const distanceStep = this.descentStrategy.predictToDistance(
-            altitude,
-            distanceForDistanceStep,
-            this.speedProfile.getTarget(distanceFromStart, altitude, ManagedSpeedType.Descent),
-            managedDescentSpeedMach,
-            remainingFuelOnBoard,
-            WindComponent.zero(),
-        );
-
-        this.steps.push(distanceStep);
-    }
-
-    planDecelerationStep() {
-        const { managedDescentSpeedMach } = this.observer.get();
-        const { altitude, remainingFuelOnBoard, speed } = this.currentCheckpoint;
-        const constraintAlongTrack = this.constraints[this.currentConstraintIndex];
-
-        const targetSpeed = this.speedProfile.getTarget(constraintAlongTrack.distanceFromStart, altitude, ManagedSpeedType.Descent);
-        if (speed - targetSpeed < 1) {
+    private handleSpeedConstraint(sequence: TemporaryCheckpointSequence, constraint: MaxSpeedConstraint, descentStrategy: DescentStrategy, windProfile: HeadwindProfile) {
+        if (sequence.lastCheckpoint.speed <= constraint.maxSpeed) {
             return;
         }
 
-        const decelerationStep = this.descentStrategy.predictToSpeed(
-            altitude,
-            speed,
-            targetSpeed,
-            managedDescentSpeedMach,
-            remainingFuelOnBoard,
-            WindComponent.zero(),
-        );
-
-        this.steps.push(decelerationStep);
-    }
-
-    planAltitudeStep() {
         const { managedDescentSpeedMach } = this.observer.get();
-        const { altitude, remainingFuelOnBoard, speed } = this.currentCheckpoint;
 
-        if (altitude < this.finalAltitude) {
-            return;
-        }
+        const distanceToConstraint = constraint.distanceFromStart - sequence.lastCheckpoint.distanceFromStart;
+        const maxDecelerationDistance = Math.min(distanceToConstraint, 20);
 
-        const step = this.descentStrategy.predictToAltitude(
-            altitude,
-            this.finalAltitude,
-            speed,
-            managedDescentSpeedMach,
-            remainingFuelOnBoard,
-            WindComponent.zero(),
-        );
+        let descentSegment: StepResults = null;
+        let decelerationSegment: StepResults = null;
 
-        this.steps.push(step);
-    }
+        const tryDecelDistance = (decelerationSegmentDistance: NauticalMiles): NauticalMiles => {
+            descentSegment = descentStrategy.predictToDistance(
+                sequence.lastCheckpoint.altitude,
+                distanceToConstraint - decelerationSegmentDistance,
+                sequence.lastCheckpoint.speed,
+                managedDescentSpeedMach,
+                sequence.lastCheckpoint.remainingFuelOnBoard,
+                windProfile.getHeadwindComponent(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
+            );
 
-    resetToIndex(index: number) {
-        this.steps.splice(index);
-        this.currentConstraintIndex = index;
+            decelerationSegment = descentStrategy.predictToSpeed(
+                descentSegment.finalAltitude,
+                constraint.maxSpeed,
+                descentSegment.speed,
+                managedDescentSpeedMach,
+                sequence.lastCheckpoint.remainingFuelOnBoard - descentSegment.fuelBurned,
+                windProfile.getHeadwindComponent(sequence.lastCheckpoint.distanceFromStart + descentSegment.distanceTraveled, descentSegment.finalAltitude),
+            );
 
-        this.currentCheckpoint = this.startingPoint;
-        for (let i = 0; i < index; i++) {
-            this.currentCheckpoint = this.updateCheckpointFromStep(this.currentCheckpoint, this.steps[i]);
-        }
-    }
+            const totalDistanceTravelled = sequence.lastCheckpoint.distanceFromStart + descentSegment.distanceTraveled + decelerationSegment.distanceTraveled;
+            const distanceOvershoot = totalDistanceTravelled - distanceToConstraint;
 
-    finalize(): VerticalCheckpoint[] {
-        const checkpoints: VerticalCheckpoint[] = [];
-        let newCheckpoint = this.startingPoint;
-
-        for (const step of this.steps) {
-            newCheckpoint = this.updateCheckpointFromStep(newCheckpoint, step);
-
-            checkpoints.push(newCheckpoint);
-        }
-
-        checkpoints.push({ ...checkpoints[checkpoints.length - 1], reason: VerticalCheckpointReason.CrossingFcuAltitudeDescent });
-
-        return checkpoints;
-    }
-
-    private updateCheckpointFromStep(checkpoint: VerticalCheckpoint, step: StepResults): VerticalCheckpoint {
-        return {
-            reason: VerticalCheckpointReason.IdlePathAtmosphericConditions,
-            altitude: step.finalAltitude,
-            distanceFromStart: checkpoint.distanceFromStart + step.distanceTraveled,
-            remainingFuelOnBoard: checkpoint.remainingFuelOnBoard - step.fuelBurned,
-            secondsFromPresent: checkpoint.secondsFromPresent + step.timeElapsed,
-            speed: step.speed,
-            mach: checkpoint.mach,
+            return distanceOvershoot;
         };
+
+        let a = 0;
+        let b = maxDecelerationDistance;
+
+        let fa = tryDecelDistance(0);
+        if (fa > 0) {
+            let i = 0;
+            while (i++ < 10) {
+                const c = (a + b) / 2;
+                const fc = tryDecelDistance(c);
+
+                if (Math.abs(fc) < 0.05 || (b - a) < 0.05) {
+                    if (VnavConfig.DEBUG_PROFILE) {
+                        console.log(`[FMS/VNAV] Final error ${fc} after ${i} iterations.`);
+                    }
+
+                    break;
+                }
+
+                if (fa * fc > 0) {
+                    a = c;
+                } else {
+                    b = c;
+                }
+
+                fa = tryDecelDistance(a);
+            }
+        }
+
+        sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.AtmosphericConditions);
+        sequence.addCheckpointFromStep(decelerationSegment, VerticalCheckpointReason.SpeedConstraint);
     }
 }

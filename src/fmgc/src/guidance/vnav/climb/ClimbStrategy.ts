@@ -66,13 +66,19 @@ export class VerticalSpeedStrategy implements ClimbStrategy, DescentStrategy {
     predictToSpeed(initialAltitude: Feet, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent): StepResults {
         const { zeroFuelWeight, perfFactor, tropoPause, managedClimbSpeedMach } = this.observer.get();
 
+        const computedMach = Math.min(this.atmosphericConditions.computeMachFromCas(initialAltitude, speed), mach);
+
+        const n1 = this.verticalSpeed > 0
+            ? getClimbThrustN1Limit(this.atmosphericConditions, initialAltitude, speed, managedClimbSpeedMach)
+            : EngineModel.getIdleN1(initialAltitude, computedMach) + VnavConfig.IDLE_N1_MARGIN;
+
         return Predictions.verticalSpeedStepWithSpeedChange(
             initialAltitude,
             speed,
             finalSpeed,
             this.verticalSpeed,
             mach,
-            getClimbThrustN1Limit(this.atmosphericConditions, initialAltitude, speed, managedClimbSpeedMach),
+            n1,
             zeroFuelWeight,
             fuelOnBoard,
             headwindComponent.value,
