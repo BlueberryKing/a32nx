@@ -1081,7 +1081,7 @@ export class Predictions {
             const availableGradient = FlightModel.getAvailableGradient(thrust, drag, midStepWeight);
 
             // This is based on a reference saying that the energy loss should go into deceleration by 70% and 30% for altitude loss.
-            // TODO: Using the gradient for this probably doesn't make too much sense.
+            // I don't know what this means for the path angle, so this value was found just by trial and error.
             pathAngle = availableGradient * 0.3;
             const acceleration = FlightModel.accelerationForGradient(availableGradient, pathAngle, FlightModel.gravityConstKNS); // kts/s
 
