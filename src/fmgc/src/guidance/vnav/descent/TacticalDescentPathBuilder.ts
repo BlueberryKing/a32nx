@@ -103,7 +103,7 @@ export class TacticalDescentPathBuilder {
     }
 
     private handleSpeedConstraint(sequence: TemporaryCheckpointSequence, constraint: MaxSpeedConstraint, descentStrategy: DescentStrategy, windProfile: HeadwindProfile) {
-        if (sequence.lastCheckpoint.speed <= constraint.maxSpeed && sequence.lastCheckpoint.distanceFromStart < constraint.distanceFromStart) {
+        if (sequence.lastCheckpoint.speed <= constraint.maxSpeed && sequence.lastCheckpoint.distanceFromStart > constraint.distanceFromStart) {
             return;
         }
 
