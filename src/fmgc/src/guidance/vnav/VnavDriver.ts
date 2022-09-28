@@ -332,10 +332,17 @@ export class VnavDriver implements GuidanceComponent {
                     // In managed mode, we remove all checkpoints after (maybe including) the intercept
                     // In selected mode, we keep the checkpoints after the intercept
                     const interceptIndex = this.currentNdGeometryProfile.checkpoints.findIndex((checkpoint) => checkpoint.reason === reason);
-                    this.currentNdGeometryProfile.checkpoints.splice(
-                        isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt ? interceptIndex : interceptIndex + 1,
-                        isManagedDescent ? this.currentNdGeometryProfile.checkpoints.length : 1,
-                    );
+                    if (isManagedDescent) {
+                        this.currentNdGeometryProfile.checkpoints.splice(
+                            isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt ? interceptIndex : interceptIndex + 1,
+                            this.currentNdGeometryProfile.checkpoints.length,
+                        );
+                    } else if (isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt) {
+                        this.currentNdGeometryProfile.checkpoints.splice(
+                            isTooCloseToDrawIntercept || isInterceptOnlyAtFcuAlt ? interceptIndex : interceptIndex + 1,
+                            1,
+                        );
+                    }
                 }
             }
         }
