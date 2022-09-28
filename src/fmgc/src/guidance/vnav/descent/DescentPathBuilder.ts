@@ -111,12 +111,16 @@ export class DescentPathBuilder {
 
                 const decelerationStep = this.idleDescentStrategy.predictToSpeed(
                     altitude,
-                    speed,
                     speedTargetBeforeCurrentPosition,
+                    speed,
                     managedDescentSpeedMach,
                     remainingFuelOnBoard,
                     headwind,
                 );
+
+                if (decelerationStep.distanceTraveled > 0) {
+                    throw new Error('[FMS/VNAV] Deceleration step in idle path has positive distance travelled. The final speed and inital speed arguments are probably reversed');
+                }
 
                 sequence.addCheckpointFromStep(decelerationStep, VerticalCheckpointReason.IdlePathAtmosphericConditions);
 
@@ -152,7 +156,11 @@ export class DescentPathBuilder {
 
             if ((speedTarget - speed) > 1) {
                 const headwind = windProfile.getHeadwindComponent(distanceFromStart, altitude);
-                const decelerationStep = this.idleDescentStrategy.predictToSpeed(altitude, speed, speedTarget, managedDescentSpeedMach, remainingFuelOnBoard, headwind);
+                const decelerationStep = this.idleDescentStrategy.predictToSpeed(altitude, speedTarget, speed, managedDescentSpeedMach, remainingFuelOnBoard, headwind);
+
+                if (decelerationStep.distanceTraveled > 0) {
+                    throw new Error('[FMS/VNAV] Deceleration step in idle path has positive distance travelled. The final speed and inital speed arguments are probably reversed');
+                }
 
                 // If we shoot through the final altitude trying to accelerate, pretend we didn't accelerate all the way
                 if (decelerationStep.initialAltitude > topOfDescentAltitude) {

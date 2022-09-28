@@ -48,7 +48,7 @@ export interface DescentStrategy {
      * @param fuelOnBoard
      */
     predictToSpeed(
-        initialAltitude: number, speed: Knots, finalSpeed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration
+        initialAltitude: number, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration
     ): StepResults
 }
 
@@ -109,7 +109,7 @@ export class IdleDescentStrategy implements DescentStrategy {
     }
 
     predictToSpeed(
-        initialAltitude: number, speed: Knots, finalSpeed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config: AircraftConfiguration = this.defaultConfig,
+        initialAltitude: number, finalSpeed: Knots, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config: AircraftConfiguration = this.defaultConfig,
     ): StepResults {
         const { zeroFuelWeight, perfFactor, tropoPause } = this.observer.get();
 
