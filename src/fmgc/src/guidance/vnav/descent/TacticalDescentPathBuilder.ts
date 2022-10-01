@@ -66,6 +66,7 @@ export class TacticalDescentPathBuilder {
         const sequenceToFinalAltitude = this.buildToAltitude(profile.lastCheckpoint, descentStrategy, constraintsToUse, windProfile, finalAltitude);
 
         profile.checkpoints.push(...sequenceToFinalAltitude.get());
+        profile.lastCheckpoint.reason = VerticalCheckpointReason.CrossingFcuAltitudeDescent;
     }
 
     private buildToAltitude(
@@ -96,7 +97,7 @@ export class TacticalDescentPathBuilder {
                 windProfile.getHeadwindComponent(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
             );
 
-            sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.CrossingFcuAltitudeDescent);
+            sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.AtmosphericConditions);
         }
 
         return sequence;
