@@ -363,11 +363,12 @@ export class ApproachPathBuilder {
                     decelerationSequence.copyLastCheckpoint({ reason: VerticalCheckpointReason.SpeedConstraint });
                 }
             } else {
+                // flapTarget or managed speed is constraining
                 const remainingDistance = targetDistanceFromStart - distanceFromStart; // This should be negative
-                const speedTargetWithConstraints = speedProfile.getTarget(distanceFromStart, decelerationSequence.lastCheckpoint.altitude, ManagedSpeedType.Descent);
 
-                const targetSpeed = Math.min(flapTargetSpeed, speedTargetWithConstraints);
-                // flapTarget is constraining
+                // We don't care about any speed constraint limitations here, because that's what the if block above is for.
+                const targetSpeed = Math.min(flapTargetSpeed, limitingSpeed);
+
                 const decelerationStep = this.fpaStrategy.predictToSpeed(
                     altitude,
                     targetSpeed,
