@@ -397,7 +397,10 @@ export class PseudoWaypoints implements GuidanceComponent {
                     return [lla, distanceFromEndOfLeg, i];
                 }
 
-                console.error(`[FMS/PseudoWaypoints] Tried to place PWP ${debugString} on ${leg.repr}, but failed`);
+                if (VnavConfig.DEBUG_PROFILE) {
+                    console.error(`[FMS/PseudoWaypoints] Tried to place PWP ${debugString} on ${leg.repr}, but failed`);
+                }
+
                 return undefined;
             }
         }
@@ -631,7 +634,11 @@ export class PseudoWaypoints implements GuidanceComponent {
     }
 
     private createDebugPwp(geometry: Geometry, wptCount: number, totalDistance: number): PseudoWaypoint | null {
-        const debugPoint = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number');
+        let debugPoint = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number');
+        if (this.guidanceController.vnavDriver.currentNdGeometryProfile?.isReadyToDisplay) {
+            debugPoint = this.guidanceController.vnavDriver.currentNdGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.StartDeceleration);
+        }
+
         const position = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - debugPoint);
         if (!position) {
             return null;
