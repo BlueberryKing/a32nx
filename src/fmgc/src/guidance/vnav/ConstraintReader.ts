@@ -2,6 +2,7 @@ import { GeographicCruiseStep, DescentAltitudeConstraint, MaxAltitudeConstraint,
 import { Geometry } from '@fmgc/guidance/Geometry';
 import { AltitudeConstraintType, getAltitudeConstraintFromWaypoint, getSpeedConstraintFromWaypoint } from '@fmgc/guidance/lnav/legs';
 import { FlightPlans, WaypointConstraintType } from '@fmgc/flightplanning/FlightPlanManager';
+import { IFLeg } from '@fmgc/guidance/lnav/legs/IF';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { PathCaptureTransition } from '@fmgc/guidance/lnav/transitions/PathCaptureTransition';
 import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
@@ -127,7 +128,7 @@ export class ConstraintReader {
         );
 
         if (activeTransIndex < 0) {
-            const distanceToGo = leg instanceof VMLeg
+            const distanceToGo = leg instanceof VMLeg || leg instanceof IFLeg
                 ? Avionics.Utils.computeGreatCircleDistance(ppos, nextWaypoint.infos.coordinates)
                 : leg.getDistanceToGo(ppos);
 
