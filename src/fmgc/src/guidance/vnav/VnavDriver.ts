@@ -629,7 +629,8 @@ export class VnavDriver implements GuidanceComponent {
                 return null;
             }
 
-            if (checkpoint.speed - Math.max(this.currentNdGeometryProfile.checkpoints[i - 1].speed, speedTarget) > 1) {
+            if (Math.min(checkpoint.speed, this.atmosphericConditions.computeCasFromMach(checkpoint.altitude, checkpoint.mach))
+                - Math.max(this.currentNdGeometryProfile.checkpoints[i - 1].speed, speedTarget) > 1) {
                 // Candiate for a climb speed change
                 if (speedTargetType === ManagedSpeedType.Climb) {
                     return this.currentNdGeometryProfile.checkpoints[i - 1].distanceFromStart;
