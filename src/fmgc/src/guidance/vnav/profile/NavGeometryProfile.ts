@@ -65,6 +65,7 @@ export enum VerticalCheckpointReason {
     GeometricPathConstraint = 'GeometricPathConstraint',
     GeometricPathTooSteep = 'GeometricPathTooSteep',
     GeometricPathEnd = 'GeometricPathEnd',
+    StartDeceleration = 'StartDeceleration',
 
     // Approach
     Decel = 'Decel',

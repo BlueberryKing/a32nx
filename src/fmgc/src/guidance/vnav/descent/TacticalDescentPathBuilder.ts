@@ -48,19 +48,22 @@ export class TacticalDescentPathBuilder {
                     windProfile.getHeadwindComponent(descentSegment.lastCheckpoint.distanceFromStart, descentSegment.lastCheckpoint.altitude),
                 );
 
-                const altitudeOvershoot = decelerationSegment.finalAltitude - descentSpeedLimit.underAltitude;
-
+                const altitudeOvershoot = descentSpeedLimit.underAltitude - decelerationSegment.finalAltitude;
                 return altitudeOvershoot;
             };
 
             bisectionMethod(tryDecelDistance, descentSpeedLimit.underAltitude, Math.min(descentSpeedLimit.underAltitude + 6000, profile.lastCheckpoint.altitude), [-10, 500], 10);
 
+            profile.checkpoints.push(...descentSegment.get());
+
             // If we returned early, it's possible that it was not necessary to compute a `decelerationSegment`, so this would be null
             if (decelerationSegment) {
+                if (descentSegment.length > 1) {
+                    profile.lastCheckpoint.reason = VerticalCheckpointReason.StartDeceleration;
+                }
+
                 descentSegment.addCheckpointFromStep(decelerationSegment, VerticalCheckpointReason.AtmosphericConditions);
             }
-
-            profile.checkpoints.push(...descentSegment.get());
         }
 
         const sequenceToFinalAltitude = this.buildToAltitude(profile.lastCheckpoint, descentStrategy, constraintsToUse, windProfile, finalAltitude);
@@ -104,7 +107,7 @@ export class TacticalDescentPathBuilder {
     }
 
     private handleSpeedConstraint(sequence: TemporaryCheckpointSequence, constraint: MaxSpeedConstraint, descentStrategy: DescentStrategy, windProfile: HeadwindProfile) {
-        if (sequence.lastCheckpoint.speed <= constraint.maxSpeed && sequence.lastCheckpoint.distanceFromStart > constraint.distanceFromStart) {
+        if (sequence.lastCheckpoint.speed <= constraint.maxSpeed || sequence.lastCheckpoint.distanceFromStart > constraint.distanceFromStart) {
             return;
         }
 
@@ -146,7 +149,7 @@ export class TacticalDescentPathBuilder {
 
         bisectionMethod(tryDecelDistance, a, b);
 
-        sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.AtmosphericConditions);
+        sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.StartDeceleration);
         sequence.addCheckpointFromStep(decelerationSegment, VerticalCheckpointReason.SpeedConstraint);
     }
 }
