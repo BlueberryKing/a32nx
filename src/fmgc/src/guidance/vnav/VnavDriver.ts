@@ -31,7 +31,7 @@ import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/Ai
 import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
 import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
-import { AltitudeConstraint, LegMetadata, SpeedConstraint } from '@fmgc/guidance/lnav/legs';
+import { Leg } from '@fmgc/guidance/lnav/legs/Leg';
 import { Geometry } from '../Geometry';
 import { GuidanceComponent } from '../GuidanceComponent';
 import { NavGeometryProfile, VerticalCheckpointReason, VerticalWaypointPrediction } from './profile/NavGeometryProfile';
@@ -117,7 +117,11 @@ export class VnavDriver implements GuidanceComponent {
 
     private lastParameters: VerticalProfileComputationParameters = null;
 
-    private oldGeometry: Geometry = null;
+    // Here, we keep a copy of the whatever legs we used to update the descent profile last. We compare it with the legs we get from any new geometries to figure out
+    // if the descent profile should be recomputed.
+    private oldLegs: Map<number, Leg> = new Map();
+
+    private requestDescentProfileRecomputation: boolean = false;
 
     update(deltaTime: number): void {
         try {
@@ -130,6 +134,8 @@ export class VnavDriver implements GuidanceComponent {
             if (flightPhase >= FmgcFlightPhase.Takeoff) {
                 this.constraintReader.updateDistanceToEnd(presentPosition);
                 this.updateTimeMarkers();
+                this.updateGuidance();
+                this.updateDescentSpeedGuidance();
                 this.descentGuidance.update(deltaTime, this.constraintReader.distanceToEnd);
             }
         } catch (e) {
@@ -147,9 +153,11 @@ export class VnavDriver implements GuidanceComponent {
 
         this.computeVerticalProfileForMcdu(geometry);
 
-        if (this.shouldUpdateDescentProfile(newParameters, geometry)) {
-            this.oldGeometry = geometry;
+        const newLegs = new Map(geometry?.legs ?? []);
+        if (this.shouldUpdateDescentProfile(newParameters, newLegs) || this.requestDescentProfileRecomputation) {
+            this.oldLegs = new Map(newLegs);
             this.lastParameters = newParameters;
+            this.requestDescentProfileRecomputation = false;
 
             if (this.currentNavGeometryProfile?.isReadyToDisplay) {
                 this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
@@ -172,8 +180,6 @@ export class VnavDriver implements GuidanceComponent {
 
             this.timeMarkers.set(time, prediction);
         }
-
-        this.updateGuidance();
     }
 
     /**
@@ -556,14 +562,14 @@ export class VnavDriver implements GuidanceComponent {
         return this.aircraftToDescentProfileRelation.computeLinearDeviation();
     }
 
-    private shouldUpdateDescentProfile(newParameters: VerticalProfileComputationParameters, geometry: Geometry): boolean {
+    private shouldUpdateDescentProfile(newParameters: VerticalProfileComputationParameters, newLegs: Map<number, Leg>): boolean {
         // While in the descent phase, we don't want to update the profile anymore
         if (this.lastParameters === null) {
             return true;
         }
 
         return newParameters.flightPhase < FmgcFlightPhase.Descent || newParameters.flightPhase > FmgcFlightPhase.Approach
-            || (!this.flightPlanManager.isCurrentFlightPlanTemporary() && this.didGeometryChange(this.oldGeometry, geometry))
+            || (!this.flightPlanManager.isCurrentFlightPlanTemporary() && this.didLegsChange(this.oldLegs, newLegs))
             || numberOrNanChanged(this.lastParameters.cruiseAltitude, newParameters.cruiseAltitude)
             || numberOrNanChanged(this.lastParameters.managedDescentSpeed, newParameters.managedDescentSpeed)
             || numberOrNanChanged(this.lastParameters.managedDescentSpeedMach, newParameters.managedDescentSpeedMach)
@@ -571,19 +577,15 @@ export class VnavDriver implements GuidanceComponent {
             || numberOrNanChanged(this.lastParameters.approachTemperature, newParameters.approachTemperature);
     }
 
-    private didGeometryChange(oldGeo: Geometry, newGeo: Geometry): boolean {
-        if (!oldGeo || !newGeo) {
-            return !!oldGeo === !!newGeo;
-        }
+    private didLegsChange(oldLegs: Map<number, Leg>, newLegs: Map<number, Leg>): boolean {
+        for (const [index, legA] of newLegs) {
+            const legB = oldLegs.get(index);
 
-        for (const [index, legA] of oldGeo.legs) {
-            const legB = newGeo.legs.get(index);
-
-            if (index > this.guidanceController.activeLegIndex) {
+            if (index < this.guidanceController.activeLegIndex) {
                 continue;
             }
 
-            if (!legA !== !legB || !isMetadataEqual(legA.metadata, legB.metadata)) {
+            if (!legA?.ident !== !legB?.ident) {
                 return true;
             }
         }
@@ -646,6 +648,8 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     public invalidateFlightPlanProfile(): void {
+        this.requestDescentProfileRecomputation = true;
+
         if (this.currentNavGeometryProfile) {
             this.currentNavGeometryProfile.invalidate();
         }
