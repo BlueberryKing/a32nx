@@ -580,6 +580,8 @@ class CDUPerformancePage {
             timeLabel = "UTC";
         }
         const [destEfobCell, destTimeCell] = CDUPerformancePage.formatDestEfobAndTime(mcdu, isFlying);
+        const [toUtcLabel, toDistLabel] = isFlying ? ["UTC", "DIST"] : ["", ""];
+        const [toReasonCell, toDistCell, toTimeCell] = isFlying ? CDUPerformancePage.formatToReasonDistanceAndTime(mcdu) : ["", "", ""];
         const desCabinRateCell = "{small}-350{end}";
         const shouldShowStepAltsOption = mcdu.flightPhaseManager.phase <= FmgcFlightPhases.CRUISE && mcdu.guidanceController.vnavDriver.currentNavGeometryProfile.isReadyToDisplay;
 
@@ -639,9 +641,9 @@ class CDUPerformancePage {
             ["ACT MODE", "DEST EFOB", timeLabel],
             [actModeCell + "[color]green", destEfobCell, destTimeCell],
             ["\xa0CI"],
-            [costIndexCell + "[color]cyan"],
-            ["\xa0MANAGED"],
-            ["\xa0" + managedSpeedCell],
+            [costIndexCell + "[color]cyan", toReasonCell],
+            ["\xa0MANAGED", toDistLabel, toUtcLabel],
+            ["\xa0" + managedSpeedCell, toDistCell, toTimeCell],
             [preselTitle, "DES CABIN RATE"],
             [preselCell, `\xa0{cyan}${desCabinRateCell}{end}{white}{small}FT/MN{end}{end}`],
             [""],
@@ -1176,7 +1178,7 @@ class CDUPerformancePage {
         const predictions = geometryProfile.computePredictionToFcuAltitude(altitudeToPredict);
 
         if (predictions) {
-            if (isFinite(predictions.distanceFromStart)) {
+            if (Number.isFinite(predictions.distanceFromStart)) {
                 if (printSmall) {
                     predToDistanceCell = "{small}" + predictions.distanceFromStart.toFixed(0) + "{end}[color]green";
                 } else {
@@ -1184,7 +1186,7 @@ class CDUPerformancePage {
                 }
             }
 
-            if (isFinite(predictions.secondsFromPresent)) {
+            if (Number.isFinite(predictions.secondsFromPresent)) {
                 const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                 const predToTimeCellText = isFlying
@@ -1208,11 +1210,11 @@ class CDUPerformancePage {
         let destTimeCell = "----";
 
         if (destinationPrediction) {
-            if (isFinite(destinationPrediction.estimatedFuelOnBoard)) {
+            if (Number.isFinite(destinationPrediction.estimatedFuelOnBoard)) {
                 destEfobCell = (NXUnits.poundsToUser(destinationPrediction.estimatedFuelOnBoard) / 1000).toFixed(1) + "[color]green";
             }
 
-            if (isFinite(destinationPrediction.secondsFromPresent)) {
+            if (Number.isFinite(destinationPrediction.secondsFromPresent)) {
                 const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
 
                 const predToTimeCellText = isFlying
@@ -1224,6 +1226,36 @@ class CDUPerformancePage {
         }
 
         return [destEfobCell, destTimeCell];
+    }
+    static formatToReasonDistanceAndTime(mcdu) {
+        const toPrediction = mcdu.guidanceController.vnavDriver.getPerfCrzToPrediction();
+
+        let reasonCell = "(T/D)";
+        let distCell = "---";
+        let timeCell = "----";
+
+        if (toPrediction) {
+            if (Number.isFinite(toPrediction.distanceFromPresentPosition)) {
+                const distanceToTenths = Math.round(toPrediction.distanceFromPresentPosition * 10) / 10;
+                distCell = (distanceToTenths < 100
+                    ? distanceToTenths.toFixed(1)
+                    : Math.round(toPrediction.distanceFromPresentPosition).toFixed(0)) + "[color]green";
+            }
+
+            if (Number.isFinite(toPrediction.secondsFromPresent)) {
+                const utcTime = SimVar.GetGlobalVarValue("ZULU TIME", "seconds");
+
+                timeCell = FMCMainDisplay.secondsToUTC(utcTime + toPrediction.secondsFromPresent) + "\xa0[color]green";
+            }
+
+            if (toPrediction.reason === "StepClimb") {
+                reasonCell = "(S/C)";
+            } else if (toPrediction.reason === "StepDescent") {
+                reasonCell = "(S/D)";
+            }
+        }
+
+        return ["{small}TO{end}\xa0{green}" + reasonCell + "{end}", distCell, timeCell];
     }
 }
 CDUPerformancePage._timer = 0;

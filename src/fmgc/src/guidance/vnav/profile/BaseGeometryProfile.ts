@@ -10,9 +10,15 @@ import {
 } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { MathUtils } from '@shared/MathUtils';
 
-export interface PerformancePagePrediction {
+export interface PerfClbToAltPrediction {
     altitude: Feet,
     distanceFromStart: NauticalMiles,
+    secondsFromPresent: Seconds,
+}
+
+export interface PerfCrzToPrediction {
+    reason: VerticalCheckpointReason,
+    distanceFromPresentPosition: NauticalMiles,
     secondsFromPresent: Seconds,
 }
 
@@ -387,7 +393,7 @@ export abstract class BaseGeometryProfile {
         this.isReadyToDisplay = true;
     }
 
-    computePredictionToFcuAltitude(fcuAltitude: Feet): PerformancePagePrediction | undefined {
+    computePredictionToFcuAltitude(fcuAltitude: Feet): PerfClbToAltPrediction | undefined {
         const maxAltitude = this.checkpoints.reduce((currentMax, checkpoint) => Math.max(currentMax, checkpoint.altitude), 0);
 
         if (fcuAltitude < this.checkpoints[0].altitude || fcuAltitude > maxAltitude) {

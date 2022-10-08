@@ -15,7 +15,7 @@ import { CruiseToDescentCoordinator } from '@fmgc/guidance/vnav/CruiseToDescentC
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { McduSpeedProfile, ExpediteSpeedProfile, NdSpeedProfile, ManagedSpeedType } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { SelectedGeometryProfile } from '@fmgc/guidance/vnav/profile/SelectedGeometryProfile';
-import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
+import { BaseGeometryProfile, PerfCrzToPrediction } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { TakeoffPathBuilder } from '@fmgc/guidance/vnav/takeoff/TakeoffPathBuilder';
 import { ClimbThrustClimbStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
@@ -595,6 +595,26 @@ export class VnavDriver implements GuidanceComponent {
 
     public getDestinationPrediction(): VerticalWaypointPrediction | null {
         return this.currentNavGeometryProfile?.waypointPredictions?.get(this.flightPlanManager.getDestinationIndex());
+    }
+
+    public getPerfCrzToPrediction(): PerfCrzToPrediction | null {
+        if (!this.currentNavGeometryProfile?.isReadyToDisplay) {
+            return null;
+        }
+
+        const todOrStep = this.currentNavGeometryProfile.findVerticalCheckpoint(
+            VerticalCheckpointReason.StepClimb, VerticalCheckpointReason.StepDescent, VerticalCheckpointReason.TopOfDescent,
+        );
+
+        if (!todOrStep) {
+            return null;
+        }
+
+        return {
+            reason: todOrStep.reason,
+            distanceFromPresentPosition: todOrStep.distanceFromStart - this.constraintReader.distanceToPresentPosition,
+            secondsFromPresent: todOrStep.secondsFromPresent,
+        };
     }
 
     public get distanceToEnd(): NauticalMiles {
