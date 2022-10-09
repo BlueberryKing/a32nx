@@ -634,9 +634,10 @@ export class PseudoWaypoints implements GuidanceComponent {
     }
 
     private createDebugPwp(geometry: Geometry, wptCount: number, totalDistance: number): PseudoWaypoint | null {
-        let debugPoint = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number');
-        if (this.guidanceController.vnavDriver.currentNdGeometryProfile?.isReadyToDisplay) {
-            debugPoint = this.guidanceController.vnavDriver.currentNdGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.StartDeceleration);
+        const debugPoint = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_POINT', 'number');
+
+        if (!debugPoint) {
+            return null;
         }
 
         const position = PseudoWaypoints.pointFromEndOfPath(geometry, wptCount, totalDistance - debugPoint);
