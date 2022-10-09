@@ -198,10 +198,10 @@ export class PseudoWaypoints implements GuidanceComponent {
         }
 
         if (VnavConfig.DEBUG_PROFILE) {
-            const debugPoint = this.createDebugPwp(geometry, wptCount, totalDistance);
-            if (debugPoint) {
-                newPseudoWaypoints.push(debugPoint);
-            }
+            // const debugPoint = this.createDebugPwp(geometry, wptCount, totalDistance);
+            // if (debugPoint) {
+            //     newPseudoWaypoints.push(debugPoint);
+            // }
         }
 
         this.pseudoWaypoints = newPseudoWaypoints;

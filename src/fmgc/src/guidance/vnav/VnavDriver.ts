@@ -739,30 +739,3 @@ export class VnavDriver implements GuidanceComponent {
 export function numberOrNanChanged(oldValue: number, newValue: number): boolean {
     return Number.isNaN(oldValue) !== Number.isNaN(newValue) && oldValue !== newValue;
 }
-
-function isMetadataEqual(a: LegMetadata, b: LegMetadata): boolean {
-    return areAltitudeConstraintsEqual(a.altitudeConstraint, b.altitudeConstraint)
-        && a.pathAngleConstraint === b.pathAngleConstraint
-        && a.isOverfly === b.isOverfly
-        && !numberOrNanChanged(a.offset, b.offset)
-        && a.turnDirection === b.turnDirection
-        && !numberOrNanChanged(a.rtaUtcSeconds, b.rtaUtcSeconds)
-        && areSpeedConstraintsEqual(a.speedConstraint, b.speedConstraint)
-        && a.turnDirection === b.turnDirection;
-}
-
-function areAltitudeConstraintsEqual(a: AltitudeConstraint, b: AltitudeConstraint): boolean {
-    if (!a || !b) {
-        return !a === !b;
-    }
-
-    return a.type === b.type && !numberOrNanChanged(Math.round(a.altitude1), Math.round(b.altitude1)) && !numberOrNanChanged(Math.round(a.altitude2), Math.round(b.altitude2));
-}
-
-function areSpeedConstraintsEqual(a: SpeedConstraint, b: SpeedConstraint): boolean {
-    if (!a || !b) {
-        return !a === !b;
-    }
-
-    return a.type === b.type && !numberOrNanChanged(Math.round(a.speed), Math.round(b.speed));
-}
