@@ -8,7 +8,21 @@ import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vna
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 
+type DecelerationToSpeedConstraint = {
+    distanceFromStart: NauticalMiles,
+    speed: Knots,
+}
+
+type DecelerationToSpeedLimit = {
+    altitude: Feet,
+    speed: Knots,
+}
+
 export class TacticalDescentPathBuilder {
+    nextDecelerationToSpeedConstraint?: DecelerationToSpeedConstraint = null;
+
+    nextDecelerationAltitude?: DecelerationToSpeedLimit = null;
+
     constructor(private observer: VerticalProfileComputationParametersObserver) { }
 
     /**
@@ -20,6 +34,9 @@ export class TacticalDescentPathBuilder {
      * @param finalAltitude
      */
     buildTacticalDescentPath(profile: BaseGeometryProfile, descentStrategy: DescentStrategy, speedProfile: SpeedProfile, windProfile: HeadwindProfile, finalAltitude: Feet) {
+        this.nextDecelerationToSpeedConstraint = null;
+        this.nextDecelerationAltitude = null;
+
         const constraintsToUse = profile.descentSpeedConstraints
             .slice()
             .reverse()
@@ -52,12 +69,19 @@ export class TacticalDescentPathBuilder {
                 return altitudeOvershoot;
             };
 
-            bisectionMethod(tryDecelDistance, descentSpeedLimit.underAltitude, Math.min(descentSpeedLimit.underAltitude + 6000, profile.lastCheckpoint.altitude), [-10, 500], 10);
+            const foundAltitude = bisectionMethod(
+                tryDecelDistance, descentSpeedLimit.underAltitude, Math.min(descentSpeedLimit.underAltitude + 6000, profile.lastCheckpoint.altitude), [-500, 0], 10,
+            );
 
             profile.checkpoints.push(...descentSegment.get());
 
             // If we returned early, it's possible that it was not necessary to compute a `decelerationSegment`, so this would be null
             if (decelerationSegment) {
+                this.nextDecelerationAltitude = {
+                    altitude: foundAltitude,
+                    speed: descentSpeedLimit.speed,
+                };
+
                 if (descentSegment.length > 1) {
                     profile.lastCheckpoint.reason = VerticalCheckpointReason.StartDeceleration;
                 }
@@ -114,7 +138,6 @@ export class TacticalDescentPathBuilder {
         const { managedDescentSpeedMach } = this.observer.get();
 
         const distanceToConstraint = constraint.distanceFromStart - sequence.lastCheckpoint.distanceFromStart;
-        const maxDecelerationDistance = Math.min(distanceToConstraint, 20);
 
         let descentSegment: StepResults = null;
         let decelerationSegment: StepResults = null;
@@ -138,16 +161,22 @@ export class TacticalDescentPathBuilder {
                 windProfile.getHeadwindComponent(sequence.lastCheckpoint.distanceFromStart + descentSegment.distanceTraveled, descentSegment.finalAltitude),
             );
 
-            const totalDistanceTravelled = sequence.lastCheckpoint.distanceFromStart + descentSegment.distanceTraveled + decelerationSegment.distanceTraveled;
+            const totalDistanceTravelled = descentSegment.distanceTraveled + decelerationSegment.distanceTraveled;
             const distanceOvershoot = totalDistanceTravelled - distanceToConstraint;
 
             return distanceOvershoot;
         };
 
-        const a = 0;
-        const b = maxDecelerationDistance;
+        const decelDistance = bisectionMethod(tryDecelDistance, 0, 20);
 
-        bisectionMethod(tryDecelDistance, a, b);
+        const isMoreConstrainingThanPreviousConstraint = !this.nextDecelerationToSpeedConstraint
+            || constraint.distanceFromStart - decelDistance < this.nextDecelerationToSpeedConstraint.distanceFromStart;
+        if (decelDistance > 0 && isMoreConstrainingThanPreviousConstraint) {
+            this.nextDecelerationToSpeedConstraint = {
+                distanceFromStart: constraint.distanceFromStart - decelDistance,
+                speed: constraint.maxSpeed,
+            };
+        }
 
         sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.StartDeceleration);
         sequence.addCheckpointFromStep(decelerationSegment, VerticalCheckpointReason.SpeedConstraint);
@@ -162,7 +191,7 @@ function bisectionMethod(f: (c: number) => number, a: number, b: number, errorTo
             const c = (a + b) / 2;
             const fc = f(c);
 
-            if (fc >= errorTolerance[0] || fc <= errorTolerance[1]) {
+            if (fc >= errorTolerance[0] && fc <= errorTolerance[1]) {
                 if (VnavConfig.DEBUG_PROFILE) {
                     console.log(`[FMS/VNAV] Final error ${fc} after ${i} iterations.`);
                 }

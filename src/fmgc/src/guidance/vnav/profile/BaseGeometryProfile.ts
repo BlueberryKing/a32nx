@@ -417,7 +417,9 @@ export abstract class BaseGeometryProfile {
             secondsFromPresent: 0,
             altitude: presentPosition.alt,
             remainingFuelOnBoard,
-            speed: SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots'),
+            // TODO: This is a hack to prevent bad predictions when the aircraft is too slow
+            // Not sure what the initial speed should be, I think it depends on flight phase
+            speed: Math.max(SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots'), SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots')),
             mach: SimVar.GetSimVarValue('AIRSPEED MACH', 'number'),
         });
     }

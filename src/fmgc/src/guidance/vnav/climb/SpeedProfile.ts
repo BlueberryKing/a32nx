@@ -82,6 +82,12 @@ export class McduSpeedProfile implements SpeedProfile {
         return Number.isFinite(speed) && Number.isFinite(underAltitude);
     }
 
+    update(aircraftDistanceAlongTrack: NauticalMiles) {
+        this.aircraftDistanceAlongTrack = aircraftDistanceAlongTrack;
+
+        this.resetCache();
+    }
+
     getTarget(distanceFromStart: NauticalMiles, altitude: Feet, managedSpeedType: ManagedSpeedType): Knots {
         const { fcuSpeed, flightPhase, preselectedClbSpeed } = this.parameters.get();
 
@@ -174,8 +180,11 @@ export class McduSpeedProfile implements SpeedProfile {
     getMaxDescentSpeedConstraint(distanceAlongTrack: NauticalMiles): MaxSpeedConstraint {
         let activeConstraint: MaxSpeedConstraint = null;
 
-        // TODO: I think this is unnecessarily complex, we can probably just return the first constraint that is in front of us.
         for (const constraint of this.descentSpeedConstraints) {
+            if (constraint.maxSpeed >= constraintToSpeed(activeConstraint)) {
+                continue;
+            }
+
             // Since the constraint are ordered, there is no need to search further
             if (distanceAlongTrack < constraint.distanceFromStart) {
                 return activeConstraint;
@@ -233,6 +242,12 @@ export class McduSpeedProfile implements SpeedProfile {
         default:
             throw new Error(`[FMS/VNAV] Invalid managedSpeedType: ${managedSpeedType}`);
         }
+    }
+
+    private resetCache() {
+        this.maxSpeedCache.clear();
+        this.maxSpeedLookups = 0;
+        this.maxSpeedCacheHits = 0;
     }
 }
 

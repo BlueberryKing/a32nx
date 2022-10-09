@@ -81,6 +81,8 @@ export class VnavDriver implements GuidanceComponent {
 
     private headingProfile: NavHeadingProfile;
 
+    private isBelowDescentSpeedLimit = false;
+
     constructor(
         private readonly guidanceController: GuidanceController,
         private readonly computationParametersObserver: VerticalProfileComputationParametersObserver,
@@ -150,6 +152,7 @@ export class VnavDriver implements GuidanceComponent {
         this.constraintReader.updateGeometry(geometry, newParameters.presentPosition);
         this.windProfileFactory.updateAircraftDistanceFromStart(this.constraintReader.distanceToPresentPosition);
         this.headingProfile.updateGeometry(geometry);
+        this.currentMcduSpeedProfile?.update(this.constraintReader.distanceToPresentPosition);
 
         this.computeVerticalProfileForMcdu(geometry);
 
@@ -158,6 +161,7 @@ export class VnavDriver implements GuidanceComponent {
             this.oldLegs = new Map(newLegs);
             this.lastParameters = newParameters;
             this.requestDescentProfileRecomputation = false;
+            this.isForcingSpeedTargetDownForConstraint = false;
 
             if (this.currentNavGeometryProfile?.isReadyToDisplay) {
                 this.descentGuidance.updateProfile(this.currentNavGeometryProfile);
@@ -500,6 +504,61 @@ export class VnavDriver implements GuidanceComponent {
             || fcuVerticalMode === VerticalMode.FPA
             || fcuVerticalMode === VerticalMode.OP_CLB
             || fcuVerticalMode === VerticalMode.OP_DES;
+    }
+
+    private isForcingSpeedTargetDownForConstraint: boolean = false;
+
+    private updateDescentSpeedGuidance() {
+        const { flightPhase, managedDescentSpeed, managedDescentSpeedMach, presentPosition, descentSpeedLimit } = this.computationParametersObserver.get();
+        const isExpediteModeActive = SimVar.GetSimVarValue('L:A32NX_FMA_EXPEDITE_MODE', 'number') === 1;
+        const speedControlManual = Simplane.getAutoPilotAirspeedSelected();
+        const isHoldActive = this.guidanceController.isManualHoldActive();
+        const currentDistanceFromStart = this.constraintReader.distanceToPresentPosition;
+        const currentAltitude = presentPosition.alt;
+
+        if (flightPhase !== FmgcFlightPhase.Descent || speedControlManual || isExpediteModeActive || isHoldActive) {
+            return;
+        }
+
+        // Use min() just for safety
+        let newSpeedTarget = Math.min(managedDescentSpeed, this.currentMcduSpeedProfile.getTarget(currentDistanceFromStart, currentAltitude, ManagedSpeedType.Descent));
+
+        // TODO: This is a mess... This code takes care of decelerating before a constraint / speed limit to reach the target speed at the desired point.
+        // What makes this complicated is that we don't want to the speed target to jump around during the deceleration segment, only because the profile calculation computes
+        // that deceleration is only necessary a bit later. Once we start the deceleration to a point, we go through with it.
+        // This means, we need to save the state "in deceleration segment" and latch it. But we need to figure out when to reset this value again, as not to get stuck in a bad state.
+        if (Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationAltitude?.altitude)
+            && Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationAltitude?.speed)
+            && (currentAltitude < this.tacticalDescentPathBuilder.nextDecelerationAltitude.altitude || this.isBelowDescentSpeedLimit)
+        ) {
+            newSpeedTarget = Math.min(newSpeedTarget, this.tacticalDescentPathBuilder.nextDecelerationAltitude.speed);
+            this.isBelowDescentSpeedLimit = true;
+        } else if (this.currentMcduSpeedProfile.shouldTakeDescentSpeedLimitIntoAccount()) {
+            // Hystersis so the speed target doesn't flicker while flying at the speed limit altitude. I don't know if this is in the real aircraft,
+            // but it definitely make a lot of sense.
+            if (currentAltitude < descentSpeedLimit.underAltitude) {
+                this.isBelowDescentSpeedLimit = true;
+            } else if (currentAltitude > descentSpeedLimit.underAltitude + 100) {
+                this.isBelowDescentSpeedLimit = false;
+            }
+        }
+
+        if (Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.distanceFromStart)
+            && Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.speed)
+        ) {
+            if (this.isForcingSpeedTargetDownForConstraint
+                || !this.isForcingSpeedTargetDownForConstraint && currentDistanceFromStart > this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.distanceFromStart
+            ) {
+                newSpeedTarget = Math.min(newSpeedTarget, this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.speed);
+                this.isForcingSpeedTargetDownForConstraint = true;
+            } else if (newSpeedTarget < this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.speed) {
+                this.isForcingSpeedTargetDownForConstraint = false;
+            }
+        }
+
+        const econMachAsCas = SimVar.GetGameVarValue('FROM MACH TO KIAS', 'number', managedDescentSpeedMach);
+
+        SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots', Math.min(newSpeedTarget, econMachAsCas));
     }
 
     private updateGuidance(): void {
