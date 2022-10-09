@@ -146,7 +146,7 @@ export class DescentGuidance {
         if (linearDeviation > 200 || this.isInOverspeedCondition) {
             // above path
             this.requestedVerticalMode = RequestedVerticalMode.SpeedThrust;
-        } else if (isBeforeTopOfDescent || linearDeviation < -200) {
+        } else if (isBeforeTopOfDescent || linearDeviation < -100) {
             // below path
             if (isOnGeometricPath) {
                 this.requestedVerticalMode = RequestedVerticalMode.FpaSpeed;
@@ -176,11 +176,9 @@ export class DescentGuidance {
         // This is because the guidance logic is a bit different in this case.
         const managedSpeedTarget = flightPhase === FmgcFlightPhase.Approach
             ? SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_ATHR', 'knots')
-            : Math.round(this.iasOrMach(this.aircraftToDescentProfileRelation.currentTargetSpeed(), managedDescentSpeedMach));
+            : Math.round(this.iasOrMach(SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots'), managedDescentSpeedMach));
 
-        this.speedTarget = inManagedSpeed
-            ? managedSpeedTarget
-            : fcuSpeed;
+        this.speedTarget = inManagedSpeed ? managedSpeedTarget : fcuSpeed;
     }
 
     private writeToSimVars() {
@@ -197,8 +195,6 @@ export class DescentGuidance {
         if (this.speedState === DescentSpeedGuidanceState.NotInDescentPhase) {
             return;
         }
-
-        SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots', this.speedTarget);
 
         const maxBias = 8;
         const speedBias = this.requestedVerticalMode === RequestedVerticalMode.SpeedThrust
