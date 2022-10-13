@@ -94,8 +94,28 @@ export class VerticalSpeedStrategy implements ClimbStrategy, DescentStrategy {
 export class FlightPathAngleStrategy implements ClimbStrategy, DescentStrategy {
     constructor(private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions, public flightPathAngle: Radians) { }
 
-    predictToAltitude(_initialAltitude: Feet, _finalAltitude: Feet, _speed: Knots, _mach: Mach, _fuelOnBoard: number, _headwindComponent: WindComponent): StepResults {
-        throw new Error('[FMS/VNAV] Predictions to altitude not implemented for FPA strategy');
+    predictToAltitude(
+        initialAltitude: Feet, finalAltitude: Feet, speed: Knots, mach: Mach, fuelOnBoard: number, headwindComponent: WindComponent, config?: AircraftConfiguration,
+    ): StepResults {
+        const { zeroFuelWeight, perfFactor } = this.observer.get();
+
+        const distance = (finalAltitude - initialAltitude) / (6076.12 * Math.tan(this.flightPathAngle * MathUtils.DEGREES_TO_RADIANS));
+
+        return Predictions.geometricStep(
+            initialAltitude,
+            finalAltitude,
+            distance,
+            speed,
+            mach,
+            zeroFuelWeight,
+            fuelOnBoard,
+            this.atmosphericConditions.isaDeviation,
+            headwindComponent.value,
+            perfFactor,
+            config?.gearExtended ?? false,
+            config?.flapConfig ?? FlapConf.CLEAN,
+            config?.speedbrakesExtended ?? false,
+        );
     }
 
     predictToDistance(
@@ -103,11 +123,11 @@ export class FlightPathAngleStrategy implements ClimbStrategy, DescentStrategy {
     ): StepResults {
         const { zeroFuelWeight, perfFactor } = this.observer.get();
 
-        const finalAltitde = initialAltitude + 6076.12 * distance * Math.tan(this.flightPathAngle * MathUtils.DEGREES_TO_RADIANS);
+        const finalAltitude = initialAltitude + 6076.12 * distance * Math.tan(this.flightPathAngle * MathUtils.DEGREES_TO_RADIANS);
 
         return Predictions.geometricStep(
             initialAltitude,
-            finalAltitde,
+            finalAltitude,
             distance,
             speed,
             mach,
