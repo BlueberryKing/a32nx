@@ -20,6 +20,7 @@ import { CILeg } from '@fmgc/guidance/lnav/legs/CI';
 import { CRLeg } from '@fmgc/guidance/lnav/legs/CR';
 import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { TransitionPicker } from '@fmgc/guidance/lnav/TransitionPicker';
+import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { ControlLaw, CompletedGuidanceParameters, LateralPathGuidance } from './ControlLaws';
 
 function isGuidableCapturingPath(guidable: Guidable): boolean {
@@ -495,6 +496,7 @@ export class Geometry {
     ): [number, number, number] {
         let inboundLength = 0;
         let outboundLength = 0;
+        let legDistance = leg.distance;
 
         if (outbound) {
             if (outbound instanceof FixedRadiusTransition && !outbound.isReverted) {
@@ -510,8 +512,14 @@ export class Geometry {
             } else {
                 inboundLength = inbound.distance;
             }
+
+            // TODO: This is a hack. In the situation where we have a TF -> FixedRadius -> CF and the FixedRadius reverts to PathCapture such that it overshoots the fix of the CF,
+            // the CF's distance is the distance between where the transition intercepts the next leg and the fix of the CF, but the AC will not fly this distance
+            if (leg instanceof XFLeg && leg.overshot && leg.distance > 0) {
+                legDistance = -leg.distance;
+            }
         }
 
-        return [inboundLength, leg.distance, outboundLength];
+        return [inboundLength, legDistance, outboundLength];
     }
 }
