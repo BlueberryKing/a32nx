@@ -66,7 +66,7 @@ export class ApproachPathBuilder {
 
     private fpaStrategy: FlightPathAngleStrategy;
 
-    constructor(private observer: VerticalProfileComputationParametersObserver, private atmosphericConditions: AtmosphericConditions) {
+    constructor(private observer: VerticalProfileComputationParametersObserver, atmosphericConditions: AtmosphericConditions) {
         this.idleStrategy = new IdleDescentStrategy(observer, atmosphericConditions);
         this.fpaStrategy = new FlightPathAngleStrategy(observer, atmosphericConditions, 0);
     }
@@ -84,13 +84,13 @@ export class ApproachPathBuilder {
 
         // Find starting point for computation
         // Use either last constraint with its alt or just place a point wherever the end of the track is
-        const finalAltitude = this.canUseLastAltConstraintAsStartingPoint(profile) ? approachConstraints[0].constraint.altitude1 : destinationAirfieldElevation;
+        const finalAltitude = this.canUseLastAltConstraintAsStartingPoint(profile) ? approachConstraints[0].constraint.altitude1 : (destinationAirfieldElevation + 50);
 
         const sequence = new TemporaryCheckpointSequence({
             reason: VerticalCheckpointReason.Landing,
             speed: approachSpeed,
             distanceFromStart: profile.getDistanceFromStart(0),
-            altitude: this.canUseLastAltConstraintAsStartingPoint(profile) ? approachConstraints[0].constraint.altitude1 : destinationAirfieldElevation,
+            altitude: finalAltitude,
             remainingFuelOnBoard: estimatedFuelOnBoardAtDestination,
             secondsFromPresent: estimatedSecondsFromPresentAtDestination,
             mach: managedDescentSpeedMach,
@@ -113,7 +113,7 @@ export class ApproachPathBuilder {
         sequence.addCheckpointFromStep(finalApproachStep, VerticalCheckpointReason.AtmosphericConditions);
 
         // Build path to FAF by flying the descent angle but decelerating
-        const fafStep = this.buildDecelerationPath(sequence, speedProfile, windProfile, profile.getDistanceFromStart(profile.fafDistanceToEnd));
+        const fafStep = this.buildDecelerationPath(sequence.lastCheckpoint, speedProfile, windProfile, profile.getDistanceFromStart(profile.fafDistanceToEnd));
         sequence.push(...fafStep.get());
 
         //
@@ -132,7 +132,7 @@ export class ApproachPathBuilder {
 
         if (speedTarget - sequence.lastCheckpoint.speed > 0.1) {
             // We use -Infinty because we just want to decelerate to the descent speed without and constraint on distance
-            const decelerationToDescentSpeed = this.buildDecelerationPath(sequence, speedProfile, windProfile, -Infinity);
+            const decelerationToDescentSpeed = this.buildDecelerationPath(sequence.lastCheckpoint, speedProfile, windProfile, -Infinity);
             sequence.push(...decelerationToDescentSpeed.get());
         }
 
@@ -145,13 +145,15 @@ export class ApproachPathBuilder {
     }
 
     private handleAltitudeConstraint(sequence: TemporaryCheckpointSequence, speedProfile: SpeedProfile, windProfile: HeadwindProfile, constraint: DescentAltitudeConstraint) {
-        // We compose this segment of two segments:
-        //  A descent segment
-        //  A level deceleration segment
-        // This is how they appear along the track
+        // We compose this segment of three segments:
+        //  1. (A level deceleration segment) - `decelerationSequence`
+        //  2. A descent segment - `descentSegment`
+        //  3. A level deceleration segment - `secondDecelerationSequence`
+        // ^ This is the order in which they appear along the track. Like the entire descent path, we build it backwards
 
         // Going in reverse:
-        // We try to choose make the deceleration segment just as long that we manage to make the descent part
+        // We try to choose make the deceleration segment just as long that we can meet the altitude constraint with the descent segment.
+        // Segment number 1. is only needed if we decelerate, descend, but are not at the altitude constraint yet.
         const { managedDescentSpeedMach, cleanSpeed } = this.observer.get();
         const { distanceFromStart, altitude } = sequence.lastCheckpoint;
 
@@ -171,15 +173,19 @@ export class ApproachPathBuilder {
 
         let decelerationSequence: TemporaryCheckpointSequence = null;
         let descentSegment: StepResults = null;
+        let secondDecelerationSequence: TemporaryCheckpointSequence = null;
 
         // `decelerationSegmentDistance` should be positive
         const tryDecelDistance = (decelerationSegmentDistance: NauticalMiles): NauticalMiles => {
+            const currentDecelerationAttempt = new TemporaryCheckpointSequence(sequence.lastCheckpoint);
+
             decelerationSequence = this.buildDecelerationPath(
-                sequence,
+                sequence.lastCheckpoint,
                 speedProfile,
                 windProfile,
                 distanceFromStart - decelerationSegmentDistance,
             );
+            currentDecelerationAttempt.push(...decelerationSequence.get());
 
             descentSegment = this.idleStrategy.predictToAltitude(
                 altitude,
@@ -190,13 +196,23 @@ export class ApproachPathBuilder {
                 windProfile.getHeadwindComponent(distanceFromStart - decelerationSegmentDistance, minimumAltitude),
                 AircraftConfigurationProfile.getBySpeed(decelerationSequence.lastCheckpoint.speed, this.observer.get()),
             );
+            currentDecelerationAttempt.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.AltitudeConstraint);
 
-            if (descentSegment.distanceTraveled > 0) {
-                throw new Error('[FMS/VNAV] Descent segment should not have a negative distance traveled');
+            if (VnavConfig.DEBUG_PROFILE && descentSegment.distanceTraveled > 0) {
+                throw new Error('[FMS/VNAV] Descent segment should have a negative distance traveled');
             }
 
-            // This should be positive
+            // This should be positive.
+            // This is what we want to be as close to `desiredDistanceToCover` as possible. That would mean that we start "ascending" (descending backwards) just in time.
             const distanceTraveled = -descentSegment.distanceTraveled + (distanceFromStart - decelerationSequence.lastCheckpoint.distanceFromStart);
+
+            // If we have not reached the altitude constraint yet, because we started "ascending" (descending backwards) too early, we continue to decelerate until we reach the constraint
+            secondDecelerationSequence = this.buildDecelerationPath(
+                currentDecelerationAttempt.lastCheckpoint,
+                speedProfile,
+                windProfile,
+                constraint.distanceFromStart,
+            );
 
             return distanceTraveled - desiredDistanceToCover;
         };
@@ -204,6 +220,7 @@ export class ApproachPathBuilder {
         let a = 0;
         let b = desiredDistanceToCover;
 
+        // TODO: Use already written `bisectionMethod` for this instead of copy-pasting
         let fa = tryDecelDistance(0);
         // We can't reach the altitude constraint even if we do not decelerate at all
         if (fa < 0) {
@@ -220,7 +237,8 @@ export class ApproachPathBuilder {
                     break;
                 }
 
-                if (Math.abs(fc) < 0.05 || (b - a) < 0.05) {
+                // To be conservative, it's fine if we get to the constraint a bit early. Getting to the constraint too late means we violate it and that's bad.
+                if (fc > -0.1 && fc < 0.01 || (b - a) < 0.05) {
                     if (VnavConfig.DEBUG_PROFILE) {
                         console.log(`[FMS/VNAV] Final error ${fc} after ${i} iterations.`);
                     }
@@ -248,6 +266,7 @@ export class ApproachPathBuilder {
         // Don't bother considering the climb step in the profile if we have already reached the target speed in the deceleration segment
         if (speedTarget - decelerationSequence.lastCheckpoint.speed > 1 || decelerationSequence.lastCheckpoint.speed < cleanSpeed) {
             sequence.addCheckpointFromStep(descentSegment, VerticalCheckpointReason.AltitudeConstraint);
+            sequence.push(...secondDecelerationSequence.get());
         }
     }
 
@@ -277,23 +296,23 @@ export class ApproachPathBuilder {
     /**
      * This builds a level deceleration path, bringing out flaps as needed, and obeying speed constraints.
      * This relies on `this.fpaStrategy` to have the correct descent angle coded.
-     * @param sequence
+     * @param lastCheckpoint
      * @param speedProfile
      * @param windProfile
      * @param targetDistanceFromStart
      * @returns
      */
     private buildDecelerationPath(
-        sequence: TemporaryCheckpointSequence, speedProfile: SpeedProfile, windProfile: HeadwindProfile, targetDistanceFromStart: NauticalMiles,
+        lastCheckpoint: VerticalCheckpoint, speedProfile: SpeedProfile, windProfile: HeadwindProfile, targetDistanceFromStart: NauticalMiles,
     ): TemporaryCheckpointSequence {
-        const decelerationSequence = new TemporaryCheckpointSequence(sequence.lastCheckpoint);
+        const decelerationSequence = new TemporaryCheckpointSequence(lastCheckpoint);
 
         const parameters = this.observer.get();
         const { managedDescentSpeedMach } = parameters;
 
         for (let i = 0; i < 10
             && decelerationSequence.lastCheckpoint.reason !== VerticalCheckpointReason.Decel
-            && decelerationSequence.lastCheckpoint.distanceFromStart - targetDistanceFromStart > 0.05;
+            && decelerationSequence.lastCheckpoint.distanceFromStart - targetDistanceFromStart > 1e-4; // We really only want to prevent floating point errors here
             i++
         ) {
             const { distanceFromStart, altitude, speed, remainingFuelOnBoard } = decelerationSequence.lastCheckpoint;
