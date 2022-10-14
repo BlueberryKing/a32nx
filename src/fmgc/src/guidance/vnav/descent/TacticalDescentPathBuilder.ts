@@ -9,11 +9,12 @@ import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 
 type DecelerationToSpeedConstraint = {
-    distanceFromStart: NauticalMiles,
+    decelerationDistanceFromStart: NauticalMiles,
     speed: Knots,
 }
 
 type DecelerationToSpeedLimit = {
+    distanceFromStart: NauticalMiles,
     altitude: Feet,
     speed: Knots,
 }
@@ -21,7 +22,7 @@ type DecelerationToSpeedLimit = {
 export class TacticalDescentPathBuilder {
     nextDecelerationToSpeedConstraint?: DecelerationToSpeedConstraint = null;
 
-    nextDecelerationAltitude?: DecelerationToSpeedLimit = null;
+    nextDecelerationToSpeedLimit?: DecelerationToSpeedLimit = null;
 
     constructor(private observer: VerticalProfileComputationParametersObserver) { }
 
@@ -35,14 +36,15 @@ export class TacticalDescentPathBuilder {
      */
     buildTacticalDescentPath(profile: BaseGeometryProfile, descentStrategy: DescentStrategy, speedProfile: SpeedProfile, windProfile: HeadwindProfile, finalAltitude: Feet) {
         this.nextDecelerationToSpeedConstraint = null;
-        this.nextDecelerationAltitude = null;
+        this.nextDecelerationToSpeedLimit = null;
 
+        const { descentSpeedLimit, managedDescentSpeedMach } = this.observer.get();
+        const initialAltitude = profile.lastCheckpoint.altitude;
         const constraintsToUse = profile.descentSpeedConstraints
             .slice()
             .reverse()
             .sort((a, b) => a.distanceFromStart - b.distanceFromStart);
 
-        const { descentSpeedLimit, managedDescentSpeedMach } = this.observer.get();
         if (speedProfile.shouldTakeDescentSpeedLimitIntoAccount() && finalAltitude < descentSpeedLimit.underAltitude && profile.lastCheckpoint.speed > descentSpeedLimit.speed) {
             let descentSegment = new TemporaryCheckpointSequence(profile.lastCheckpoint);
             let decelerationSegment: StepResults = null;
@@ -77,7 +79,8 @@ export class TacticalDescentPathBuilder {
 
             // If we returned early, it's possible that it was not necessary to compute a `decelerationSegment`, so this would be null
             if (decelerationSegment) {
-                this.nextDecelerationAltitude = {
+                this.nextDecelerationToSpeedLimit = {
+                    distanceFromStart: descentSegment.lastCheckpoint.distanceFromStart,
                     altitude: foundAltitude,
                     speed: descentSpeedLimit.speed,
                 };
@@ -93,7 +96,11 @@ export class TacticalDescentPathBuilder {
         const sequenceToFinalAltitude = this.buildToAltitude(profile.lastCheckpoint, descentStrategy, constraintsToUse, windProfile, finalAltitude);
 
         profile.checkpoints.push(...sequenceToFinalAltitude.get());
-        profile.lastCheckpoint.reason = VerticalCheckpointReason.CrossingFcuAltitudeDescent;
+
+        // Level off arrow is only shown if more than 100 ft away
+        if (profile.lastCheckpoint.altitude - initialAltitude < -100) {
+            profile.lastCheckpoint.reason = VerticalCheckpointReason.CrossingFcuAltitudeDescent;
+        }
     }
 
     private buildToAltitude(
@@ -105,7 +112,8 @@ export class TacticalDescentPathBuilder {
         for (const constraint of constraints) {
             this.handleSpeedConstraint(sequence, constraint, descentStrategy, windProfile);
 
-            if (sequence.lastCheckpoint.altitude <= finalAltitude) {
+            // If we overshoot the final altitude, remove waypoints
+            if (sequence.lastCheckpoint.altitude - finalAltitude < 1) {
                 while (sequence.checkpoints.length > 1 && sequence.lastCheckpoint.altitude <= finalAltitude) {
                     sequence.checkpoints.splice(-1, 1);
                 }
@@ -114,7 +122,9 @@ export class TacticalDescentPathBuilder {
             }
         }
 
-        if (sequence.lastCheckpoint.altitude > finalAltitude) {
+        // We only build the segment to the final altitude if we're more than a floating point error away.
+        // Otherwise, in VS 0 strategy, we might never reach it
+        if (sequence.lastCheckpoint.altitude - finalAltitude > 1) {
             const descentSegment = descentStrategy.predictToAltitude(
                 sequence.lastCheckpoint.altitude,
                 finalAltitude,
@@ -131,7 +141,7 @@ export class TacticalDescentPathBuilder {
     }
 
     private handleSpeedConstraint(sequence: TemporaryCheckpointSequence, constraint: MaxSpeedConstraint, descentStrategy: DescentStrategy, windProfile: HeadwindProfile) {
-        if (sequence.lastCheckpoint.speed <= constraint.maxSpeed || sequence.lastCheckpoint.distanceFromStart > constraint.distanceFromStart) {
+        if (sequence.lastCheckpoint.distanceFromStart > constraint.distanceFromStart) {
             return;
         }
 
@@ -154,7 +164,9 @@ export class TacticalDescentPathBuilder {
 
             decelerationSegment = descentStrategy.predictToSpeed(
                 descentSegment.finalAltitude,
-                constraint.maxSpeed,
+                // We don't ignore speed constraints which are already satisfied, but for those that are,
+                // we get a decel distance of 0. We still want to consider the constraint, so the speed guidance follows it.
+                Math.min(constraint.maxSpeed, descentSegment.speed),
                 descentSegment.speed,
                 managedDescentSpeedMach,
                 sequence.lastCheckpoint.remainingFuelOnBoard - descentSegment.fuelBurned,
@@ -170,10 +182,10 @@ export class TacticalDescentPathBuilder {
         const decelDistance = bisectionMethod(tryDecelDistance, 0, 20);
 
         const isMoreConstrainingThanPreviousConstraint = !this.nextDecelerationToSpeedConstraint
-            || constraint.distanceFromStart - decelDistance < this.nextDecelerationToSpeedConstraint.distanceFromStart;
-        if (decelDistance > 0 && isMoreConstrainingThanPreviousConstraint) {
+            || constraint.distanceFromStart - decelDistance < this.nextDecelerationToSpeedConstraint.decelerationDistanceFromStart;
+        if (isMoreConstrainingThanPreviousConstraint) {
             this.nextDecelerationToSpeedConstraint = {
-                distanceFromStart: constraint.distanceFromStart - decelDistance,
+                decelerationDistanceFromStart: constraint.distanceFromStart - decelDistance,
                 speed: constraint.maxSpeed,
             };
         }

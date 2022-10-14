@@ -17,11 +17,11 @@ import { McduSpeedProfile, ExpediteSpeedProfile, NdSpeedProfile, ManagedSpeedTyp
 import { SelectedGeometryProfile } from '@fmgc/guidance/vnav/profile/SelectedGeometryProfile';
 import { BaseGeometryProfile, PerfCrzToPrediction } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { TakeoffPathBuilder } from '@fmgc/guidance/vnav/takeoff/TakeoffPathBuilder';
-import { ClimbThrustClimbStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
+import { ClimbThrustClimbStrategy, FlightPathAngleStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { ConstraintReader } from '@fmgc/guidance/vnav/ConstraintReader';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { TacticalDescentPathBuilder } from '@fmgc/guidance/vnav/descent/TacticalDescentPathBuilder';
-import { IdleDescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
+import { DescentStrategy, IdleDescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
 import { LatchedDescentGuidance } from '@fmgc/guidance/vnav/descent/LatchedDescentGuidance';
 import { DescentGuidance } from '@fmgc/guidance/vnav/descent/DescentGuidance';
 import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
@@ -256,7 +256,16 @@ export class VnavDriver implements GuidanceComponent {
     }
 
     private computeVerticalProfileForNd() {
-        const { fcuAltitude, fcuVerticalMode, presentPosition, fuelOnBoard, fcuVerticalSpeed, flightPhase } = this.computationParametersObserver.get();
+        const {
+            fcuAltitude,
+            fcuArmedVerticalMode,
+            fcuVerticalMode,
+            presentPosition,
+            fuelOnBoard,
+            fcuVerticalSpeed,
+            fcuFlightPathAngle,
+            flightPhase,
+        } = this.computationParametersObserver.get();
 
         this.currentNdGeometryProfile = this.isLatAutoControlActive()
             ? new NavGeometryProfile(this.guidanceController, this.constraintReader, this.atmosphericConditions, this.flightPlanManager.getWaypointsCount())
@@ -292,14 +301,33 @@ export class VnavDriver implements GuidanceComponent {
             VerticalMode.OP_CLB,
         ];
 
+        const tacticalLevelModes = [
+            VerticalMode.ALT,
+            VerticalMode.ALT_CST,
+        ];
+
         const tacticalDescentModes = [
             VerticalMode.OP_DES,
             VerticalMode.DES,
+            VerticalMode.ALT_CPT,
+            VerticalMode.ALT_CST_CPT,
         ];
+
+        const isInDescentOrApproachPhase = flightPhase >= FmgcFlightPhase.Descent && flightPhase <= FmgcFlightPhase.Approach;
+        const isInLevelFlight = tacticalLevelModes.includes(fcuVerticalMode);
+        const shouldApplyClimbPredictions = tacticalClimbModes.includes(fcuVerticalMode)
+            || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed > 0
+            || fcuVerticalMode === VerticalMode.FPA && fcuFlightPathAngle > 0;
+        const shouldApplyDescentPredictions = isInDescentOrApproachPhase && (
+            tacticalDescentModes.includes(fcuVerticalMode)
+            || isInLevelFlight
+            || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed <= 0
+            || fcuVerticalMode === VerticalMode.FPA && fcuFlightPathAngle <= 0
+        );
 
         // Check if we're in the climb or descent phase and compute an appropriate tactical path.
         // A tactical path is a profile in the currently selected modes.
-        if (tacticalClimbModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed > 0) {
+        if (shouldApplyClimbPredictions) {
             const climbStrategy = fcuVerticalMode === VerticalMode.VS
                 ? new VerticalSpeedStrategy(this.computationParametersObserver, this.atmosphericConditions, fcuVerticalSpeed)
                 : new ClimbThrustClimbStrategy(this.computationParametersObserver, this.atmosphericConditions);
@@ -307,16 +335,17 @@ export class VnavDriver implements GuidanceComponent {
             const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
 
             this.climbPathBuilder.computeClimbPath(this.currentNdGeometryProfile, climbStrategy, speedProfile, climbWinds, fcuAltitude);
-        } else if ((tacticalDescentModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) && fcuAltitude < presentPosition.alt) {
+        } else if (shouldApplyDescentPredictions) {
             // The idea here is that we compute a profile to FCU alt in the current modes, find the intercept with the managed profile. And then compute the managed profile from there.
 
-            const vdev = this.aircraftToDescentProfileRelation.computeLinearDeviation();
-            const descentStrategy = this.getAppropriateTacticalDescentStrategy(fcuVerticalMode, fcuVerticalSpeed, vdev);
+            const descentStrategy = this.getAppropriateTacticalDescentStrategy(fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle, this.aircraftToDescentProfileRelation);
             const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
 
             // Build path to FCU altitude.
-            this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, speedProfile, descentWinds, fcuAltitude);
+            this.tacticalDescentPathBuilder.buildTacticalDescentPath(this.currentNdGeometryProfile, descentStrategy, speedProfile, descentWinds,
+                isInLevelFlight ? this.currentNdGeometryProfile.checkpoints[0].altitude : fcuAltitude);
 
+            // Compute intercept with managed profile
             if (this.isLatAutoControlActive() && this.aircraftToDescentProfileRelation.isValid) {
                 // The guidance profile is typically not refreshed after the descent is started, whereas the tactical profile is recomputed constantly,
                 // so the `distanceFromStart`s are very different in the profiles.
@@ -336,7 +365,7 @@ export class VnavDriver implements GuidanceComponent {
                     const reason = isManagedDescent ? VerticalCheckpointReason.InterceptDescentProfileManaged : VerticalCheckpointReason.InterceptDescentProfileSelected;
                     const interceptCheckpoint = this.currentNdGeometryProfile.addInterpolatedCheckpoint(interceptDistance, { reason });
 
-                    const isTooCloseToDrawIntercept = Math.abs(vdev) < 100;
+                    const isTooCloseToDrawIntercept = Math.abs(this.aircraftToDescentProfileRelation.computeLinearDeviation()) < 100;
                     const isInterceptOnlyAtFcuAlt = interceptCheckpoint.altitude - fcuAltitude < 100;
 
                     // In managed mode, we remove all checkpoints after (maybe including) the intercept
@@ -365,7 +394,7 @@ export class VnavDriver implements GuidanceComponent {
                     .filter(({ distanceFromStart }) => distanceFromStart > this.currentNdGeometryProfile.lastCheckpoint?.distanceFromStart ?? 0),
             );
 
-            if ((tacticalDescentModes.includes(fcuVerticalMode) || fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) && fcuAltitude < presentPosition.alt) {
+            if (shouldApplyDescentPredictions) {
                 // It's possible that the level off arrow was spliced from the profile because we spliced it at the intercept, so we need to add it back.
                 const levelOffArrow = this.currentNdGeometryProfile.findVerticalCheckpoint(VerticalCheckpointReason.CrossingFcuAltitudeDescent);
                 let levelOffDistance = levelOffArrow?.distanceFromStart ?? 0;
@@ -377,16 +406,27 @@ export class VnavDriver implements GuidanceComponent {
 
                 for (let i = 1; i < this.currentNdGeometryProfile.checkpoints.length; i++) {
                     const checkpoint = this.currentNdGeometryProfile.checkpoints[i];
-                    if (checkpoint.distanceFromStart < levelOffDistance || checkpoint.altitude - fcuAltitude >= -10) {
+                    // `checkpoint.altitude - fcuAltitude >= -100` works like this: If you have a constraint at 4450 feet causing a level segment,
+                    // but you set the FCU altitude to 4500 ft, then the continue descent arrow should be drawn where you continue the descent from 4450 ft
+                    // I have evidence of this somewhere.
+                    if (checkpoint.distanceFromStart < levelOffDistance || checkpoint.altitude - fcuAltitude >= -100) {
                         continue;
                     }
 
                     const previousCheckpoint = this.currentNdGeometryProfile.checkpoints[i - 1];
 
-                    if (previousCheckpoint.reason !== VerticalCheckpointReason.PresentPosition && Math.round(previousCheckpoint.altitude) > Math.round(checkpoint.altitude)) {
+                    // Here, we don't need to check whether the checkpoint is lower than the previous one,
+                    // because we should only get to this point if we find the first checkpoint below the FCU altitude.
+                    if (previousCheckpoint.reason !== VerticalCheckpointReason.PresentPosition) {
+                        const shouldShowArmedDescentArrow = isArmed(fcuArmedVerticalMode, ArmedVerticalMode.DES)
+                        || isArmed(fcuArmedVerticalMode, ArmedVerticalMode.FINAL);
+
                         this.currentNdGeometryProfile.addInterpolatedCheckpoint(
                             Math.max(levelOffDistance, previousCheckpoint.distanceFromStart),
-                            { reason: VerticalCheckpointReason.ContinueDescent },
+                            {
+                                reason: shouldShowArmedDescentArrow ? VerticalCheckpointReason.ContinueDescentArmed
+                                    : VerticalCheckpointReason.ContinueDescent,
+                            },
                         );
 
                         break;
@@ -402,33 +442,43 @@ export class VnavDriver implements GuidanceComponent {
         }
     }
 
-    private getAppropriateTacticalDescentStrategy(fcuVerticalMode: VerticalMode, fcuVerticalSpeed: FeetPerMinute, vdev: Feet) {
-        if (fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed < 0) {
+    private getAppropriateTacticalDescentStrategy(
+        fcuVerticalMode: VerticalMode, fcuVerticalSpeed: FeetPerMinute, fcuFlightPathAngle: Degrees, relation: AircraftToDescentProfileRelation,
+    ): DescentStrategy {
+        const linearDeviation = relation.computeLinearDeviation();
+        const isOnGeometricPath = relation.isOnGeometricPath();
+        const targetFpa = relation.currentTargetPathAngle();
+
+        if (fcuVerticalMode === VerticalMode.VS && fcuVerticalSpeed <= 0) {
             return new VerticalSpeedStrategy(this.computationParametersObserver, this.atmosphericConditions, fcuVerticalSpeed);
+        } if (fcuVerticalMode === VerticalMode.FPA && fcuFlightPathAngle <= 0) {
+            return new FlightPathAngleStrategy(this.computationParametersObserver, this.atmosphericConditions, fcuFlightPathAngle);
+        }
+        if (fcuVerticalMode === VerticalMode.OP_DES) {
+            return new IdleDescentStrategy(this.computationParametersObserver, this.atmosphericConditions);
         }
 
         if (this.aircraftToDescentProfileRelation.isValid && fcuVerticalMode === VerticalMode.DES) {
-            if (vdev > 0 && this.aircraftToDescentProfileRelation.isPastTopOfDescent()) {
+            if (linearDeviation > 0 && this.aircraftToDescentProfileRelation.isPastTopOfDescent()) {
                 return new IdleDescentStrategy(
                     this.computationParametersObserver,
                     this.atmosphericConditions,
-                    { flapConfig: FlapConf.CLEAN, gearExtended: false, speedbrakesExtended: fcuVerticalMode === VerticalMode.DES },
+                    { flapConfig: FlapConf.CLEAN, gearExtended: false, speedbrakesExtended: true },
                 );
             }
 
-            return new VerticalSpeedStrategy(
-                this.computationParametersObserver,
-                this.atmosphericConditions,
-                this.aircraftToDescentProfileRelation.isAboveSpeedLimitAltitude() ? -1000 : -500,
-            );
-
-            // TODO: Implement prediction in the case of being below profile, but within the geometric path
-            // In that case, we should use a constant path angle, but I don't have a DescentStrategy for this yet.
+            return isOnGeometricPath
+                ? new VerticalSpeedStrategy(
+                    this.computationParametersObserver, this.atmosphericConditions, this.aircraftToDescentProfileRelation.isAboveSpeedLimitAltitude() ? -1000 : -500,
+                )
+                : new FlightPathAngleStrategy(this.computationParametersObserver, this.atmosphericConditions, targetFpa / 2);
         }
 
-        return new IdleDescentStrategy(
+        // Assume level flight if we're in a different mode
+        return new VerticalSpeedStrategy(
             this.computationParametersObserver,
             this.atmosphericConditions,
+            0,
         );
     }
 
@@ -511,31 +561,38 @@ export class VnavDriver implements GuidanceComponent {
     private updateDescentSpeedGuidance() {
         const { flightPhase, managedDescentSpeed, managedDescentSpeedMach, presentPosition, descentSpeedLimit } = this.computationParametersObserver.get();
         const isExpediteModeActive = SimVar.GetSimVarValue('L:A32NX_FMA_EXPEDITE_MODE', 'number') === 1;
-        const speedControlManual = Simplane.getAutoPilotAirspeedSelected();
         const isHoldActive = this.guidanceController.isManualHoldActive();
         const currentDistanceFromStart = this.constraintReader.distanceToPresentPosition;
         const currentAltitude = presentPosition.alt;
+        const currentManagedSpeedTarget = SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots');
 
-        if (flightPhase !== FmgcFlightPhase.Descent || speedControlManual || isExpediteModeActive || isHoldActive) {
+        if (flightPhase !== FmgcFlightPhase.Descent || isExpediteModeActive || isHoldActive) {
             return;
         }
 
-        // Use min() just for safety
-        let newSpeedTarget = Math.min(managedDescentSpeed, this.currentMcduSpeedProfile.getTarget(currentDistanceFromStart, currentAltitude, ManagedSpeedType.Descent));
+        const econMachAsCas = SimVar.GetGameVarValue('FROM MACH TO KIAS', 'number', managedDescentSpeedMach);
+        let newSpeedTarget = Math.min(managedDescentSpeed, econMachAsCas);
+        if (this.isLatAutoControlActive()) {
+            newSpeedTarget = Math.min(newSpeedTarget, this.currentMcduSpeedProfile.getTarget(currentDistanceFromStart, currentAltitude, ManagedSpeedType.Descent));
+        }
+
+        const isAnticipatedSpeedLimitDecelValid = Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedLimit?.altitude)
+            && Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedLimit?.speed);
+        const isAnticipatedSpeedConstraintDecelValid = Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.decelerationDistanceFromStart)
+            && Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.speed);
 
         // TODO: This is a mess... This code takes care of decelerating before a constraint / speed limit to reach the target speed at the desired point.
         // What makes this complicated is that we don't want to the speed target to jump around during the deceleration segment, only because the profile calculation computes
         // that deceleration is only necessary a bit later. Once we start the deceleration to a point, we go through with it.
         // This means, we need to save the state "in deceleration segment" and latch it. But we need to figure out when to reset this value again, as not to get stuck in a bad state.
-        if (Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationAltitude?.altitude)
-            && Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationAltitude?.speed)
-            && (currentAltitude < this.tacticalDescentPathBuilder.nextDecelerationAltitude.altitude || this.isBelowDescentSpeedLimit)
+        if (isAnticipatedSpeedLimitDecelValid
+            && (currentAltitude < this.tacticalDescentPathBuilder.nextDecelerationToSpeedLimit.altitude || this.isBelowDescentSpeedLimit)
         ) {
-            newSpeedTarget = Math.min(newSpeedTarget, this.tacticalDescentPathBuilder.nextDecelerationAltitude.speed);
+            newSpeedTarget = Math.min(newSpeedTarget, this.tacticalDescentPathBuilder.nextDecelerationToSpeedLimit.speed);
             this.isBelowDescentSpeedLimit = true;
         } else if (this.currentMcduSpeedProfile.shouldTakeDescentSpeedLimitIntoAccount()) {
             // Hystersis so the speed target doesn't flicker while flying at the speed limit altitude. I don't know if this is in the real aircraft,
-            // but it definitely make a lot of sense.
+            // but it would definitely make a lot of sense.
             if (currentAltitude < descentSpeedLimit.underAltitude) {
                 this.isBelowDescentSpeedLimit = true;
             } else if (currentAltitude > descentSpeedLimit.underAltitude + 100) {
@@ -543,20 +600,22 @@ export class VnavDriver implements GuidanceComponent {
             }
         }
 
-        if (Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.distanceFromStart)
-            && Number.isFinite(this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.speed)
-        ) {
-            if (this.isForcingSpeedTargetDownForConstraint
-                || !this.isForcingSpeedTargetDownForConstraint && currentDistanceFromStart > this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.distanceFromStart
-            ) {
-                newSpeedTarget = Math.min(newSpeedTarget, this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.speed);
+        if (isAnticipatedSpeedConstraintDecelValid) {
+            if (this.isForcingSpeedTargetDownForConstraint) {
+                if (Math.round(newSpeedTarget) <= Math.round(this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.speed)
+                    || Math.round(currentManagedSpeedTarget) > Math.round(this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.speed)) {
+                    this.isForcingSpeedTargetDownForConstraint = false;
+                }
+            } else if (currentDistanceFromStart > this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.decelerationDistanceFromStart) {
                 this.isForcingSpeedTargetDownForConstraint = true;
-            } else if (newSpeedTarget < this.tacticalDescentPathBuilder?.nextDecelerationToSpeedConstraint?.speed) {
-                this.isForcingSpeedTargetDownForConstraint = false;
             }
-        }
 
-        const econMachAsCas = SimVar.GetGameVarValue('FROM MACH TO KIAS', 'number', managedDescentSpeedMach);
+            if (this.isForcingSpeedTargetDownForConstraint) {
+                newSpeedTarget = Math.min(newSpeedTarget, this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.speed);
+            }
+        } else {
+            this.isForcingSpeedTargetDownForConstraint = false;
+        }
 
         SimVar.SetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots', Math.min(newSpeedTarget, econMachAsCas));
     }
@@ -701,12 +760,30 @@ export class VnavDriver implements GuidanceComponent {
             ? this.currentMcduSpeedProfile.getTarget(distanceToPresentPosition, presentPosition.alt, ManagedSpeedType.Climb)
             : SimVar.GetSimVarValue('L:A32NX_SPEEDS_MANAGED_PFD', 'knots');
 
+        // Try using the tactical path prediction
+        if (speedTargetType === ManagedSpeedType.Descent) {
+            let distance = Infinity;
+
+            if (this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint && this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.speed - speedTarget < -1) {
+                distance = Math.min(distance, this.tacticalDescentPathBuilder.nextDecelerationToSpeedConstraint.decelerationDistanceFromStart);
+            }
+
+            if (this.tacticalDescentPathBuilder.nextDecelerationToSpeedLimit && this.tacticalDescentPathBuilder.nextDecelerationToSpeedLimit.speed - speedTarget < -1) {
+                distance = Math.min(distance, this.tacticalDescentPathBuilder.nextDecelerationToSpeedLimit.distanceFromStart);
+            }
+
+            if (Number.isFinite(distance)) {
+                return distance;
+            }
+        }
+
         for (let i = 1; i < this.currentNdGeometryProfile.checkpoints.length - 1; i++) {
             const checkpoint = this.currentNdGeometryProfile.checkpoints[i];
 
             if (checkpoint.distanceFromStart < distanceToPresentPosition) {
                 continue;
             } else if (checkpoint.reason === VerticalCheckpointReason.TopOfClimb || checkpoint.reason === VerticalCheckpointReason.TopOfDescent) {
+                // At T/C, T/D, we expect to see a speed change the the respective ECON speed, but this is not indicated to the pilots
                 return null;
             }
 
