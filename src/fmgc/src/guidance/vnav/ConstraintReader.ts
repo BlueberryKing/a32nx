@@ -154,9 +154,6 @@ export class ConstraintReader {
         } else {
             console.error(`[FMS/VNAV] Unexpected transition index (legIndex: ${activeLegIndex}, transIndex: ${activeTransIndex})`);
         }
-
-        SimVar.SetSimVarValue('L:A32NX_FM_VNAV_DEBUG_DISTANCE_TO_END', 'number', this.distanceToEnd);
-        SimVar.SetSimVarValue('L:A32NX_FM_VNAV_DEBUG_DISTANCE_FROM_START', 'number', this.distanceToPresentPosition);
     }
 
     reset() {
