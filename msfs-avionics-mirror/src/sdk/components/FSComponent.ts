@@ -254,8 +254,22 @@ export namespace FSComponent {
     'rect': true,
     'stop': true,
     'svg': true,
-    'text': true
+    'text': true,
+    'tspan': true,
   };
+
+
+  const mappedKeys: Record<string, string> = {
+      'fontSize': 'font-size',
+      'strokeWidth': 'stroke-width',
+      'textAnchor': 'text-anchor',
+      'strokeDasharray': 'stroke-dasharray',
+      'strokeDashoffset': 'stroke-dashoffset',
+      'strokeLinecap': 'stroke-linecap',
+      'textDecoration': 'text-decoration',
+      'clipPath': 'clip-path',
+      'xlinkHref': 'xlink:href',
+  }
 
   /**
    * A fragment of existing elements with no specific root.
@@ -294,17 +308,19 @@ export namespace FSComponent {
 
       if (props !== null) {
         for (const key in props) {
+          const actualKey = mappedKeys[key] ?? key;
+
           if (key === 'ref' && props.ref !== undefined) {
             props.ref.instance = element;
           } else {
             const prop = (props as any)[key];
             if (prop instanceof Subject || prop instanceof MappedSubject || prop instanceof ComputedSubject) {
-              element.setAttribute(key, prop.get());
+              element.setAttribute(actualKey, prop.get());
               prop.sub((v) => {
-                element.setAttribute(key, v);
+                element.setAttribute(actualKey, v);
               });
             } else {
-              element.setAttribute(key, prop);
+              element.setAttribute(actualKey, prop);
             }
           }
         }
