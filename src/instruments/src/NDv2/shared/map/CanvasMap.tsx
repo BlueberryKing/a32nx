@@ -5,6 +5,7 @@ import type { PathVector } from '@fmgc/guidance/lnav/PathVector';
 import { Coordinates, distanceTo } from 'msfs-geo';
 import { TaRaIntrusion } from '@tcas/lib/TcasConstants';
 import { MathUtils } from '@shared/MathUtils';
+import { PseudoWaypointLayer } from 'instruments/src/NDv2/shared/map/PseudoWaypointLayer';
 import { FmsSymbolsData } from '../../FmsSymbolsPublisher';
 import { MapParameters } from '../../../ND/utils/MapParameters';
 import { NDSimvars } from '../../NDSimvarPublisher';
@@ -76,6 +77,8 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
     private readonly runwayLayer = new RunwayLayer();
 
     private readonly trafficLayer = new TrafficLayer(this);
+
+    private readonly pseudoWaypointLayer = new PseudoWaypointLayer(this);
 
     onAfterRender(node: VNode) {
         super.onAfterRender(node);
@@ -172,13 +175,26 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
 
         this.fixInfoLayer.data = fixInfoSymbols;
 
-        const constraints = this.symbols.filter((it) => it.type & NdSymbolTypeFlags.ConstraintUnknown | NdSymbolTypeFlags.ConstraintMet | NdSymbolTypeFlags.ConstraintMissed);
+        const constraints = this.symbols.filter((it) => it.type & NdSymbolTypeFlags.Constraint);
 
         this.constraintsLayer.data = constraints;
 
         const runways = this.symbols.filter((it) => it.type & NdSymbolTypeFlags.Runway);
 
         this.runwayLayer.data = runways;
+
+        const pseudoWaypoints = this.symbols.filter((it) => it.type & (NdSymbolTypeFlags.PwpStartOfClimb
+            | NdSymbolTypeFlags.PwpClimbLevelOff
+            | NdSymbolTypeFlags.PwpTopOfDescent
+            | NdSymbolTypeFlags.PwpDescentLevelOff
+            | NdSymbolTypeFlags.PwpInterceptProfile
+            | NdSymbolTypeFlags.PwpCdaFlap1
+            | NdSymbolTypeFlags.PwpCdaFlap2
+            | NdSymbolTypeFlags.PwpDecel
+            | NdSymbolTypeFlags.PwpTimeMarker
+            | NdSymbolTypeFlags.PwpSpeedChange));
+
+        this.pseudoWaypointLayer.data = pseudoWaypoints;
     }
 
     private handleNewTraffic(newTraffic: NdTraffic[]) {
@@ -282,6 +298,9 @@ export class CanvasMap extends DisplayComponent<CanvasMapProps> {
 
         this.trafficLayer.paintShadowLayer(context, this.props.width, this.props.height);
         this.trafficLayer.paintColorLayer(context, this.props.width, this.props.height);
+
+        this.pseudoWaypointLayer.paintShadowLayer(context, this.props.width, this.props.height, this.mapParams);
+        this.pseudoWaypointLayer.paintColorLayer(context, this.props.width, this.props.height, this.mapParams);
     }
 
     private drawVector(context: CanvasRenderingContext2D, vector: PathVector, group: EfisVectorsGroup) {
