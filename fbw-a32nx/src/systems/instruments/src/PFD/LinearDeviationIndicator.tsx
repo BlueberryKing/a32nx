@@ -1,4 +1,4 @@
-import { DisplayComponent, EventBus, FSComponent, NodeReference, VNode } from 'msfssdk';
+import { DisplayComponent, EventBus, FSComponent, NodeReference, VNode } from '@microsoft/msfs-sdk';
 import { Arinc429Values } from 'instruments/src/PFD/shared/ArincValueProvider';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 
