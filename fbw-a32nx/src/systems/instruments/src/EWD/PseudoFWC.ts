@@ -263,6 +263,18 @@ export class PseudoFWC {
 
   private toV2VRV2DisagreeWarning = Subject.create(false);
 
+  private athrOffText = Subject.create(false);
+
+  private athrOffTextShowTrigger = new NXLogicTriggeredMonostableNode(9, true);
+
+  private athrOffTextHideTrigger = new NXLogicTriggeredMonostableNode(9, true);
+
+  private athrOffMasterCaution = Subject.create(false);
+
+  private athrOffMasterCautionShowTrigger = new NXLogicTriggeredMonostableNode(3, true);
+
+  private athrOffMasterCautionHideTrigger = new NXLogicTriggeredMonostableNode(3, true);
+
   /* 24 - ELECTRICAL */
 
   private readonly ac1BusPowered = Subject.create(false);
@@ -578,6 +590,8 @@ export class PseudoFWC {
 
   private readonly flightPhaseInhibitOverrideNode = new NXLogicMemoryNode(false);
 
+  private readonly masterCautionPulse = new NXLogicPulseNode();
+
   /* LANDING GEAR AND LIGHTS */
 
   private readonly aircraftOnGround = Subject.create(0);
@@ -724,7 +738,17 @@ export class PseudoFWC {
 
   private readonly throttle1Position = Subject.create(0);
 
+  private readonly eng1TlaIdle = MappedSubject.create(([tla]) => tla > -2 && tla < 2.6, this.throttle1Position);
+
+  private readonly eng1TlaReverse = MappedSubject.create(([tla]) => tla < -4.3, this.throttle1Position);
+
   private readonly throttle2Position = Subject.create(0);
+
+  private readonly eng2TlaIdle = MappedSubject.create(([tla]) => tla > -2 && tla < 2.6, this.throttle2Position);
+
+  private readonly eng2TlaReverse = MappedSubject.create(([tla]) => tla < -4.3, this.throttle2Position);
+
+  private readonly eng1And2IdleTrigger = new NXLogicTriggeredMonostableNode(2, true);
 
   private readonly engine1ValueSwitch = ConsumerValue.create(null, false);
 
@@ -736,11 +760,28 @@ export class PseudoFWC {
 
   private readonly autothrustLeverWarningToga = Subject.create(false);
 
+  private readonly autothrustIdle = Subject.create(false);
+
+  private readonly autothrustInstinctiveDisconnect = Subject.create(false);
+
+  private readonly autothrustInstinctiveDisconnectTrigger = new NXLogicTriggeredMonostableNode(1.3, true);
+
+  private readonly autothrustInstinctiveDisconnectPulse = new NXLogicPulseNode();
+
   private readonly thrustLeverNotSet = Subject.create(false);
 
   private readonly eng1Or2TakeoffPowerConfirm = new NXLogicConfirmNode(60, false);
 
   private readonly eng1Or2TakeoffPower = Subject.create(false);
+
+  private readonly autothrustEngaged = MappedSubject.create(
+    ([status]) => status === 1 /* ENGAGED_ACTIVE */ || status === 2 /* ENGAGED_ACTIVE */,
+    this.autoThrustStatus,
+  );
+
+  private readonly autothrustDisengageTrigger = new NXLogicTriggeredMonostableNode(0.6, false);
+
+  private readonly autothrustDisengageConfirm = new NXLogicConfirmNode(0.2, true);
 
   /* FIRE */
 
@@ -1050,6 +1091,9 @@ export class PseudoFWC {
     // needs to happen before dual eng failure check
     this.aircraftOnGround.set(SimVar.GetSimVarValue('SIM ON GROUND', 'Bool'));
 
+    // Master caution button
+    this.masterCautionPulse.write(this.masterCaution.get(), deltaTime);
+
     /* ENGINE AND THROTTLE */
 
     this.engine1State.set(SimVar.GetSimVarValue('L:A32NX_ENGINE_STATE:1', 'Enum'));
@@ -1093,6 +1137,7 @@ export class PseudoFWC {
     this.autothrustLeverWarningFlex.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LEVER_WARNING_FLEX', 'bool'));
     this.autothrustLeverWarningToga.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LEVER_WARNING_TOGA', 'bool'));
     this.thrustLeverNotSet.set(this.autothrustLeverWarningFlex.get() || this.autothrustLeverWarningToga.get());
+
     // FIXME ECU doesn't have the necessary output words so we go purely on TLA
     const flexThrustLimit = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE', 'number') === 3;
     const toPower =
@@ -1110,6 +1155,47 @@ export class PseudoFWC {
           (!this.engine1ValueSwitch.get() && !this.engine2ValueSwitch.get()) ||
           (this.engine1State.get() === 0 && this.engine2State.get() === 0) ||
           (!this.engine1CoreAtOrAboveMinIdle.get() && !this.engine2CoreAtOrAboveMinIdle.get())),
+    );
+
+    const ra1Below50 =
+      !this.radioHeight1.isNoComputedData() && !this.radioHeight1.isFailureWarning() && this.radioHeight1.value < 50;
+    const ra2Below50 =
+      !this.radioHeight2.isNoComputedData() && !this.radioHeight2.isFailureWarning() && this.radioHeight2.value < 50;
+    const ra1Or2Below50 = ra1Below50 || ra2Below50;
+
+    this.eng1And2IdleTrigger.write(this.eng1TlaIdle.get() && this.eng2TlaIdle.get(), deltaTime);
+    this.autothrustIdle.set(!ra1Or2Below50 && this.eng1And2IdleTrigger.read());
+
+    const eng1And2TlaReverse = this.eng1TlaReverse.get() && this.eng2TlaReverse.get();
+
+    this.autothrustDisengageTrigger.write(this.autothrustEngaged.get(), deltaTime);
+    this.autothrustDisengageConfirm.write(!this.autothrustEngaged.get(), deltaTime);
+
+    this.autothrustInstinctiveDisconnect.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_DISCONNECT', 'bool'));
+    this.autothrustInstinctiveDisconnectPulse.write(this.autothrustInstinctiveDisconnect.get(), deltaTime);
+    this.autothrustInstinctiveDisconnectTrigger.write(this.autothrustInstinctiveDisconnect.get(), deltaTime);
+
+    const athrOffShowTrigger =
+      !eng1And2TlaReverse &&
+      this.autothrustDisengageTrigger.read() &&
+      (this.autothrustIdle.get() || this.autothrustInstinctiveDisconnectTrigger.read());
+    const athrOffHideTrigger =
+      this.autothrustDisengageConfirm.read() &&
+      (this.autothrustInstinctiveDisconnectPulse.read() || this.masterCautionPulse.read());
+
+    this.athrOffTextShowTrigger.write(athrOffShowTrigger, deltaTime);
+    this.athrOffTextHideTrigger.write(athrOffHideTrigger, deltaTime);
+
+    this.athrOffMasterCautionShowTrigger.write(athrOffShowTrigger, deltaTime);
+    this.athrOffMasterCautionHideTrigger.write(athrOffHideTrigger, deltaTime);
+
+    this.athrOffText.set(
+      this.athrOffTextShowTrigger.read() && !this.autothrustEngaged.get() && !this.athrOffTextHideTrigger.read(),
+    );
+    this.athrOffMasterCaution.set(
+      this.athrOffMasterCautionShowTrigger.read() &&
+        !this.autothrustEngaged.get() &&
+        !this.athrOffMasterCautionHideTrigger.read(),
     );
 
     /* HYDRAULICS */
@@ -2345,6 +2431,17 @@ export class PseudoFWC {
       simVarIsActive: this.toSpeedsNotInsertedWarning,
       whichCodeToReturn: () => [0],
       codesToReturn: ['221072001'],
+      memoInhibit: () => false,
+      failure: 2,
+      sysPage: -1,
+      side: 'LEFT',
+    },
+    2200020: {
+      // ATHR OFF (no ECAM, only MC)
+      flightPhaseInhib: [1, 4, 8, 10],
+      simVarIsActive: this.athrOffMasterCaution,
+      whichCodeToReturn: () => [0], // TODO, check if voluntary
+      codesToReturn: ['220002001'],
       memoInhibit: () => false,
       failure: 2,
       sysPage: -1,
@@ -4367,6 +4464,17 @@ export class PseudoFWC {
       simVarIsActive: this.voiceVhf3.map((v) => v !== 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000056701'],
+      memoInhibit: () => false,
+      failure: 0,
+      sysPage: -1,
+      side: 'RIGHT',
+    },
+    '2200021': {
+      // A/THR OFF
+      flightPhaseInhib: [],
+      simVarIsActive: this.athrOffText,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['220002101'],
       memoInhibit: () => false,
       failure: 0,
       sysPage: -1,
