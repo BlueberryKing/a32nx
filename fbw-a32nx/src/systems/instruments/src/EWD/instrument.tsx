@@ -1,8 +1,4 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
-//
-// SPDX-License-Identifier: GPL-3.0
-
-import { Clock, EventBus, FSComponent, InstrumentBackplane } from '@microsoft/msfs-sdk';
+import { Clock, EventBus, FSComponent, HEventPublisher, InstrumentBackplane } from '@microsoft/msfs-sdk';
 import { FuelSystemPublisher } from 'instruments/src/MsfsAvionicsCommon/providers/FuelSystemPublisher';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { EwdComponent } from './EWD';
@@ -26,6 +22,8 @@ class A32NX_EWD extends BaseInstrument {
 
   private readonly pseudoFwc = new PseudoFWC(this.bus, this);
 
+  private readonly hEventPublisher = new HEventPublisher(this.bus);
+
   constructor() {
     super();
 
@@ -42,6 +40,7 @@ class A32NX_EWD extends BaseInstrument {
   public connectedCallback(): void {
     super.connectedCallback();
 
+    this.hEventPublisher.startPublish();
     this.arincProvider.init();
     this.backplane.init();
 
@@ -49,6 +48,10 @@ class A32NX_EWD extends BaseInstrument {
 
     // Remove "instrument didn't load" text
     document.getElementById('EWD_CONTENT').querySelector(':scope > h1').remove();
+  }
+
+  public onInteractionEvent(args: string[]): void {
+    this.hEventPublisher.dispatchHEvent(args[0]);
   }
 
   public Update(): void {

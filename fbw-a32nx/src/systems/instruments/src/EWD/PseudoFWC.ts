@@ -12,6 +12,7 @@ import {
   ConsumerSubject,
   SimVarValueType,
   SubscribableMapFunctions,
+  HEvent,
 } from '@microsoft/msfs-sdk';
 
 import {
@@ -935,7 +936,7 @@ export class PseudoFWC {
       SimVar.SetSimVarValue('L:A32NX_FWC_2_LG_RED_ARROW', SimVarValueType.Bool, on);
     }, true);
 
-    const sub = this.bus.getSubscriber<FuelSystemEvents>();
+    const sub = this.bus.getSubscriber<FuelSystemEvents & HEvent>();
 
     this.fuelCtrTankModeSelMan.setConsumer(sub.on('fuel_ctr_tk_mode_sel_man'));
     this.engine1ValueSwitch.setConsumer(sub.on('fuel_valve_switch_1'));
@@ -948,6 +949,12 @@ export class PseudoFWC {
     this.rightOuterInnerValve.setConsumer(sub.on('fuel_valve_open_5'));
     this.rightFuelPump1Auto.setConsumer(sub.on('fuel_pump_switch_3'));
     this.rightFuelPump2Auto.setConsumer(sub.on('fuel_pump_switch_6'));
+
+    sub.on('hEvent').handle((event) => {
+      if (event === 'A32NX.AUTO_THROTTLE_DISCONNECT') {
+        this.autothrustInstinctiveDisconnect.set(true);
+      }
+    });
   }
 
   mapOrder(array, order): [] {
@@ -1171,9 +1178,9 @@ export class PseudoFWC {
     this.autothrustDisengageTrigger.write(this.autothrustEngaged.get(), deltaTime);
     this.autothrustDisengageConfirm.write(!this.autothrustEngaged.get(), deltaTime);
 
-    this.autothrustInstinctiveDisconnect.set(SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_DISCONNECT', 'bool'));
     this.autothrustInstinctiveDisconnectPulse.write(this.autothrustInstinctiveDisconnect.get(), deltaTime);
     this.autothrustInstinctiveDisconnectTrigger.write(this.autothrustInstinctiveDisconnect.get(), deltaTime);
+    this.autothrustInstinctiveDisconnect.set(false);
 
     const athrOffShowTrigger =
       !eng1And2TlaReverse &&
