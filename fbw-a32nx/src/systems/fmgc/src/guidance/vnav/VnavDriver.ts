@@ -34,6 +34,8 @@ import {
 import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { FlightPlanIndex } from '../../flightplanning/FlightPlanManager';
 import { VnavConfig } from './VnavConfig';
+import { CALeg } from '@fmgc/guidance/lnav/legs/CA';
+import { FALeg } from '@fmgc/guidance/lnav/legs/FA';
 
 export class VnavDriver implements GuidanceComponent {
   version: number = 0;
@@ -186,7 +188,7 @@ export class VnavDriver implements GuidanceComponent {
       this.prevMcduPredReadyToDisplay = this.profileManager.mcduProfile.isReadyToDisplay;
     }
 
-    this.updateLegSpeedPredictions();
+    this.updateLegPredictions();
 
     this.profileManager.computeTacticalNdProfile();
     this.profileManager.computeVerticalProfileForExpediteClimb();
@@ -549,7 +551,7 @@ export class VnavDriver implements GuidanceComponent {
     return this.computationParametersObserver.get().flightPhase === FmgcFlightPhase.Preflight;
   }
 
-  private updateLegSpeedPredictions(): void {
+  private updateLegPredictions(): void {
     // No VNAV predictions
     if (!this.profileManager.mcduProfile?.isReadyToDisplay) {
       return;
@@ -569,16 +571,28 @@ export class VnavDriver implements GuidanceComponent {
         continue;
       }
 
-      const prediction = this.profileManager.mcduProfile.interpolateEverythingFromStart(
+      const startPrediction = this.profileManager.mcduProfile.interpolateEverythingFromStart(
+        leg.calculated.cumulativeDistanceWithTransitions - leg.calculated.distanceWithTransitions,
+      );
+      const endPrediction = this.profileManager.mcduProfile.interpolateEverythingFromStart(
         leg.calculated.cumulativeDistanceWithTransitions,
       );
-      const tasPrediction = this.atmosphericConditions.computeTasFromCas(prediction.altitude, prediction.speed);
+      const tasPrediction = this.atmosphericConditions.computeTasFromCas(endPrediction.altitude, endPrediction.speed);
 
       // TODO: Use wind speed prediction for that leg instead of current wind speed
       const gsPrediction = tasPrediction + this.atmosphericConditions.currentWindSpeed;
 
       leg.predictedTas = tasPrediction;
       leg.predictedGs = gsPrediction;
+      leg.predictedEndAlt = endPrediction.altitude;
+      leg.predictedStartAlt = startPrediction.altitude;
+      leg.predictedGradient = (endPrediction.altitude - startPrediction.altitude) / leg.calculated.distance;
+
+      if (leg instanceof CALeg || leg instanceof FALeg) {
+        console.log(
+          `[FMS/LegPredictions] CALeg from ${leg.predictedStartAlt.toFixed(0)} ft to ${leg.predictedEndAlt.toFixed(0)} ft in ${leg.distance.toFixed(2)} NM`,
+        );
+      }
     }
   }
 

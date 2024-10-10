@@ -408,7 +408,7 @@ export class GuidanceController {
 
         if (this.activeGeometry) {
           try {
-            this.vnavDriver.acceptMultipleLegGeometry(this.activeGeometry);
+            // this.vnavDriver.acceptMultipleLegGeometry(this.activeGeometry);
             this.pseudoWaypoints.acceptMultipleLegGeometry(this.activeGeometry);
           } catch (e) {
             console.error('[FMS] Error during active geometry profile recomputation. See exception below.');
@@ -494,6 +494,8 @@ export class GuidanceController {
 
     const geometry = this.flightPlanGeometries.get(geometryPIndex);
 
+    const shouldApplyPredictions = flightPlanIndex === FlightPlanIndex.Active && !alternate;
+
     if (geometry) {
       GeometryFactory.updateFromFlightPlan(
         geometry,
@@ -501,38 +503,50 @@ export class GuidanceController {
         !alternate && flightPlanIndex < FlightPlanIndex.FirstSecondary,
       );
 
-      this.recomputeGeometry(geometry, plan);
+      this.recomputeGeometry(geometry, plan, shouldApplyPredictions);
     } else {
       const newGeometry = GeometryFactory.createFromFlightPlan(
         plan,
         !alternate && flightPlanIndex < FlightPlanIndex.FirstSecondary,
       );
 
-      this.recomputeGeometry(newGeometry, plan);
+      this.recomputeGeometry(newGeometry, plan, shouldApplyPredictions);
 
       this.flightPlanGeometries.set(geometryPIndex, newGeometry);
     }
   }
 
-  recomputeGeometry(geometry: Geometry, plan: BaseFlightPlan) {
+  recomputeGeometry(geometry: Geometry, plan: BaseFlightPlan, shouldApplyPredictions: boolean = false) {
     const tas = SimVar.GetSimVarValue('AIRSPEED TRUE', 'Knots');
     const gs = SimVar.GetSimVarValue('GPS GROUND SPEED', 'Knots');
     const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
 
-    geometry.recomputeWithParameters(
-      tas,
-      gs,
-      this.lnavDriver.ppos,
-      trueTrack,
-      plan,
-      plan.activeLegIndex,
-      plan.activeLegIndex, // TODO active transition index for temporary plan...?
-    );
+    for (let i = 0; i < 2; i++) {
+      console.group(`[FMS] Recomputing geometry for flight plan #${plan.index}`);
+      geometry.recomputeWithParameters(
+        tas,
+        gs,
+        this.lnavDriver.ppos,
+        trueTrack,
+        plan,
+        plan.activeLegIndex,
+        plan.activeLegIndex, // TODO active transition index for temporary plan...?
+      );
 
-    // Update distance to destination
-    geometry.updateDistances(plan, Math.max(0, plan.activeLegIndex - 1), plan.firstMissedApproachLegIndex);
-    // Update distances in missed approach segment
-    geometry.updateDistances(plan, Math.max(plan.firstMissedApproachLegIndex), plan.legCount);
+      // Update distance to destination
+      geometry.updateDistances(plan, Math.max(0, plan.activeLegIndex - 1), plan.firstMissedApproachLegIndex);
+      // Update distances in missed approach segment
+      geometry.updateDistances(plan, Math.max(plan.firstMissedApproachLegIndex), plan.legCount);
+
+      if (shouldApplyPredictions) {
+        this.doVnav(geometry);
+      }
+      console.groupEnd();
+    }
+  }
+
+  doVnav(geometry: Geometry) {
+    this.vnavDriver.acceptMultipleLegGeometry(geometry);
   }
 
   /**
