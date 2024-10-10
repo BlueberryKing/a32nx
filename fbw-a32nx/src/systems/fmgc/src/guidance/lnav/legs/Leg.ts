@@ -35,6 +35,12 @@ export abstract class Leg extends Guidable {
 
   predictedGs: Knots;
 
+  predictedEndAlt: Feet;
+
+  predictedStartAlt: Feet;
+
+  predictedGradient: number;
+
   calculated?: LegCalculations;
 
   get disableAutomaticSequencing(): boolean {

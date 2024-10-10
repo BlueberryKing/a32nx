@@ -13,10 +13,15 @@ import {
   PathVectorType,
   SectionCode,
 } from '@flybywiresim/fbw-sdk';
-import { distanceTo, placeBearingDistance } from 'msfs-geo';
+import { distanceTo, placeBearingDistance, smallCircleGreatCircleIntersection } from 'msfs-geo';
 import { GuidanceParameters } from '@fmgc/guidance/ControlLaws';
 import { PathVector } from '@fmgc/guidance/lnav/PathVector';
-import { courseToFixDistanceToGo, fixToFixGuidance } from '@fmgc/guidance/lnav/CommonGeometry';
+import {
+  courseToFixDistanceToGo,
+  fixToFixGuidance,
+  PointSide,
+  sideOfPointOnCourseToFix,
+} from '@fmgc/guidance/lnav/CommonGeometry';
 import { Leg } from './Leg';
 
 export class FALeg extends Leg {
@@ -55,6 +60,30 @@ export class FALeg extends Leg {
    * @returns The estimated termination location.
    */
   private calculateTermination(startingPoint: Coordinates, startingAltitude?: number): Coordinates {
+    if (this.predictedGradient && this.predictedStartAlt) {
+      if (this.predictedStartAlt >= this.altitude) {
+        // distance = 0;
+        return startingPoint;
+      } else if (this.predictedGradient > 0) {
+        const distanceToAltitude = (this.altitude - this.predictedStartAlt) / this.predictedGradient;
+
+        const intercept = smallCircleGreatCircleIntersection(
+          this.getPathStartPoint(),
+          distanceToAltitude,
+          startingPoint,
+          this.course,
+        )?.filter(
+          (intercept) => sideOfPointOnCourseToFix(startingPoint, this.course, intercept) === PointSide.After,
+        )[0];
+
+        console.log(
+          `[FMS/FALeg] Current distance ${this.distance.toFixed(2)} NM to go from ${this.predictedStartAlt.toFixed(0)} ft to ${this.predictedEndAlt.toFixed(0)} ft -> Target distance: ${distanceToAltitude.toFixed(2)} NM`,
+        );
+
+        return intercept;
+      }
+    }
+
     // FIXME we need VNAV to calculate legs in lockstep with LNAV to get this right
     if (startingAltitude === undefined) {
       if (this.fix.sectionCode === SectionCode.Airport && this.fix.subSectionCode === AirportSubsectionCode.Runways) {
@@ -178,5 +207,9 @@ export class FALeg extends Leg {
   /** @inheritdoc */
   public get repr(): string {
     return `FA(${this.fix.ident}) ${this.course.toFixed(1)}T ${Math.round(this.altitude)}F`;
+  }
+
+  get disableAutomaticSequencing(): boolean {
+    return SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet') < this.altitude;
   }
 }
