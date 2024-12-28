@@ -34,6 +34,8 @@ import { XFLeg } from './lnav/legs/XF';
 import { VMLeg } from './lnav/legs/VM';
 import { ConsumerValue, EventBus } from '@microsoft/msfs-sdk';
 import { FlightPhaseManagerEvents } from '@fmgc/flightphase';
+import { NavModeIntercept, PreNavModeEngagementPathCalculation } from '@fmgc/guidance/PreNavModeEngagementPath';
+import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 
 // How often the (milliseconds)
 const GEOMETRY_RECOMPUTATION_TIMER = 5_000;
@@ -167,6 +169,8 @@ export class GuidanceController {
     FmgcFlightPhase.Preflight,
   );
 
+  private preNavModeEngagementPath: PreNavModeEngagementPathCalculation;
+
   private updateEfisState(side: EfisSide, state: EfisState<number>): void {
     const ndMode = SimVar.GetSimVarValue(`L:A32NX_EFIS_${side}_ND_MODE`, 'Enum') as EfisNdMode;
     const ndRange = this.efisNDRangeValues[SimVar.GetSimVarValue(`L:A32NX_EFIS_${side}_ND_RANGE`, 'Enum')];
@@ -285,7 +289,8 @@ export class GuidanceController {
     private readonly bus: EventBus,
     fmgc: Fmgc,
     private readonly flightPlanService: FlightPlanService,
-    private efisInterfaces: Record<EfisSide, EfisInterface>,
+    efisInterfaces: Record<EfisSide, EfisInterface>,
+    private navigation: NavigationProvider,
     private readonly efisNDRangeValues: number[],
     private readonly acConfig: AircraftConfig,
   ) {
@@ -309,6 +314,9 @@ export class GuidanceController {
     this.pseudoWaypoints = new PseudoWaypoints(flightPlanService, this, this.atmosphericConditions, this.acConfig);
     this.efisVectors = new EfisVectors(this.bus, this.flightPlanService, this, efisInterfaces);
     this.symbolConfig = acConfig.fmSymbolConfig;
+
+    // TODO use correct FMGC index
+    this.preNavModeEngagementPath = new PreNavModeEngagementPathCalculation(1, this.navigation, this.flightPlanService);
   }
 
   init() {
@@ -406,6 +414,7 @@ export class GuidanceController {
         }
       }
 
+      this.preNavModeEngagementPath.update(deltaTime, this.activeGeometry);
       this.updateEfisIdent();
     } catch (e) {
       console.error('[FMS] Error during LNAV update. See exception below.');
@@ -457,7 +466,7 @@ export class GuidanceController {
     }
   }
 
-  tryUpdateFlightPlanGeometry(flightPlanIndex: number, alternate = false, force = false) {
+  private tryUpdateFlightPlanGeometry(flightPlanIndex: number, alternate = false, force = false) {
     const geometryPIndex = (alternate ? 100 : 0) + flightPlanIndex;
 
     // Use geometry index here because main and alternate flight plans have the same indices
@@ -503,7 +512,7 @@ export class GuidanceController {
     }
   }
 
-  recomputeGeometry(geometry: Geometry, plan: BaseFlightPlan) {
+  private recomputeGeometry(geometry: Geometry, plan: BaseFlightPlan) {
     const tas = SimVar.GetSimVarValue('AIRSPEED TRUE', 'Knots');
     const gs = SimVar.GetSimVarValue('GPS GROUND SPEED', 'Knots');
     const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
@@ -565,5 +574,17 @@ export class GuidanceController {
 
   get lastCrosstrackError(): NauticalMiles {
     return this.lnavDriver.lastXTE;
+  }
+
+  doesPreNavModeEngagementPathExist(): boolean {
+    return this.preNavModeEngagementPath.doesExist();
+  }
+
+  getPreNavModeEngagementPathGeometry(): Readonly<Geometry> | null {
+    return this.preNavModeEngagementPath.getGeometry();
+  }
+
+  getPreNavModeEngagementPathIntercept(): Readonly<NavModeIntercept> | null {
+    return this.preNavModeEngagementPath.getIntercept();
   }
 }
