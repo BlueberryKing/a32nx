@@ -52,7 +52,10 @@ export class Navigation implements NavigationProvider {
 
   ppos: Coordinates = { lat: 0, long: 0 };
 
+  // TODO get from IR
   groundSpeed: Knots = 0;
+
+  private trueTrack: DegreesTrue | null = 0;
 
   private radioHeight: number | null = null;
 
@@ -80,6 +83,13 @@ export class Navigation implements NavigationProvider {
   private static readonly computedAirspeedVars = Array.from(
     { length: 3 },
     (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_COMPUTED_AIRSPEED`,
+  );
+
+  private trueAirspeed: number | null = null;
+
+  private static readonly trueAirspeedVars = Array.from(
+    { length: 3 },
+    (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_TRUE_AIRSPEED`,
   );
 
   private readonly navaidSelectionManager: NavaidSelectionManager;
@@ -116,10 +126,13 @@ export class Navigation implements NavigationProvider {
     this.updateCurrentPerformance();
 
     this.updatePosition();
+    this.updateGroundSpeed();
+    this.updateTrueTrack();
     this.updateRadioHeight();
     this.updateBaroAltitude();
     this.updatePressureAltitude();
     this.updateComputedAirspeed();
+    this.updateTrueAirspeed();
 
     NearbyFacilities.getInstance().update(deltaTime);
 
@@ -189,13 +202,25 @@ export class Navigation implements NavigationProvider {
     this.computedAirspeed = this.getAdiruValue(Navigation.computedAirspeedVars);
   }
 
+  private updateTrueAirspeed(): void {
+    this.trueAirspeed = this.getAdiruValue(Navigation.trueAirspeedVars);
+  }
+
   private updatePosition(): void {
     this.ppos.lat = SimVar.GetSimVarValue('PLANE LATITUDE', 'degree latitude');
     this.ppos.long = SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude');
-    this.groundSpeed = SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots');
 
     // pass to submodules
     NearbyFacilities.getInstance().setPpos(this.ppos);
+  }
+
+  private updateGroundSpeed(): void {
+    this.groundSpeed = SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots');
+  }
+
+  private updateTrueTrack(): void {
+    // TODO
+    this.trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
   }
 
   public getBaroCorrectedAltitude(): number | null {
@@ -211,12 +236,24 @@ export class Navigation implements NavigationProvider {
     return this.ppos;
   }
 
+  public getTrueTrack(): number | null {
+    return this.trueTrack;
+  }
+
   public getPressureAltitude(): number | null {
     return this.pressureAltitude;
   }
 
   public getComputedAirspeed(): number | null {
     return this.computedAirspeed;
+  }
+
+  public getTrueAirspeed(): number | null {
+    return this.trueAirspeed;
+  }
+
+  public getGroundSpeed(): number | null {
+    return this.groundSpeed;
   }
 
   public getRadioHeight(): number | null {
