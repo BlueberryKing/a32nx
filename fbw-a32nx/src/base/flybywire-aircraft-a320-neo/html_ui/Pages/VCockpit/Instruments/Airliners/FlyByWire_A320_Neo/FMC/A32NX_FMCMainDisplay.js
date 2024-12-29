@@ -215,8 +215,15 @@ class FMCMainDisplay extends BaseAirliners {
         this.dataManager = new Fmgc.DataManager(this);
 
         this.efisInterfaces = { L: new Fmgc.EfisInterface('L', this.currFlightPlanService), R: new Fmgc.EfisInterface('R', this.currFlightPlanService) };
-        this.guidanceController = new Fmgc.GuidanceController(this.bus, this, this.currFlightPlanService, this.efisInterfaces, Fmgc.a320EfisRangeSettings, Fmgc.A320AircraftConfig);
         this.navigation = new Fmgc.Navigation(this.bus, this.currFlightPlanService);
+        this.guidanceController = new Fmgc.GuidanceController(this.bus,
+            this,
+            this.currFlightPlanService,
+            this.efisInterfaces,
+            this.navigation,
+            Fmgc.a320EfisRangeSettings,
+            Fmgc.A320AircraftConfig
+        );
         this.efisSymbols = new Fmgc.EfisSymbols(
             this.bus,
             this.guidanceController,
@@ -5061,10 +5068,10 @@ class FMCMainDisplay extends BaseAirliners {
     }
 
     /**
-     * Modifies the active flight plan to go direct to a specific waypoint, not necessarily in the flight plan
-     * @param {import('msfs-navdata').Waypoint} waypoint
+     * Modifies the active flight plan to perform a DIR to operation
+     * @param {import('../../../../../../../../../systems/fmgc/src/flightplanning/types/DirectTo').DirectTo} directTo
      */
-    async directToWaypoint(waypoint) {
+    async directTo(directTo) {
         // FIXME fm pos
         const adirLat = ADIRS.getLatitude();
         const adirLong = ADIRS.getLongitude();
@@ -5079,29 +5086,7 @@ class FMCMainDisplay extends BaseAirliners {
             long: adirLong.value,
         };
 
-        await this.flightPlanService.directToWaypoint(ppos, trueTrack.value, waypoint);
-    }
-
-    /**
-     * Modifies the active flight plan to go direct to a specific leg
-     * @param {number} legIndex index of leg to go direct to
-     */
-    async directToLeg(legIndex) {
-        // FIXME fm pos
-        const adirLat = ADIRS.getLatitude();
-        const adirLong = ADIRS.getLongitude();
-        const trueTrack = ADIRS.getTrueTrack();
-
-        if (!adirLat.isNormalOperation() || !adirLong.isNormalOperation() || !trueTrack.isNormalOperation()) {
-            return;
-        }
-
-        const ppos = {
-            lat: adirLat.value,
-            long: adirLong.value,
-        };
-
-        await this.flightPlanService.directToLeg(ppos, trueTrack.value, legIndex);
+        await this.flightPlanService.directTo(ppos, trueTrack.value, directTo);
     }
 
     /**
