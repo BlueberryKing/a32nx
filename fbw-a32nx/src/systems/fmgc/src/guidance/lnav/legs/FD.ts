@@ -3,18 +3,18 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { Leg } from '@fmgc/guidance/lnav/legs/Leg';
 import { PathVector, PathVectorType } from '@fmgc/guidance/lnav/PathVector';
 import { SegmentType } from '@fmgc/flightplanning/FlightPlanSegment';
-import { NdbNavaid, VhfNavaid, Waypoint } from '@flybywiresim/fbw-sdk';
+import { Fix, Waypoint } from '@flybywiresim/fbw-sdk';
 import { Coordinates, distanceTo, firstSmallCircleIntersection } from 'msfs-geo';
 import { GuidanceParameters } from '@fmgc/guidance/ControlLaws';
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { FixedRadiusTransition } from '@fmgc/guidance/lnav/transitions/FixedRadiusTransition';
 import { LegMetadata } from './index';
 import { courseToFixDistanceToGo, fixToFixGuidance } from '../CommonGeometry';
+import { FXLeg } from '@fmgc/guidance/lnav/legs/FX';
 
-export class FDLeg extends Leg {
+export class FDLeg extends FXLeg {
   predictedPath: PathVector[] = [];
 
   inboundCourse;
@@ -26,8 +26,8 @@ export class FDLeg extends Leg {
   constructor(
     private readonly course: DegreesTrue,
     private readonly dmeDistance: NauticalMiles,
-    private readonly fix: Waypoint | VhfNavaid | NdbNavaid,
-    private readonly navaid: Waypoint | VhfNavaid | NdbNavaid,
+    public readonly fix: Fix,
+    private readonly navaid: Fix,
     public readonly metadata: Readonly<LegMetadata>,
     segment: SegmentType,
   ) {
