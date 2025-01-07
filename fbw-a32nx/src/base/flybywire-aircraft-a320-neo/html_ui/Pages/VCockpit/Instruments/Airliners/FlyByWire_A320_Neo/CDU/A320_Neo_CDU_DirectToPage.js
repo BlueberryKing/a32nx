@@ -4,11 +4,11 @@
 // TODO this whole thing is thales layout...
 
 class CDUDirectToPage {
-    static ShowPage(mcdu, directToObject, wptsListIndex = 0) {
+    static ShowPage(mcdu, directToObject, wptsListIndex = 0, isRadialInPilotEntered = false) {
         mcdu.clearDisplay();
         mcdu.page.Current = mcdu.page.DirectToPage;
         mcdu.returnPageCallback = () => {
-            CDUDirectToPage.ShowPage(mcdu, directToObject, wptsListIndex);
+            CDUDirectToPage.ShowPage(mcdu, directToObject, wptsListIndex, isRadialInPilotEntered);
         };
 
         mcdu.activeSystem = 'FMGC';
@@ -82,8 +82,8 @@ class CDUDirectToPage {
             });
         };
 
+        // DIRECT TO
         mcdu.onRightInput[1] = (s, scratchpadCallback) => {
-            // DIRECT TO
             if (!directToObject) {
                 mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
                 scratchpadCallback();
@@ -105,28 +105,56 @@ class CDUDirectToPage {
             });
         };
 
+        // ABEAM
         mcdu.onRightInput[2] = () => {
-            // ABEAM
             mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
         };
+
+        const plan = mcdu.flightPlanService.active;
+        const defaultRadialIn = CDUDirectToPage.computeDefaultRadialIn(plan, directToObject);
+
+        // RADIAL IN
         mcdu.onRightInput[3] = (s, scratchpadCallback) => {
-            // RADIAL IN
             if (!directToObject) {
                 mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
                 scratchpadCallback();
                 return;
             }
 
-            // TODO this should allow a true course
-            if (!/^\d{1,3}/.test(s)) {
-                mcdu.setScratchpadMessage(NXSystemMessages.formatError);
-                scratchpadCallback();
-                return;
-            }
+            let course = undefined;
+            let isPilotEntered = false;
+            if (s === FMCMainDisplay.clrValue) {
+                if (directToObject.courseIn !== undefined && defaultRadialIn !== undefined) {
+                    mcdu.eraseTemporaryFlightPlan(() => {
+                        directToObject.courseIn = defaultRadialIn;
 
-            const course = parseInt(s);
-            if (course > 360) {
-                mcdu.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
+                        mcdu.directTo(directToObject).then(() => {
+                            CDUDirectToPage.ShowPage(mcdu, directToObject, wptsListIndex);
+                        }).catch(err => {
+                            mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
+                            console.error(err);
+                        });
+                    });
+                    return;
+                } else {
+                    mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+                    scratchpadCallback();
+                    return;
+                }
+            } else if (s === "" && defaultRadialIn !== undefined) {
+                course = defaultRadialIn;
+            } else if (/^\d{1,3}/.test(s)) {
+                course = parseInt(s);
+                if (course > 360) {
+                    mcdu.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
+                    scratchpadCallback();
+                    return;
+                }
+
+                isPilotEntered = true;
+            } else {
+                // TODO this should allow a true course
+                mcdu.setScratchpadMessage(NXSystemMessages.formatError);
                 scratchpadCallback();
                 return;
             }
@@ -138,7 +166,7 @@ class CDUDirectToPage {
                 delete directToObject.courseOut;
 
                 mcdu.directTo(directToObject).then(() => {
-                    CDUDirectToPage.ShowPage(mcdu, directToObject, wptsListIndex);
+                    CDUDirectToPage.ShowPage(mcdu, directToObject, wptsListIndex, isPilotEntered);
                 }).catch(err => {
                     mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
                     console.error(err);
@@ -146,8 +174,8 @@ class CDUDirectToPage {
             });
         };
 
+        // RADIAL OUT
         mcdu.onRightInput[4] = (s, scratchpadCallback) => {
-            // RADIAL OUT
             if (!directToObject) {
                 mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
                 scratchpadCallback();
@@ -181,8 +209,6 @@ class CDUDirectToPage {
                 });
             });
         };
-
-        const plan = mcdu.flightPlanService.active;
 
         let directWaypointCell = "";
         if (directToObject) {
@@ -266,12 +292,17 @@ class CDUDirectToPage {
         const isWithAbeamSelected = directToObject && directToObject.withAbeam;
         const canSelectWithAbeam = directToObject && isWithAbeamSelected;
 
-        // TODO handle automatic course calculation
         const isRadialInSelected = directToObject && directToObject.courseIn;
-        const canSelectRadialIn = directToObject && directToObject.courseIn;
-        const radialIn = isRadialInSelected
-            ? `${directToObject.courseIn.toFixed(0).padStart(3, '0')}°`
-            : "[ ]°";
+        const canSelectRadialIn = directToObject && (directToObject.courseIn || defaultRadialIn !== undefined);
+
+        let radialInText = "[ ]°";
+        if (isRadialInSelected) {
+            radialInText = isRadialInPilotEntered
+                ? `${directToObject.courseIn.toFixed(0).padStart(3, '0')}°`
+                : `{small}${directToObject.courseIn.toFixed(0).padStart(3, '0')}°{end}`;
+        } else if (defaultRadialIn !== undefined) {
+            radialInText = `{small}${defaultRadialIn.toFixed(0).padStart(3, '0')}°{end}`;
+        }
 
         const isRadialOutSelected = directToObject && directToObject.courseOut;
         const canSelectRadialOut = directToObject && directToObject.courseOut;
@@ -292,11 +323,49 @@ class CDUDirectToPage {
             ["", "WITH\xa0"],
             [waypointsCell[1], `ABEAM PTS ${canSelectWithAbeam ? "}" : " "}[color]${isWithAbeamSelected ? "yellow" : "cyan"}[color]inop`],
             ["", "RADIAL IN\xa0"],
-            [waypointsCell[2], `${radialIn} ${canSelectRadialIn ? "}" : " "}[color]${isRadialInSelected ? "yellow" : "cyan"}`],
+            [waypointsCell[2], `${radialInText} ${canSelectRadialIn ? "}" : " "}[color]${isRadialInSelected ? "yellow" : "cyan"}`],
             ["", "RADIAL OUT\xa0"],
             [waypointsCell[3], `${radialOut} ${canSelectRadialOut ? "}" : " "}[color]${isRadialOutSelected ? "yellow" : "cyan"}`],
             [eraseLabel, insertLabel],
             [eraseLine ? eraseLine : waypointsCell[4], insertLine]
         ]);
+    }
+
+    /**
+     *
+     * @param {import("../../../../../../../../../systems/fmgc/src/flightplanning/plans/FlightPlan").FlightPlan} plan
+     * @param {import("../../../../../../../../../systems/fmgc/src/flightplanning/types/DirectTo").DirectTo} directToObject
+     * @returns {number | undefined}
+     */
+    static computeDefaultRadialIn(plan, directToObject) {
+        if (!directToObject || directToObject.flightPlanLegIndex === undefined) {
+            return undefined;
+        }
+
+        const directToLeg = plan.maybeElementAt(directToObject.flightPlanLegIndex);
+        if (!directToLeg || directToLeg.isDiscontinuity === true || directToLeg.terminationWaypoint() === null) {
+            return undefined;
+        }
+
+        const maybeLegBefore = plan.maybeElementAt(directToObject.flightPlanLegIndex - 1);
+        const maybeLegAfter = plan.maybeElementAt(directToObject.flightPlanLegIndex + 1);
+
+        if (directToObject.flightPlanLegIndex > plan.activeLegIndex && maybeLegBefore && maybeLegBefore.isDiscontinuity === false && maybeLegBefore.terminationWaypoint() !== null) {
+            const trueRadialIn = Avionics.Utils.computeGreatCircleHeading(directToLeg.terminationWaypoint().location, maybeLegBefore.terminationWaypoint().location);
+
+            return A32NX_Util.trueToMagnetic(
+                trueRadialIn,
+                A32NX_Util.getRadialMagVar(directToLeg.terminationWaypoint())
+            );
+        } else if (maybeLegAfter && maybeLegAfter.isDiscontinuity === false && maybeLegAfter.terminationWaypoint() !== null) {
+            const trueRadialIn = 180 + Avionics.Utils.computeGreatCircleHeading(directToLeg.terminationWaypoint().location, maybeLegAfter.terminationWaypoint().location);
+
+            return A32NX_Util.trueToMagnetic(
+                trueRadialIn,
+                A32NX_Util.getRadialMagVar(directToLeg.terminationWaypoint())
+            );
+        }
+
+        return undefined;
     }
 }
