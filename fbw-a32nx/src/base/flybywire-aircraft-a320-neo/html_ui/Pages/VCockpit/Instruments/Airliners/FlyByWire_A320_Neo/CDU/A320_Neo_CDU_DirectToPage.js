@@ -288,10 +288,10 @@ class CDUDirectToPage {
         }
 
         const isWithAbeamSelected = directToObject && directToObject.withAbeam;
-        const canSelectWithAbeam = directToObject && isWithAbeamSelected;
+        const canSelectWithAbeam = directToObject && !isWithAbeamSelected;
 
-        const isRadialInSelected = directToObject && directToObject.courseIn;
-        const canSelectRadialIn = directToObject && (directToObject.courseIn || defaultRadialIn !== undefined);
+        const isRadialInSelected = directToObject && directToObject.courseIn !== undefined;
+        const canSelectRadialIn = directToObject && (directToObject.courseIn !== undefined || defaultRadialIn !== undefined);
 
         let radialInText = "[ ]°";
         if (isRadialInSelected) {
@@ -302,8 +302,8 @@ class CDUDirectToPage {
             radialInText = `{small}${defaultRadialIn.toFixed(0).padStart(3, '0')}°{end}`;
         }
 
-        const isRadialOutSelected = directToObject && directToObject.courseOut;
-        const canSelectRadialOut = directToObject && directToObject.courseOut;
+        const isRadialOutSelected = directToObject && directToObject.courseOut !== undefined;
+        const canSelectRadialOut = directToObject && directToObject.courseOut !== undefined;
         const radialOut = isRadialOutSelected
             ? `${directToObject.courseOut.toFixed(0).padStart(3, '0')}°`
             : "[ ]°";
