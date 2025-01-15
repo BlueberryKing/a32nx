@@ -499,7 +499,9 @@ export class GuidanceController {
         !alternate && flightPlanIndex < FlightPlanIndex.FirstSecondary,
       );
 
-      this.recomputeGeometry(geometry, plan);
+      if (geometryPIndex !== FlightPlanIndex.Active || !this.doesPreNavModeEngagementPathExist()) {
+        this.recomputeGeometry(geometry, plan);
+      }
     } else {
       const newGeometry = GeometryFactory.createFromFlightPlan(
         plan,
@@ -590,5 +592,9 @@ export class GuidanceController {
 
   shouldShowNoNavInterceptMessage(): boolean {
     return this.preNavModeEngagementPath.shouldShowNoNavInterceptMessage();
+  }
+
+  getPreNavModeAlongTrackDistanceToGo(trueTrack: number): number | null {
+    return this.preNavModeEngagementPath.getAlongTrackDistanceToGo(trueTrack);
   }
 }
