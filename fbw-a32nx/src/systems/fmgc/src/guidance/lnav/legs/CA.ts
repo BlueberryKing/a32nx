@@ -21,6 +21,8 @@ export class CALeg extends Leg {
 
   private computedPath: PathVector[] = [];
 
+  public predictedDistance: number = NaN;
+
   constructor(
     public readonly course: Degrees,
     public readonly altitude: Feet,
@@ -126,18 +128,8 @@ export class CALeg extends Leg {
     const minutesToAltitude = (this.altitude - Math.max(0, originAltitude)) / ESTIMATED_VS; // minutes
     let distanceToTermination = (minutesToAltitude / 60) * ESTIMATED_KTS; // NM
 
-    if (this.predictedGradient && this.predictedStartAlt) {
-      if (this.predictedStartAlt >= this.altitude) {
-        distanceToTermination = 0;
-      } else if (this.predictedGradient > 0) {
-        const distanceToAltitude = (this.altitude - this.predictedStartAlt) / this.predictedGradient;
-
-        distanceToTermination = distanceToAltitude;
-      }
-
-      console.log(
-        `[FMS/CALeg] Current distance ${this.distance.toFixed(2)} NM to go from ${this.predictedStartAlt.toFixed(0)} ft to ${this.predictedEndAlt.toFixed(0)} ft -> Target distance: ${distanceToTermination.toFixed(2)} NM`,
-      );
+    if (Number.isFinite(this.predictedDistance)) {
+      distanceToTermination = Math.max(0, this.predictedDistance);
     }
 
     if (!this.wasMovedByPpos && this.extraLength > 0) {

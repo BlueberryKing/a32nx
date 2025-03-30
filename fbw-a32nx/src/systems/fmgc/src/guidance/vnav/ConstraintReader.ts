@@ -51,6 +51,8 @@ export class ConstraintReader {
 
   public finalAltitude: Feet = 50;
 
+  public takeoffDistanceFromStart = 0;
+
   constructor(
     private flightPlanService: FlightPlanService,
     private guidanceController: GuidanceController,
@@ -156,6 +158,10 @@ export class ConstraintReader {
     }
 
     this.updateFinalAltitude();
+
+    if (plan.originRunway) {
+      this.takeoffDistanceFromStart = plan.originRunway.length / 2 / MathUtils.METRES_TO_NAUTICAL_MILES;
+    }
   }
 
   private updateFinalAltitude(): void {
@@ -211,6 +217,7 @@ export class ConstraintReader {
     this.fafDistanceToEnd =
       1000 / Math.tan(-this.finalDescentAngle * MathUtils.DEGREES_TO_RADIANS) / MathUtils.FEET_TO_NAUTICAL_MILES;
     this.finalAltitude = 50;
+    this.takeoffDistanceFromStart = 0;
   }
 
   private updateDistancesToEnd() {

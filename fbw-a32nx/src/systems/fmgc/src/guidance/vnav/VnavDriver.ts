@@ -571,27 +571,38 @@ export class VnavDriver implements GuidanceComponent {
         continue;
       }
 
-      const startPrediction = this.profileManager.mcduProfile.interpolateEverythingFromStart(
-        leg.calculated.cumulativeDistanceWithTransitions - leg.calculated.distanceWithTransitions,
-      );
       const endPrediction = this.profileManager.mcduProfile.interpolateEverythingFromStart(
         leg.calculated.cumulativeDistanceWithTransitions,
       );
       const tasPrediction = this.atmosphericConditions.computeTasFromCas(endPrediction.altitude, endPrediction.speed);
+
+      if (Number.isNaN(tasPrediction)) {
+        console.error('[FMS] Failed to compute TAS prediction for leg', leg);
+
+        leg.predictedTas = undefined;
+        leg.predictedGs = undefined;
+
+        continue;
+      }
 
       // TODO: Use wind speed prediction for that leg instead of current wind speed
       const gsPrediction = tasPrediction + this.atmosphericConditions.currentWindSpeed;
 
       leg.predictedTas = tasPrediction;
       leg.predictedGs = gsPrediction;
-      leg.predictedEndAlt = endPrediction.altitude;
-      leg.predictedStartAlt = startPrediction.altitude;
-      leg.predictedGradient = (endPrediction.altitude - startPrediction.altitude) / leg.calculated.distance;
 
       if (leg instanceof CALeg || leg instanceof FALeg) {
-        console.log(
-          `[FMS/LegPredictions] CALeg from ${leg.predictedStartAlt.toFixed(0)} ft to ${leg.predictedEndAlt.toFixed(0)} ft in ${leg.distance.toFixed(2)} NM`,
-        );
+        const targetCumulativeDistance = this.profileManager.mcduProfile.interpolateDistanceAtAltitude(leg.altitude);
+
+        const inboundTransitionDistance = leg.calculated.distanceWithTransitions - leg.calculated.distance;
+        let legDistance = targetCumulativeDistance - inboundTransitionDistance;
+
+        const prevLeg = geometry.legs.get(i - 1);
+        if (prevLeg?.calculated) {
+          legDistance = Math.max(0, legDistance - prevLeg.calculated.cumulativeDistanceWithTransitions);
+        }
+
+        leg.predictedDistance = legDistance;
       }
     }
   }

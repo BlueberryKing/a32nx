@@ -18,18 +18,17 @@ export class TakeoffPathBuilder {
     private atmosphericConditions: AtmosphericConditions,
   ) {}
 
-  buildTakeoffPath(profile: BaseGeometryProfile, config: AircraftConfig) {
-    this.addTakeoffRollCheckpoint(profile);
+  public buildTakeoffPath(profile: BaseGeometryProfile, config: AircraftConfig) {
     this.buildPathToThrustReductionAltitude(profile, config);
     this.buildPathToAccelerationAltitude(profile, config);
   }
 
-  private addTakeoffRollCheckpoint(profile: BaseGeometryProfile) {
+  public addTakeoffRollCheckpoint(profile: BaseGeometryProfile) {
     const { departureElevation, v2Speed, fuelOnBoard, managedClimbSpeedMach } = this.observer.get();
 
     profile.checkpoints.push({
       reason: VerticalCheckpointReason.Liftoff,
-      distanceFromStart: 0,
+      distanceFromStart: profile.takeoffDistanceFromStart,
       secondsFromPresent: 0,
       altitude: departureElevation,
       remainingFuelOnBoard: fuelOnBoard,
@@ -52,6 +51,10 @@ export class TakeoffPathBuilder {
     const lastCheckpoint = profile.lastCheckpoint;
 
     const startingAltitude = lastCheckpoint.altitude;
+    if (startingAltitude >= thrustReductionAltitude) {
+      return;
+    }
+
     const midwayAltitude = (startingAltitude + thrustReductionAltitude) / 2;
 
     const predictedN1 = SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA', 'Number');
@@ -97,8 +100,12 @@ export class TakeoffPathBuilder {
     const { accelerationAltitude, v2Speed, zeroFuelWeight, perfFactor, tropoPause, managedClimbSpeedMach } =
       this.observer.get();
 
-    const speed = v2Speed + 10;
     const startingAltitude = lastCheckpoint.altitude;
+    if (startingAltitude >= accelerationAltitude) {
+      return;
+    }
+
+    const speed = v2Speed + 10;
     const midwayAltitude = (startingAltitude + accelerationAltitude) / 2;
 
     const staticAirTemperature = this.atmosphericConditions.predictStaticAirTemperatureAtAltitude(midwayAltitude);

@@ -45,6 +45,10 @@ export abstract class BaseGeometryProfile {
 
   abstract get distanceToPresentPosition(): NauticalMiles;
 
+  get takeoffDistanceFromStart(): NauticalMiles {
+    return 0;
+  }
+
   get lastCheckpoint(): VerticalCheckpoint | null {
     if (this.checkpoints.length < 1) {
       return null;

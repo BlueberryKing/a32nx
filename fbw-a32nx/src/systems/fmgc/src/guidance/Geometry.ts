@@ -32,6 +32,7 @@ import { FlightPlanElement, FlightPlanLegFlags } from '@fmgc/flightplanning/legs
 import { ControlLaw, CompletedGuidanceParameters, LateralPathGuidance } from './ControlLaws';
 import { XFLeg } from '@fmgc/guidance/lnav/legs/XF';
 import { BitFlags } from '@microsoft/msfs-sdk';
+import { FALeg } from './lnav/legs/FA';
 
 function isGuidableCapturingPath(guidable: Guidable): boolean {
   return !(
@@ -529,6 +530,10 @@ export class Geometry {
 
     if (activeLeg.isNull) {
       return true;
+    }
+
+    if (activeLeg instanceof FALeg || activeLeg instanceof CALeg) {
+      return ppos.alt >= activeLeg.altitude;
     }
 
     const dtg = activeLeg.getDistanceToGo(ppos);
