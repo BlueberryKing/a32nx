@@ -198,6 +198,10 @@ export class NavGeometryProfile extends BaseGeometryProfile {
     return this.constraintReader.finalAltitude;
   }
 
+  get takeoffDistanceFromStart(): NauticalMiles {
+    return this.constraintReader.takeoffDistanceFromStart;
+  }
+
   addCheckpointFromLast(checkpointBuilder: (lastCheckpoint: VerticalCheckpoint) => Partial<VerticalCheckpoint>) {
     this.checkpoints.push({ ...this.lastCheckpoint, ...checkpointBuilder(this.lastCheckpoint) });
   }

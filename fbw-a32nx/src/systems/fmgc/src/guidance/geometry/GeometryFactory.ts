@@ -273,7 +273,12 @@ function geometryLegFromFlightPlanLeg(
       // TODO FA, VA legs in geometry
       const altitude = flightPlanLeg.definition.altitude1;
 
-      return new CALeg(trueCourse, altitude, metadata, SegmentType.Departure);
+      // const previousFix =
+      //   previousFlightPlanLeg.isDiscontinuity === false ? previousFlightPlanLeg.terminationWaypoint() : undefined;
+      // const extraLength = isRunway(previousFix) ? previousFix.length / MathUtils.METRES_TO_NAUTICAL_MILES / 2 : 0;
+      const extraLength = 0;
+
+      return new CALeg(trueCourse, altitude, metadata, SegmentType.Departure, extraLength);
     }
     case LegType.CD:
     case LegType.VD: // TODO FA, VA legs in geometry
