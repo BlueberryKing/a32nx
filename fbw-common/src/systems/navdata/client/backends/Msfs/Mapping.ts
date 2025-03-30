@@ -27,7 +27,6 @@ import {
   ProcedureLeg,
   ProcedureTransition,
   SpeedDescriptor,
-  TerminalWaypoint,
   TurnDirection,
   VhfNavaid,
   VhfNavaidType,
@@ -90,7 +89,9 @@ type FacilityType<T> = T extends JS_FacilityIntersection
       ? VhfNavaid
       : T extends JS_FacilityAirport
         ? Airport
-        : never;
+        : T extends JS_Runway
+          ? Runway
+          : never;
 
 export class MsfsMapping {
   private static readonly letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -192,7 +193,6 @@ export class MsfsMapping {
 
       msRunway.designation.split('-').forEach((designation, index) => {
         const primary = index === 0;
-
         const airportIdent = FacilityCache.ident(msAirport.icao);
         const runwayNumber = parseInt(designation);
         const runwayDesignator = primary ? msRunway.designatorCharPrimary : msRunway.designatorCharSecondary;
@@ -1194,26 +1194,12 @@ export class MsfsMapping {
     }
   }
 
-  private mapRunwayWaypoint(airport: JS_FacilityAirport, icao: string): TerminalWaypoint | undefined {
+  private mapRunwayWaypoint(airport: JS_FacilityAirport, icao: string): Runway | undefined {
     const airportIdent = FacilityCache.ident(airport.icao);
     const runwayIdent = `${airportIdent}${icao.substring(9).trim()}`;
     const runways = this.mapAirportRunwaysPartial(airport);
 
-    for (const runway of runways) {
-      if (runway.ident === runwayIdent) {
-        return {
-          sectionCode: SectionCode.Airport,
-          subSectionCode: AirportSubsectionCode.Runways,
-          databaseId: icao,
-          icaoCode: icao.substring(1, 3),
-          ident: runwayIdent,
-          location: runway.thresholdLocation,
-          area: WaypointArea.Terminal,
-          airportIdent,
-        };
-      }
-    }
-    return undefined;
+    return runways.find((runway) => runway.ident === runwayIdent);
   }
 
   private mapApproachName(approach: JS_Approach): string {
