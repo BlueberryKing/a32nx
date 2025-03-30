@@ -196,7 +196,6 @@ export class MsfsMapping {
 
       msRunway.designation.split('-').forEach((designation, index) => {
         const primary = index === 0;
-
         const airportIdent = FacilityCache.ident(msAirport.icao);
         const runwayNumber = parseInt(designation);
         const runwayDesignator = primary ? msRunway.designatorCharPrimary : msRunway.designatorCharSecondary;
@@ -1212,7 +1211,7 @@ export class MsfsMapping {
     const runwayIdent = `${airportIdent}${icao.substring(9).trim()}`;
     const runways = this.mapAirportRunwaysPartial(airport);
 
-    return runways.find((r) => r.ident === runwayIdent);
+    return runways.find((runway) => runway.ident === runwayIdent);
   }
 
   private mapApproachName(approach: JS_Approach): string {
