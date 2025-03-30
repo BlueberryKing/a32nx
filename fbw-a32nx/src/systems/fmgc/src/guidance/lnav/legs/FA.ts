@@ -13,15 +13,10 @@ import {
   PathVectorType,
   SectionCode,
 } from '@flybywiresim/fbw-sdk';
-import { distanceTo, placeBearingDistance, smallCircleGreatCircleIntersection } from 'msfs-geo';
+import { distanceTo, placeBearingDistance } from 'msfs-geo';
 import { GuidanceParameters } from '@fmgc/guidance/ControlLaws';
 import { PathVector } from '@fmgc/guidance/lnav/PathVector';
-import {
-  courseToFixDistanceToGo,
-  fixToFixGuidance,
-  PointSide,
-  sideOfPointOnCourseToFix,
-} from '@fmgc/guidance/lnav/CommonGeometry';
+import { courseToFixDistanceToGo, fixToFixGuidance } from '@fmgc/guidance/lnav/CommonGeometry';
 import { Leg } from './Leg';
 
 export class FALeg extends Leg {
@@ -34,6 +29,8 @@ export class FALeg extends Leg {
 
   public readonly predictedPath: PathVector[] = [];
 
+  public predictedDistance: number = NaN;
+
   /**
    * A leg extending from a fix on a given course until reaching a given altitude.
    * @param fix The fix this leg extends from.
@@ -45,7 +42,7 @@ export class FALeg extends Leg {
   constructor(
     public readonly fix: Fix,
     private readonly course: number,
-    private readonly altitude: number,
+    public readonly altitude: number,
     public readonly metadata: Readonly<LegMetadata>,
     public segment: SegmentType,
   ) {
@@ -60,28 +57,18 @@ export class FALeg extends Leg {
    * @returns The estimated termination location.
    */
   private calculateTermination(startingPoint: Coordinates, startingAltitude?: number): Coordinates {
-    if (this.predictedGradient && this.predictedStartAlt) {
-      if (this.predictedStartAlt >= this.altitude) {
-        // distance = 0;
-        return startingPoint;
-      } else if (this.predictedGradient > 0) {
-        const distanceToAltitude = (this.altitude - this.predictedStartAlt) / this.predictedGradient;
+    if (Number.isFinite(this.predictedDistance)) {
+      const distanceToAltitude = Math.max(0, this.predictedDistance);
 
-        const intercept = smallCircleGreatCircleIntersection(
-          this.getPathStartPoint(),
-          distanceToAltitude,
-          startingPoint,
-          this.course,
-        )?.filter(
-          (intercept) => sideOfPointOnCourseToFix(startingPoint, this.course, intercept) === PointSide.After,
-        )[0];
+      const intercept = placeBearingDistance(startingPoint, this.course, distanceToAltitude);
+      // const intercept = smallCircleGreatCircleIntersection(
+      //   startingPoint,
+      //   distanceToAltitude,
+      //   this.getPathStartPoint(),
+      //   this.course,
+      // )?.filter((intercept) => sideOfPointOnCourseToFix(startingPoint, this.course, intercept) === PointSide.After)[0];
 
-        console.log(
-          `[FMS/FALeg] Current distance ${this.distance.toFixed(2)} NM to go from ${this.predictedStartAlt.toFixed(0)} ft to ${this.predictedEndAlt.toFixed(0)} ft -> Target distance: ${distanceToAltitude.toFixed(2)} NM`,
-        );
-
-        return intercept;
-      }
+      return intercept;
     }
 
     // FIXME we need VNAV to calculate legs in lockstep with LNAV to get this right
@@ -188,8 +175,9 @@ export class FALeg extends Leg {
     _trueTrack: DegreesTrue,
   ) {
     const startPoint = this.getPathStartPoint();
+
     // FIXME if we had a better alt estimation.. use startPoint instead
-    this.calculatedTermination = this.calculateTermination(this.fix.location);
+    this.calculatedTermination = this.calculateTermination(startPoint);
 
     const point0: Partial<LinePathVector> = (this.predictedPath[0] as LinePathVector) ?? {};
 

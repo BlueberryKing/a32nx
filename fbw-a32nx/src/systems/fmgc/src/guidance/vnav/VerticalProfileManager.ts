@@ -142,8 +142,9 @@ export class VerticalProfileManager {
       this.constraintReader.descentSpeedConstraints,
     );
 
-    if (flightPhase < FmgcFlightPhase.Climb) {
-      this.takeoffPathBuilder.buildTakeoffPath(mcduProfile, this.acConfig);
+    // TODO remove simvar call
+    if (flightPhase < FmgcFlightPhase.Takeoff && SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots') > 100) {
+      this.takeoffPathBuilder.addTakeoffRollCheckpoint(mcduProfile);
     } else {
       mcduProfile.addPresentPositionCheckpoint(
         presentPosition,
@@ -151,6 +152,10 @@ export class VerticalProfileManager {
         this.getManagedMachTarget(),
         this.getVman(approachSpeed),
       );
+    }
+
+    if (flightPhase < FmgcFlightPhase.Climb) {
+      this.takeoffPathBuilder.buildTakeoffPath(mcduProfile, this.acConfig);
     }
 
     if (flightPhase < FmgcFlightPhase.Cruise) {
