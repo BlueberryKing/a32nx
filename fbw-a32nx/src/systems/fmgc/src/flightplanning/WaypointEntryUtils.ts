@@ -110,7 +110,7 @@ export class WaypointEntryUtils {
    * Parse a runway string and return the location of the threshold
    * Returns undefined if invalid format or not in database
    */
-  static async parseRunway(place: string): Promise<Waypoint> {
+  static async parseRunway(place: string): Promise<Fix> {
     const rwy = place.match(/^([A-Z]{4})([0-9]{2}[RCL]?)$/);
 
     if (rwy !== null) {
@@ -119,12 +119,9 @@ export class WaypointEntryUtils {
       if (airport) {
         const runways = await NavigationDatabaseService.activeDatabase.backendDatabase.getRunways(airport.ident);
 
-        for (let i = 0; i < runways.length; i++) {
-          const runway = runways[i];
-
-          if (runway.ident === place) {
-            return WaypointFactory.fromRunway(runway);
-          }
+        const runway = runways.find((r) => r.ident === place);
+        if (runway) {
+          return runway;
         }
       }
     }
