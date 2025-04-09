@@ -92,15 +92,8 @@ export class LnavDriver implements GuidanceComponent {
 
     const activeLegIdx = this.guidanceController.activeLegIndex;
 
-    const secGeometry = this.guidanceController.getGeometryForFlightPlan(FlightPlanIndex.FirstSecondary);
-    if (secGeometry && secGeometry.legs.size > 0) {
-      this.guidanceController.setAlongTrackDistanceToDestination(
-        secGeometry.computeAlongTrackDistanceToDestination(activeLegIdx, this.ppos, trueTrack),
-        FlightPlanIndex.FirstSecondary,
-      );
-    } else {
-      this.guidanceController.setAlongTrackDistanceToDestination(0, FlightPlanIndex.FirstSecondary);
-    }
+    this.updateDistanceToDestination(FlightPlanIndex.FirstSecondary, activeLegIdx, trueTrack);
+    this.updateDistanceToDestination(FlightPlanIndex.Active, activeLegIdx, trueTrack);
 
     const geometry = this.guidanceController.activeGeometry;
     if (geometry && geometry.legs.size > 0) {
@@ -109,11 +102,6 @@ export class LnavDriver implements GuidanceComponent {
       const inboundTrans = geometry.transitions.get(activeLegIdx - 1);
       const activeLeg = geometry.legs.get(activeLegIdx);
       const outboundTrans = geometry.transitions.get(activeLegIdx) ? geometry.transitions.get(activeLegIdx) : null;
-
-      this.guidanceController.setAlongTrackDistanceToDestination(
-        geometry.computeAlongTrackDistanceToDestination(activeLegIdx, this.ppos, trueTrack),
-        FlightPlanIndex.Active,
-      );
 
       if (!activeLeg) {
         if (LnavConfig.DEBUG_GUIDANCE) {
@@ -397,8 +385,6 @@ export class LnavDriver implements GuidanceComponent {
           geometry.onLegSequenced(activeLeg, nextLeg, followingLeg);
         }
       }
-    } else {
-      this.guidanceController.setAlongTrackDistanceToDestination(0);
     }
 
     /* Set FG parameters */
@@ -414,6 +400,18 @@ export class LnavDriver implements GuidanceComponent {
       this.lastXTE = null;
       this.lastPhi = null;
       this.turnState = LnavTurnState.Normal;
+    }
+  }
+
+  updateDistanceToDestination(forPlan: FlightPlanIndex, activeLegIndex: number, trueTrack: number): void {
+    const geometry = this.guidanceController.getGeometryForFlightPlan(forPlan);
+    if (geometry && geometry.legs.size > 0) {
+      this.guidanceController.setAlongTrackDistanceToDestination(
+        geometry.computeAlongTrackDistanceToDestination(activeLegIndex, this.ppos, trueTrack),
+        forPlan,
+      );
+    } else {
+      this.guidanceController.setAlongTrackDistanceToDestination(0, forPlan);
     }
   }
 
