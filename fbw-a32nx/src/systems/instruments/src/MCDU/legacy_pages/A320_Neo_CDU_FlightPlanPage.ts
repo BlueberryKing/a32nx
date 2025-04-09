@@ -8,7 +8,6 @@ import { CDUVerticalRevisionPage } from './A320_Neo_CDU_VerticalRevisionPage';
 import { AltitudeConstraint, WaypointConstraintType } from '@fmgc/flightplanning/data/constraint';
 import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { CDUHoldAtPage } from './A320_Neo_CDU_HoldAtPage';
-import { CDUInitPage } from './A320_Neo_CDU_InitPage';
 import { AltitudeDescriptor, EfisSide, NXUnits } from '@flybywiresim/fbw-sdk';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
