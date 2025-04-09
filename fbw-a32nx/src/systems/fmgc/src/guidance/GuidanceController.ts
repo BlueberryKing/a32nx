@@ -494,7 +494,7 @@ export class GuidanceController {
 
     const geometry = this.flightPlanGeometries.get(geometryPIndex);
 
-    const shouldApplyPredictions = flightPlanIndex === FlightPlanIndex.Active && !alternate;
+    const shouldApplyPredictions = force && flightPlanIndex === FlightPlanIndex.Active && !alternate;
 
     if (geometry) {
       GeometryFactory.updateFromFlightPlan(
@@ -522,7 +522,6 @@ export class GuidanceController {
     const trueTrack = SimVar.GetSimVarValue('GPS GROUND TRUE TRACK', 'degree');
 
     for (let i = 0; i < 2; i++) {
-      console.group(`[FMS] Recomputing geometry for flight plan #${plan.index}`);
       geometry.recomputeWithParameters(
         tas,
         gs,
@@ -539,6 +538,8 @@ export class GuidanceController {
       geometry.updateDistances(plan, Math.max(plan.firstMissedApproachLegIndex), plan.legCount);
 
       if (shouldApplyPredictions) {
+        // TODO should this be here?
+        this.lnavDriver.updateDistanceToDestination(plan.index, plan.activeLegIndex, trueTrack);
         this.doVnav(geometry);
       }
       console.groupEnd();
