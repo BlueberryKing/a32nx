@@ -143,7 +143,7 @@ export class VerticalProfileManager {
     );
 
     // TODO remove simvar call
-    if (flightPhase < FmgcFlightPhase.Takeoff && SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots') > 100) {
+    if (flightPhase < FmgcFlightPhase.Takeoff && SimVar.GetSimVarValue('AIRSPEED INDICATED', 'knots') < 100) {
       this.takeoffPathBuilder.addTakeoffRollCheckpoint(mcduProfile);
     } else {
       mcduProfile.addPresentPositionCheckpoint(
