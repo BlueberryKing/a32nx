@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { MathUtils } from '@flybywiresim/fbw-sdk';
+import { WindEntry, WindVector } from '../../data/wind';
 
 export interface FlightPlanPerformanceData {
   /**
@@ -270,6 +271,21 @@ export interface FlightPlanPerformanceData {
    * Whether the descent speed limit of the alternate flight plan is pilot entered.
    */
   isAlternateDescentSpeedLimitPilotEntered: boolean;
+
+  /**
+   * The wind entries for the climb segment entered by the pilot
+   */
+  climbWindEntries: WindEntry[];
+
+  /**
+   * The wind entries for the descent segment entered by the pilot
+   */
+  descentWindEntries: WindEntry[];
+
+  /**
+   * The average wind vector for the alternate flight plan, or null if not set.
+   */
+  alternateWind: WindVector | null;
 
   clone(): this;
 }
@@ -650,6 +666,21 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
    */
   isAlternateDescentSpeedLimitPilotEntered: boolean = false;
 
+  /**
+   * The wind entries for the climb segment entered by the pilot
+   */
+  climbWindEntries: WindEntry[] = [];
+
+  /**
+   * The wind entries for the descent segment entered by the pilot
+   */
+  descentWindEntries: WindEntry[] = [];
+
+  /**
+   * The average wind vector for the alternate flight plan, or null if not set.
+   */
+  alternateWind: WindVector | null = null;
+
   serialize(): SerializedFlightPlanPerformanceData {
     return {
       cruiseFlightLevel: this.cruiseFlightLevel,
@@ -687,6 +718,9 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
       alternateDescentSpeedLimitSpeed: this.alternateDescentSpeedLimitSpeed,
       alternateDescentSpeedLimitAltitude: this.alternateDescentSpeedLimitAltitude,
       isAlternateDescentSpeedLimitPilotEntered: this.isAlternateDescentSpeedLimitPilotEntered,
+      climbWindEntries: this.climbWindEntries,
+      descentWindEntries: this.descentWindEntries,
+      alternateWind: this.alternateWind,
     };
   }
 }
@@ -742,6 +776,10 @@ export interface SerializedFlightPlanPerformanceData {
   alternateDescentSpeedLimitSpeed: number | null;
   alternateDescentSpeedLimitAltitude: number | null;
   isAlternateDescentSpeedLimitPilotEntered: boolean;
+
+  climbWindEntries: WindEntry[];
+  descentWindEntries: WindEntry[];
+  alternateWind: WindVector | null;
 }
 
 export class DefaultPerformanceData {

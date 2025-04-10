@@ -16,6 +16,7 @@ import { FuelPlanningPhases } from '../legacy/A32NX_Core/A32NX_FuelPred';
 import { FmsFormatters } from '../legacy/FmsFormatters';
 import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplinkAdapter';
 import { AeroMath } from '@microsoft/msfs-sdk';
+import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 
 export class CDUInitPage {
   static ShowPage1(mcdu: LegacyFmsPageInterface) {
@@ -325,7 +326,7 @@ export class CDUInitPage {
       CDUWindPage.Return = () => {
         CDUInitPage.ShowPage1(mcdu);
       };
-      CDUWindPage.ShowPage(mcdu);
+      CDUWindPage.ShowPage(mcdu, FlightPlanIndex.Active);
     };
 
     mcdu.onUp = () => {};

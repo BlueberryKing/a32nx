@@ -27,6 +27,7 @@ import { CruiseStepEntry } from '@fmgc/flightplanning/CruiseStep';
 import { HoldUtils } from '@fmgc/flightplanning/data/hold';
 import { OriginSegment } from '@fmgc/flightplanning/segments/OriginSegment';
 import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
+import { WindEntry } from '../data/wind';
 
 /**
  * A serialized flight plan leg, to be sent across FMSes
@@ -44,6 +45,7 @@ export interface SerializedFlightPlanLeg {
   cruiseStep: CruiseStepEntry | undefined;
   pilotEnteredAltitudeConstraint: AltitudeConstraint | undefined;
   pilotEnteredSpeedConstraint: SpeedConstraint | undefined;
+  cruiseWindEntries: WindEntry[];
 }
 
 export enum FlightPlanLegFlags {
@@ -109,6 +111,8 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
 
   calculated: LegCalculations | undefined;
 
+  cruiseWindEntries: WindEntry[] = [];
+
   serialize(): SerializedFlightPlanLeg {
     return {
       ident: this.ident,
@@ -127,6 +131,11 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
       pilotEnteredSpeedConstraint: this.pilotEnteredSpeedConstraint
         ? JSON.parse(JSON.stringify(this.pilotEnteredSpeedConstraint))
         : undefined,
+      cruiseWindEntries: this.cruiseWindEntries.map((entry) => ({
+        trueDegrees: entry.trueDegrees,
+        magnitude: entry.magnitude,
+        altitude: entry.altitude,
+      })),
     };
   }
 
@@ -147,6 +156,11 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
     leg.cruiseStep = serialized.cruiseStep;
     leg.pilotEnteredAltitudeConstraint = serialized.pilotEnteredAltitudeConstraint;
     leg.pilotEnteredSpeedConstraint = serialized.pilotEnteredSpeedConstraint;
+    leg.cruiseWindEntries = serialized.cruiseWindEntries.map((entry) => ({
+      trueDegrees: entry.trueDegrees,
+      magnitude: entry.magnitude,
+      altitude: entry.altitude,
+    }));
 
     return leg;
   }
