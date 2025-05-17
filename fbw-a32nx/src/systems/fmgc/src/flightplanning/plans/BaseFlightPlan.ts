@@ -59,6 +59,7 @@ import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPla
 import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { bearingTo } from 'msfs-geo';
 import { RestringOptions } from './RestringOptions';
+import { PropagatedWindEntry, PropagationType } from '../data/wind';
 
 export enum FlightPlanQueuedOperation {
   Restring,
@@ -2697,6 +2698,48 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         el.isDiscontinuity === false &&
         el.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.FinalApproachCourseFix,
     );
+  }
+
+  async propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], maxNumEntries: number): Promise<number> {
+    let numWindEntries = 0;
+
+    for (let i = 0; i < this.firstMissedApproachLegIndex && numWindEntries < maxNumEntries; i++) {
+      const element = this.maybeElementAt(i);
+
+      // TODO check if leg is part of cruise segment?
+      if (element?.isDiscontinuity === true) {
+        continue;
+      }
+
+      for (const windEntry of element.cruiseWindEntries) {
+        let windEntryType: PropagationType;
+        if (i < atIndex) {
+          windEntryType = PropagationType.Forward;
+        } else if (i === atIndex) {
+          windEntryType = PropagationType.Entry;
+        } else {
+          windEntryType = PropagationType.Backward;
+        }
+
+        if (numWindEntries >= result.length) {
+          result.push({
+            altitude: windEntry.altitude,
+            magnitude: windEntry.magnitude,
+            trueDegrees: windEntry.trueDegrees,
+            type: windEntryType,
+          });
+        } else {
+          result[numWindEntries].altitude = windEntry.altitude;
+          result[numWindEntries].magnitude = windEntry.magnitude;
+          result[numWindEntries].trueDegrees = windEntry.trueDegrees;
+          result[numWindEntries].type = windEntryType;
+        }
+
+        numWindEntries++;
+      }
+    }
+
+    return numWindEntries;
   }
 }
 
