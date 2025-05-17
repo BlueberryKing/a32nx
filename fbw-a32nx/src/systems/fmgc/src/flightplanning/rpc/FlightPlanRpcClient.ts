@@ -16,6 +16,7 @@ import { FlightPlanLegDefinition } from '../legs/FlightPlanLegDefinition';
 import { FixInfoEntry } from '../plans/FixInfo';
 import { FlightPlan } from '../plans/FlightPlan';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
+import { PropagatedWindEntry } from '../data/wind';
 
 export type FunctionsOnlyAndUnwrapPromises<T> = {
   [k in keyof T as T[k] extends (...args: any) => Promise<any> ? k : never]: T[k] extends (
@@ -406,5 +407,9 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
 
   stringMissedApproach(onConstraintsDeleted?: (_: FlightPlanLeg) => void, planIndex?: number): Promise<void> {
     return this.callFunctionViaRpc('stringMissedApproach', onConstraintsDeleted, planIndex);
+  }
+
+  propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex: number): Promise<number> {
+    return this.callFunctionViaRpc('propagateWindsAt', atIndex, result, planIndex);
   }
 }

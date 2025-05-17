@@ -12,6 +12,7 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
+import { PropagatedWindEntry } from './data/wind';
 
 /**
  * Interface for querying, modifying and creating flight plans.
@@ -371,4 +372,12 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
   setPerformanceData<T extends keyof P & string>(key: T, value: any, planIndex: number): Promise<void>;
 
   stringMissedApproach(onConstraintsDeleted?: (map: FlightPlanLeg) => void, planIndex?: number): Promise<void>;
+
+  /**
+   * Propagates the cruise wind entries forwards and backwards to the specified leg.
+   * @param atIndex the index of the leg ot propagate winds to
+   * @param result the array to write the propagated winds to
+   * @param planIndex which flight plan index to do the propagation on
+   */
+  propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex: number): Promise<number>;
 }
