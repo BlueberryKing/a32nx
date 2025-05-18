@@ -34,8 +34,14 @@ export interface FpmConfig {
   /** Whether the next abeam point of a DIR TO WITH ABEAM is considered as the TO waypoint emitted by the FPM */
   DIR_TO_ABEAM_POINT_IS_TO_WPT: boolean;
 
-  /** The number of different flight levels for which wind entries may be made */
+  /** The number of different flight levels for which cruise wind entries may be made */
   NUM_CRUISE_WIND_LEVELS: number;
+
+  /** The number of different flight levels for which climb wind entries may be made */
+  NUM_CLIMB_WIND_LEVELS: number;
+
+  /** The number of different flight levels for which descent wind entries may be made */
+  NUM_DESCENT_WIND_LEVELS: number;
 }
 
 export class FpmConfigs {
@@ -50,6 +56,8 @@ export class FpmConfigs {
     CHECK_VIA_COMPATIBILITY: true,
     DIR_TO_ABEAM_POINT_IS_TO_WPT: true,
     NUM_CRUISE_WIND_LEVELS: 4,
+    NUM_CLIMB_WIND_LEVELS: 5,
+    NUM_DESCENT_WIND_LEVELS: 10,
   };
 
   static A320_HONEYWELL_H3: FpmConfig = {
@@ -63,5 +71,7 @@ export class FpmConfigs {
     CHECK_VIA_COMPATIBILITY: false,
     DIR_TO_ABEAM_POINT_IS_TO_WPT: false,
     NUM_CRUISE_WIND_LEVELS: 4,
+    NUM_CLIMB_WIND_LEVELS: 5,
+    NUM_DESCENT_WIND_LEVELS: 10,
   };
 }
