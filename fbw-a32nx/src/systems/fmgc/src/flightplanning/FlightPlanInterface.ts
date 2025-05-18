@@ -12,7 +12,7 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
-import { WindEntry, PropagatedWindEntry } from './data/wind';
+import { WindEntry, PropagatedWindEntry, WindVector } from './data/wind';
 
 /**
  * Interface for querying, modifying and creating flight plans.
@@ -410,4 +410,29 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
    * @param planIndex which flight plan index to edit the entry in
    */
   editCruiseWindEntry(atIndex: number, altitude: number, newEntry: WindEntry, planIndex: number): Promise<void>;
+
+  /**
+   * Sets the climb wind entry at the specified altitude rounded to the nearest 100 feet.
+   * If the provided entry is null, the entry is deleted.
+   * @param altitude the altitude of the entry to set
+   * @param entry the entry to set, or null to delete the entry
+   * @param planIndex which flight plan index to set the entry in
+   */
+  setClimbWindEntry(altitude: number, entry: WindEntry | null, planIndex: number): Promise<void>;
+
+  /**
+   * Sets the descent wind entry at the specified altitude rounded to the nearest 100 feet.
+   * If the provided entry is null, the entry is deleted.
+   * @param altitude the altitude of the entry to set
+   * @param entry the entry to set, or null to delete the entry
+   * @param planIndex which flight plan index to set the entry in
+   */
+  setDescentWindEntry(altitude: number, entry: WindEntry | null, planIndex: number): Promise<void>;
+
+  /**
+   * Sets the average wind vector to the alternate destination. If the provided vector is null, the entry is deleted.
+   * @param entry the entry to set, or null to delete the entry
+   * @param planIndex which flight plan index to set the entry in
+   */
+  setAlternateWind(entry: WindVector | null, planIndex: number): Promise<void>;
 }
