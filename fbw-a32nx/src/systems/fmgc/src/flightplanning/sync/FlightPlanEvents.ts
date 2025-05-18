@@ -9,6 +9,7 @@ import { FixInfoData } from '@fmgc/flightplanning/plans/FixInfo';
 import { SerializedFlightPlan } from '@fmgc/flightplanning/plans/BaseFlightPlan';
 import { CruiseStepEntry } from '@fmgc/flightplanning/CruiseStep';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
+import { WindEntry } from '../data/wind';
 
 export interface FlightPlanSyncResponsePacket {
   plans: Record<number, SerializedFlightPlan>;
@@ -67,6 +68,11 @@ export interface FlightPlanFlightNumberEditEvent extends FlightPlanEditSyncEvent
   flightNumber: string;
 }
 
+export interface FlightPlanCruiseWindsEditEvent extends FlightPlanEditSyncEvent {
+  atIndex: number;
+  newCruiseWinds: WindEntry[];
+}
+
 export type PerformanceDataFlightPlanSyncEvents<P extends FlightPlanPerformanceData> = {
   [k in keyof Omit<P, 'clone'> as `flightPlan.setPerformanceData.${k & string}`]: PerformanceDataSetEvent<P[k]>;
 };
@@ -91,6 +97,7 @@ export interface FlightPlanEvents {
   'flightPlan.setLegCruiseStep': FlightPlanLegCruiseStepEditEvent;
   'flightPlan.setFixInfoEntry': FlightPlanSetFixInfoEntryEvent;
   'flightPlan.setFlightNumber': FlightPlanFlightNumberEditEvent;
+  'flightPlan.setCruiseWinds': FlightPlanCruiseWindsEditEvent;
 }
 
 /**

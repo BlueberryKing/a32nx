@@ -19,7 +19,7 @@ import {
   DefaultPerformanceData,
   FlightPlanPerformanceData,
 } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
-import { PropagatedWindEntry } from './data/wind';
+import { WindEntry, PropagatedWindEntry } from './data/wind';
 
 export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanPerformanceData>
   implements FlightPlanInterface<P>
@@ -756,5 +756,23 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     const plan = this.flightPlanManager.get(planIndex);
 
     return plan.propagateWindsAt(atIndex, result, this.config.NUM_CRUISE_WIND_LEVELS);
+  }
+
+  addCruiseWindEntry(atIndex: number, entry: WindEntry, planIndex: number): Promise<void> {
+    const plan = this.flightPlanManager.get(planIndex);
+
+    return plan.addCruiseWindEntry(atIndex, entry, this.config.NUM_CRUISE_WIND_LEVELS);
+  }
+
+  deleteCruiseWindEntry(atIndex: number, altitude: number, planIndex: number): Promise<void> {
+    const plan = this.flightPlanManager.get(planIndex);
+
+    return plan.deleteCruiseWindEntry(atIndex, altitude, this.config.NUM_CRUISE_WIND_LEVELS);
+  }
+
+  editCruiseWindEntry(atIndex: number, altitude: number, newEntry: WindEntry, planIndex: number): Promise<void> {
+    const plan = this.flightPlanManager.get(planIndex);
+
+    return plan.editCruiseWindEntry(atIndex, altitude, newEntry, this.config.NUM_CRUISE_WIND_LEVELS);
   }
 }
