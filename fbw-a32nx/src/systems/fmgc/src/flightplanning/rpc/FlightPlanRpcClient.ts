@@ -414,7 +414,7 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('stringMissedApproach', onConstraintsDeleted, planIndex);
   }
 
-  propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex: number): Promise<number> {
+  propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], planIndex: number): Promise<PropagatedWindEntry[]> {
     return this.callFunctionViaRpc('propagateWindsAt', atIndex, result, planIndex);
   }
 

@@ -2784,9 +2784,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       }
     }
 
-    result.sort((a, b) => b.altitude - a.altitude);
-
-    return numWindEntries;
+    return result.slice(0, numWindEntries).sort((a, b) => b.altitude - a.altitude);
   }
 
   async addCruiseWindEntry(atIndex: number, entry: WindEntry, maxNumEntries: number): Promise<void> {
@@ -2802,9 +2800,9 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       return;
     }
 
-    const numExistingEntries = await this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
+    const existingEntries = await this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
 
-    if (numExistingEntries >= maxNumEntries) {
+    if (existingEntries.length >= maxNumEntries) {
       console.error('[FMS/FPM] Tried to add a cruise wind entry to a full list');
       return;
     }
@@ -2862,16 +2860,16 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       return;
     }
 
-    await this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
+    const winds = await this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
+    const oldEntry = winds.find((e) => Math.round(e.altitude / 100) === Math.round(altitude / 100));
 
-    const oldEntry = BaseFlightPlan.WindCache.find((e) => Math.round(e.altitude / 100) === Math.round(altitude / 100));
     if (!oldEntry) {
       console.error('[FMS/FPM] Tried to edit a cruise wind entry that does not exist');
       return;
     }
 
-    this.deleteCruiseWindEntry(oldEntry.sourceLegIndex, oldEntry.altitude);
-    this.addCruiseWindEntry(atIndex, newEntry, maxNumEntries);
+    await this.deleteCruiseWindEntry(oldEntry.sourceLegIndex, oldEntry.altitude);
+    await this.addCruiseWindEntry(atIndex, newEntry, maxNumEntries);
   }
 }
 
