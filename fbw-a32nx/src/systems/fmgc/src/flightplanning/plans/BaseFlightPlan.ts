@@ -2731,7 +2731,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     );
   }
 
-  async propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], maxNumEntries: number): Promise<number> {
+  propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], maxNumEntries: number): PropagatedWindEntry[] {
     let numWindEntries = 0;
 
     for (let i = 0; i < this.firstMissedApproachLegIndex && numWindEntries < maxNumEntries; i++) {
@@ -2802,7 +2802,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       return;
     }
 
-    const existingEntries = await this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
+    const existingEntries = this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
 
     if (existingEntries.length >= maxNumEntries) {
       console.error('[FMS/FPM] Tried to add a cruise wind entry to a full list');
@@ -2868,7 +2868,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       return;
     }
 
-    const existingEntries = await this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
+    const existingEntries = this.propagateWindsAt(atIndex, BaseFlightPlan.WindCache, maxNumEntries);
 
     // Check if the entry we clicked on has one of the four available cruise levels
     const clickedEntry = existingEntries.find((e) => Math.round(e.altitude / 100) === Math.round(altitude / 100));

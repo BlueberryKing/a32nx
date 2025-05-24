@@ -89,9 +89,5 @@ export interface ReadonlyFlightPlan {
 
   allLegs: readonly ReadonlyFlightPlanElement[];
 
-  propagateWindsAt(
-    atIndex: number,
-    result: PropagatedWindEntry[],
-    maxNumEntries: number,
-  ): Promise<PropagatedWindEntry[]>;
+  propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], maxNumEntries: number): PropagatedWindEntry[];
 }
