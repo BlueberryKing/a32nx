@@ -28,6 +28,7 @@ import { HoldUtils } from '@fmgc/flightplanning/data/hold';
 import { OriginSegment } from '@fmgc/flightplanning/segments/OriginSegment';
 import { ReadonlyFlightPlanLeg } from '@fmgc/flightplanning/legs/ReadonlyFlightPlanLeg';
 import { WindEntry } from '../data/wind';
+import { Vec2Math } from '@microsoft/msfs-sdk';
 
 /**
  * A serialized flight plan leg, to be sent across FMSes
@@ -137,8 +138,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
         ? JSON.parse(JSON.stringify(this.pilotEnteredSpeedConstraint))
         : undefined,
       cruiseWindEntries: this.cruiseWindEntries.map((entry) => ({
-        trueDegrees: entry.trueDegrees,
-        magnitude: entry.magnitude,
+        vector: Vec2Math.copy(entry.vector, Vec2Math.create()),
         altitude: entry.altitude,
       })),
     };
@@ -162,8 +162,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
     leg.pilotEnteredAltitudeConstraint = serialized.pilotEnteredAltitudeConstraint;
     leg.pilotEnteredSpeedConstraint = serialized.pilotEnteredSpeedConstraint;
     leg.cruiseWindEntries = serialized.cruiseWindEntries.map((entry) => ({
-      trueDegrees: entry.trueDegrees,
-      magnitude: entry.magnitude,
+      vector: Vec2Math.copy(entry.vector, Vec2Math.create()),
       altitude: entry.altitude,
     }));
 
