@@ -67,7 +67,7 @@ import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { bearingTo } from 'msfs-geo';
 import { RestringOptions } from './RestringOptions';
 import { FlightPlanQueuedOperation } from '@fmgc/flightplanning/plans/FlightPlanQueuedOperation';
-import { PropagatedWindEntry, PropagationType, WindEntry } from '../data/wind';
+import { formatWindEntry, PropagatedWindEntry, PropagationType, WindEntry } from '../data/wind';
 
 export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerformanceData>
   implements ReadonlyFlightPlan
@@ -2759,8 +2759,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         if (existingEntryIndex >= 0) {
           if (windPropagationType !== PropagationType.Backward) {
             result[existingEntryIndex].altitude = windEntry.altitude;
-            result[existingEntryIndex].magnitude = windEntry.magnitude;
-            result[existingEntryIndex].trueDegrees = windEntry.trueDegrees;
+            result[existingEntryIndex].vector = windEntry.vector;
             result[existingEntryIndex].type = windPropagationType;
             result[existingEntryIndex].sourceLegIndex = i;
           }
@@ -2768,15 +2767,13 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
           if (numWindEntries >= result.length) {
             result.push({
               altitude: windEntry.altitude,
-              magnitude: windEntry.magnitude,
-              trueDegrees: windEntry.trueDegrees,
+              vector: windEntry.vector,
               type: windPropagationType,
               sourceLegIndex: i,
             });
           } else {
             result[numWindEntries].altitude = windEntry.altitude;
-            result[numWindEntries].magnitude = windEntry.magnitude;
-            result[numWindEntries].trueDegrees = windEntry.trueDegrees;
+            result[numWindEntries].vector = windEntry.vector;
             result[numWindEntries].type = windPropagationType;
             result[numWindEntries].sourceLegIndex = i;
           }
@@ -2881,12 +2878,8 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
 
     if (LnavConfig.VERBOSE_FPM_LOG) {
       console.group('[FMS/FPM] Cruise wind modification');
-      console.log(
-        `[FMS/FPM] 1) Entered ${newEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${newEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(newEntry.altitude / 100).toFixed(0).padStart(3, '0')}`,
-      );
-      console.log(
-        `[FMS/FPM] 2) Clicked on entry ${clickedEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${clickedEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(clickedEntry.altitude / 100).toFixed(0).padStart(3, '0')}`,
-      );
+      console.log(`[FMS/FPM] 1) Entered ${formatWindEntry(newEntry)}`);
+      console.log(`[FMS/FPM] 2) Clicked on entry ${formatWindEntry(clickedEntry)}`);
     }
 
     // Check if the new altitude we entered already exists as a cruise wind entry level
@@ -2896,29 +2889,24 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
 
     if (propagatedEntry) {
       LnavConfig.VERBOSE_FPM_LOG &&
-        console.log(
-          `[FMS/FPM] 3) Entry found at new altitude ${propagatedEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${propagatedEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(propagatedEntry.altitude / 100).toFixed(0).padStart(3, '0')}`,
-        );
+        console.log(`[FMS/FPM] 3) Entry found at new altitude ${formatWindEntry(propagatedEntry)}`);
 
       if (propagatedEntry.type === PropagationType.Entry) {
         LnavConfig.VERBOSE_FPM_LOG &&
           console.log(
-            `[FMS/FPM] 4) Propagated wind entry exists on this leg. Editing ${propagatedEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${propagatedEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(propagatedEntry.altitude / 100).toFixed(0).padStart(3, '0')} -> ${newEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${newEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(newEntry.altitude / 100).toFixed(0).padStart(3, '0')}`,
+            `[FMS/FPM] 4) Propagated wind entry exists on this leg. Editing ${formatWindEntry(propagatedEntry)}`,
           );
 
         const oldEntry = leg.cruiseWindEntries.find(
           (e) => Math.round(e.altitude / 100) === Math.round(newEntry.altitude / 100),
         );
 
-        oldEntry!.magnitude = newEntry.magnitude;
-        oldEntry!.trueDegrees = newEntry.trueDegrees;
+        oldEntry!.vector = newEntry.vector;
 
         this.syncCruiseWindChange(atIndex);
       } else {
         LnavConfig.VERBOSE_FPM_LOG &&
-          console.log(
-            `[FMS/FPM] 4) Propagated wind comes from a different leg. Adding ${newEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${newEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(newEntry.altitude / 100).toFixed(0).padStart(3, '0')}`,
-          );
+          console.log(`[FMS/FPM] 4) Propagated wind comes from a different leg. Adding ${formatWindEntry(newEntry)}`);
 
         await this.addCruiseWindEntry(atIndex, newEntry, maxNumEntries);
       }
@@ -2927,9 +2915,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         console.log(
           `[FMS/FPM] 3) Editing a cruise wind entry. Deleting all entries at the old altitude (FL${(altitude / 100).toFixed(0).padStart(3, '0')}).`,
         );
-        console.log(
-          `[FMS/FPM] 4) Adding ${newEntry.trueDegrees.toFixed(0).padStart(3, '0')}°/${newEntry.magnitude.toFixed(0).padStart(3, '0')}/FL${(newEntry.altitude / 100).toFixed(0).padStart(3, '0')}`,
-        );
+        console.log(`[FMS/FPM] 4) Adding ${formatWindEntry(newEntry)}`);
       }
 
       // Delete all entries with the same altitude (FCOM)
