@@ -333,7 +333,7 @@ export class CDUHoldAtPage {
     mcdu.onRightInput[5] = () => {
       if (tmpy) {
         mcdu.insertTemporaryFlightPlan(() => {
-          CDUFlightPlanPage.ShowPage(mcdu, waypointIndexFP, forPlan);
+          CDUFlightPlanPage.ShowPage(mcdu, waypointIndexFP, false, forPlan);
         });
       }
     };

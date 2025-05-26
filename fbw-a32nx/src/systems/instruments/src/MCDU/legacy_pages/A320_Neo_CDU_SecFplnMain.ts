@@ -21,12 +21,12 @@ export class CDUSecFplnMain {
     mcdu.onLeftInput[0] = () => {
       return;
       //mcdu.flightPlanService.flightPlanManager.copy(FlightPlanIndex.Active, FlightPlanIndex.FirstSecondary);
-      CDUFlightPlanPage.ShowPage(mcdu, 0, FlightPlanIndex.FirstSecondary);
+      CDUFlightPlanPage.ShowPage(mcdu, 0, false, FlightPlanIndex.FirstSecondary);
     };
 
     mcdu.onLeftInput[1] = () => {
       return;
-      CDUFlightPlanPage.ShowPage(mcdu, 0, FlightPlanIndex.FirstSecondary);
+      CDUFlightPlanPage.ShowPage(mcdu, 0, false, FlightPlanIndex.FirstSecondary);
     };
 
     mcdu.onLeftInput[2] = () => {
