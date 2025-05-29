@@ -5,6 +5,7 @@
 
 import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { WindEntry, WindVector } from '../../data/wind';
+import { Vec2Math } from '@microsoft/msfs-sdk';
 
 export interface FlightPlanPerformanceData {
   /**
@@ -346,6 +347,16 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
     cloned.alternateDescentSpeedLimitSpeed = this.alternateDescentSpeedLimitSpeed;
     cloned.alternateDescentSpeedLimitAltitude = this.alternateDescentSpeedLimitAltitude;
     cloned.isAlternateDescentSpeedLimitPilotEntered = this.isAlternateDescentSpeedLimitPilotEntered;
+
+    cloned.climbWindEntries = this.climbWindEntries.map(({ altitude, vector }) => ({
+      altitude,
+      vector: Vec2Math.copy(vector, Vec2Math.create()),
+    }));
+    cloned.descentWindEntries = this.descentWindEntries.map(({ altitude, vector }) => ({
+      altitude,
+      vector: Vec2Math.copy(vector, Vec2Math.create()),
+    }));
+    cloned.alternateWind = this.alternateWind !== null ? Vec2Math.copy(this.alternateWind, Vec2Math.create()) : null;
 
     return cloned as this;
   }
