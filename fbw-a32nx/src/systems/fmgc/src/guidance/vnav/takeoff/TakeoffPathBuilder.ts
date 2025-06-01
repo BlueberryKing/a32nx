@@ -8,7 +8,7 @@ import { Common, FlapConf } from '@fmgc/guidance/vnav/common';
 import { EngineModel } from '@fmgc/guidance/vnav/EngineModel';
 import { Predictions } from '@fmgc/guidance/vnav/Predictions';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
-import { VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { ProfilePhase, VerticalCheckpointReason } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 
 export class TakeoffPathBuilder {
@@ -34,6 +34,7 @@ export class TakeoffPathBuilder {
       remainingFuelOnBoard: fuelOnBoard,
       speed: v2Speed + 10,
       mach: managedClimbSpeedMach,
+      profilePhase: ProfilePhase.Climb,
     });
   }
 
@@ -88,6 +89,7 @@ export class TakeoffPathBuilder {
       remainingFuelOnBoard: profile.lastCheckpoint.remainingFuelOnBoard - fuelBurned,
       speed,
       mach: managedClimbSpeedMach,
+      profilePhase: ProfilePhase.Climb,
     });
   }
 
@@ -134,6 +136,7 @@ export class TakeoffPathBuilder {
       remainingFuelOnBoard: lastCheckpoint.remainingFuelOnBoard - fuelBurned,
       speed,
       mach: managedClimbSpeedMach,
+      profilePhase: ProfilePhase.Climb,
     });
   }
 }

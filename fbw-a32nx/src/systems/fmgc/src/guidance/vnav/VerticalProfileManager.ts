@@ -43,6 +43,7 @@ import {
   isApproachCheckpoint,
   isSpeedChangePoint,
   NavGeometryProfile,
+  ProfilePhase,
   VerticalCheckpointReason,
 } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
@@ -149,6 +150,7 @@ export class VerticalProfileManager {
         fuelOnBoard,
         this.getManagedMachTarget(),
         this.getVman(approachSpeed),
+        this.getProfilePhaseFromFlightPhase(flightPhase),
       );
     }
 
@@ -240,7 +242,8 @@ export class VerticalProfileManager {
 
   computeVerticalProfileForExpediteClimb(): void {
     try {
-      const { approachSpeed, fcuAltitude, presentPosition, fuelOnBoard, managedClimbSpeedMach } = this.observer.get();
+      const { approachSpeed, fcuAltitude, presentPosition, fuelOnBoard, managedClimbSpeedMach, flightPhase } =
+        this.observer.get();
 
       // TODO: I wonder where GD speed comes from IRL. Should probably be an FMGC computation rather than FAC since it's just for predictions
       const greenDotSpeed = Simplane.getGreenDotSpeed();
@@ -258,6 +261,7 @@ export class VerticalProfileManager {
         fuelOnBoard,
         managedClimbSpeedMach,
         this.getVman(approachSpeed),
+        this.getProfilePhaseFromFlightPhase(flightPhase),
       );
       this.climbPathBuilder.computeClimbPath(
         this.expediteProfile,
@@ -279,7 +283,7 @@ export class VerticalProfileManager {
    * Build a path from the present position to the FCU altitude
    */
   computeTacticalNdProfile(): void {
-    const { fcuAltitude, cleanSpeed, presentPosition, fuelOnBoard, approachSpeed } = this.observer.get();
+    const { fcuAltitude, cleanSpeed, presentPosition, fuelOnBoard, approachSpeed, flightPhase } = this.observer.get();
 
     const ndProfile = this.fcuModes.isLatAutoControlActive()
       ? new NavGeometryProfile(this.flightPlanService, this.constraintReader, this.atmosphericConditions)
@@ -315,6 +319,7 @@ export class VerticalProfileManager {
       fuelOnBoard,
       this.getManagedMachTarget(),
       this.getVman(approachSpeed),
+      this.getProfilePhaseFromFlightPhase(flightPhase),
     );
 
     // Build path to FCU altitude
@@ -760,6 +765,23 @@ export class VerticalProfileManager {
     }
 
     return this.flightPlanService.active?.hasTooSteepPathAhead();
+  }
+
+  private getProfilePhaseFromFlightPhase(flightPhase: FmgcFlightPhase): ProfilePhase {
+    switch (flightPhase) {
+      case FmgcFlightPhase.Takeoff:
+      case FmgcFlightPhase.Climb:
+        return ProfilePhase.Climb;
+      case FmgcFlightPhase.Cruise:
+        return ProfilePhase.Cruise;
+      case FmgcFlightPhase.Descent:
+      case FmgcFlightPhase.Approach:
+        return ProfilePhase.Descent;
+      case FmgcFlightPhase.Done:
+      case FmgcFlightPhase.GoAround:
+      default:
+        return ProfilePhase.Climb;
+    }
   }
 }
 

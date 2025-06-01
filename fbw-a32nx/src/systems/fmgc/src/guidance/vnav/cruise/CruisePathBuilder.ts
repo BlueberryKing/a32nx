@@ -16,6 +16,7 @@ import {
   GeographicCruiseStep,
   MaxSpeedConstraint,
   NavGeometryProfile,
+  ProfilePhase,
   VerticalCheckpoint,
   VerticalCheckpointReason,
 } from '../profile/NavGeometryProfile';
@@ -75,7 +76,11 @@ export class CruisePathBuilder {
         speed,
         headwind,
       );
-      sequence.addCheckpointFromStep(segmentToStep, VerticalCheckpointReason.AtmosphericConditions);
+      sequence.addCheckpointFromStep(
+        segmentToStep,
+        VerticalCheckpointReason.AtmosphericConditions,
+        ProfilePhase.Cruise,
+      );
 
       const addingStepSuccessful = this.tryAddStepFromLastCheckpoint(
         sequence,
@@ -122,7 +127,11 @@ export class CruisePathBuilder {
         ),
       );
 
-      sequence.addCheckpointFromStep(accelerationStep, VerticalCheckpointReason.AtmosphericConditions);
+      sequence.addCheckpointFromStep(
+        accelerationStep,
+        VerticalCheckpointReason.AtmosphericConditions,
+        ProfilePhase.Cruise,
+      );
     }
 
     if (VnavConfig.DEBUG_PROFILE && targetDistanceFromStart < sequence.lastCheckpoint.distanceFromStart) {
@@ -140,7 +149,7 @@ export class CruisePathBuilder {
       windProfile.getHeadwindComponent(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
     );
 
-    sequence.addCheckpointFromStep(step, VerticalCheckpointReason.AtmosphericConditions);
+    sequence.addCheckpointFromStep(step, VerticalCheckpointReason.AtmosphericConditions, ProfilePhase.Cruise);
 
     return sequence;
   }
@@ -168,7 +177,7 @@ export class CruisePathBuilder {
       windProfile.getHeadwindComponent(distanceFromStart, altitude),
     );
 
-    sequence.addCheckpointFromStep(segmentResult, VerticalCheckpointReason.SpeedConstraint);
+    sequence.addCheckpointFromStep(segmentResult, VerticalCheckpointReason.SpeedConstraint, ProfilePhase.Cruise);
   }
 
   /**
@@ -224,6 +233,7 @@ export class CruisePathBuilder {
     sequence.addCheckpointFromStep(
       stepResults,
       isClimbVsDescent ? VerticalCheckpointReason.TopOfStepClimb : VerticalCheckpointReason.BottomOfStepDescent,
+      ProfilePhase.Cruise,
     );
 
     return true;
