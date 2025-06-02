@@ -3,7 +3,6 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { DescentPathBuilder } from '@fmgc/guidance/vnav/descent/DescentPathBuilder';
-import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
 import { VerticalMode, LateralMode, isArmed, ArmedVerticalMode } from '@shared/autopilot';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
@@ -31,9 +30,6 @@ import {
 } from '@fmgc/guidance/vnav/descent/TacticalDescentPathBuilder';
 import { DescentStrategy, DesModeStrategy, IdleDescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
 import { ApproachPathBuilder } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
-import { WindProfileFactory } from '@fmgc/guidance/vnav/wind/WindProfileFactory';
-import { NavHeadingProfile } from '@fmgc/guidance/vnav/wind/AircraftHeadingProfile';
-import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
 import { ProfileInterceptCalculator } from '@fmgc/guidance/vnav/descent/ProfileInterceptCalculator';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
@@ -75,12 +71,9 @@ export class VerticalProfileManager {
 
   constructor(
     private readonly flightPlanService: FlightPlanService,
-    private guidanceController: GuidanceController,
     private observer: VerticalProfileComputationParametersObserver,
     private atmosphericConditions: AtmosphericConditions,
     private constraintReader: ConstraintReader,
-    private headingProfile: NavHeadingProfile,
-    private windProfileFactory: WindProfileFactory,
     private aircraftToDescentProfileRelation: AircraftToDescentProfileRelation,
     private readonly acConfig: AircraftConfig,
   ) {
@@ -125,10 +118,6 @@ export class VerticalProfileManager {
       this.acConfig,
     );
 
-    const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
-    const cruiseWinds = new HeadwindProfile(this.windProfileFactory.getCruiseWinds(), this.headingProfile);
-    const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
-
     const mcduProfile = new NavGeometryProfile(
       this.flightPlanService,
       this.constraintReader,
@@ -160,7 +149,6 @@ export class VerticalProfileManager {
         this.acConfig,
         managedClimbStrategy,
         speedProfile,
-        climbWinds,
         cruiseAltitude,
       );
     }
@@ -177,7 +165,6 @@ export class VerticalProfileManager {
         mcduProfile,
         this.getDesModeStrategy(),
         speedProfile,
-        descentWinds,
         schedule,
       );
       this.mergeMcduWithGuidanceProfile(mcduProfile, offset);
@@ -185,8 +172,6 @@ export class VerticalProfileManager {
       this.cruiseToDescentCoordinator.buildCruiseAndDescentPath(
         mcduProfile,
         speedProfile,
-        cruiseWinds,
-        descentWinds,
         managedClimbStrategy,
         stepDescentStrategy,
       );
@@ -210,8 +195,6 @@ export class VerticalProfileManager {
       this.constraintReader.descentSpeedConstraints,
     );
 
-    const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
-
     const { estimatedDestinationFuel } = this.observer.get();
     // Use INIT FUEL PRED entry as initial estimate for destination EFOB. Clamp it to avoid potentially crashing predictions entirely from erroneous pilot input.
     const fuelEstimation = Number.isFinite(estimatedDestinationFuel)
@@ -219,18 +202,11 @@ export class VerticalProfileManager {
       : 4000;
     const finalCruiseAltitude = this.cruisePathBuilder.getFinalCruiseAltitude(descentProfile.cruiseSteps);
 
-    const sequence = this.approachPathBuilder.computeApproachPath(
-      descentProfile,
-      speedProfile,
-      descentWinds,
-      fuelEstimation,
-      0,
-    );
+    const sequence = this.approachPathBuilder.computeApproachPath(descentProfile, speedProfile, fuelEstimation, 0);
     this.managedDescentPathBuilder.computeManagedDescentPath(
       sequence,
       descentProfile,
       speedProfile,
-      descentWinds,
       finalCruiseAltitude,
     );
 
@@ -252,9 +228,8 @@ export class VerticalProfileManager {
       }
 
       const selectedSpeedProfile = new ExpediteSpeedProfile(greenDotSpeed);
-      this.expediteProfile = new SelectedGeometryProfile();
+      this.expediteProfile = new SelectedGeometryProfile(this.flightPlanService.active);
       const climbStrategy = new ClimbThrustClimbStrategy(this.observer, this.atmosphericConditions, this.acConfig);
-      const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
 
       this.expediteProfile.addPresentPositionCheckpoint(
         presentPosition,
@@ -268,14 +243,13 @@ export class VerticalProfileManager {
         this.acConfig,
         climbStrategy,
         selectedSpeedProfile,
-        climbWinds,
         fcuAltitude,
       );
 
       this.expediteProfile.finalizeProfile();
     } catch (e) {
       console.error(e);
-      this.expediteProfile = new SelectedGeometryProfile();
+      this.expediteProfile = new SelectedGeometryProfile(this.flightPlanService.active);
     }
   }
 
@@ -287,7 +261,7 @@ export class VerticalProfileManager {
 
     const ndProfile = this.fcuModes.isLatAutoControlActive()
       ? new NavGeometryProfile(this.flightPlanService, this.constraintReader, this.atmosphericConditions)
-      : new SelectedGeometryProfile();
+      : new SelectedGeometryProfile(this.flightPlanService.active);
 
     let speedProfile: SpeedProfile;
     if (this.fcuModes.isExpediteModeActive()) {
@@ -325,19 +299,10 @@ export class VerticalProfileManager {
     // Build path to FCU altitude
     if (this.fcuModes.isInTakeoffMode() || this.fcuModes.isInClimbingMode()) {
       const climbStrategy = this.getClimbStrategyForVerticalMode();
-      const climbWinds = new HeadwindProfile(this.windProfileFactory.getClimbWinds(), this.headingProfile);
 
-      this.climbPathBuilder.computeClimbPath(
-        ndProfile,
-        this.acConfig,
-        climbStrategy,
-        speedProfile,
-        climbWinds,
-        fcuAltitude,
-      );
+      this.climbPathBuilder.computeClimbPath(ndProfile, this.acConfig, climbStrategy, speedProfile, fcuAltitude);
     } else if (this.fcuModes.isInDescentMode()) {
       const descentStrategy = this.getDescentStrategyForVerticalMode();
-      const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
       const offset = this.computeTacticalToGuidanceProfileOffset();
       const schedule = this.getDecelerationScheduleFromDescentPath(offset);
 
@@ -345,7 +310,6 @@ export class VerticalProfileManager {
         ndProfile,
         descentStrategy,
         speedProfile,
-        descentWinds,
         fcuAltitude,
         schedule,
       );

@@ -28,7 +28,7 @@ import {
 } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { WindComponent } from '@fmgc/guidance/vnav/wind';
-import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
+import { WindInterface } from '@fmgc/guidance/vnav/wind/WindProfile';
 
 type MinimumDescentAltitudeConstraint = {
   distanceFromStart: NauticalMiles;
@@ -81,7 +81,6 @@ export class TacticalDescentPathBuilder {
     profile: NavGeometryProfile,
     descentStrategy: DescentStrategy,
     speedProfile: SpeedProfile,
-    windProfile: HeadwindProfile,
     schedule: DecelerationSchedule,
   ) {
     const start = profile.lastCheckpoint;
@@ -100,7 +99,7 @@ export class TacticalDescentPathBuilder {
       ({ distanceFromStart }) => distanceFromStart < decelPointDistance,
     );
 
-    const phaseTable = new PhaseTable(this.observer.get(), windProfile);
+    const phaseTable = new PhaseTable(this.observer.get(), profile.winds);
     phaseTable.start = start;
     phaseTable.phases = [
       new DescendToAltitude(profile.finalAltitude).withReasonAfter(VerticalCheckpointReason.Landing),
@@ -141,7 +140,6 @@ export class TacticalDescentPathBuilder {
     profile: BaseGeometryProfile,
     descentStrategy: DescentStrategy,
     speedProfile: SpeedProfile,
-    windProfile: HeadwindProfile,
     finalAltitude: Feet,
     schedule: DecelerationSchedule,
   ) {
@@ -161,7 +159,7 @@ export class TacticalDescentPathBuilder {
       ({ distanceFromStart }) => distanceFromStart < decelPointDistance,
     );
 
-    const phaseTable = new PhaseTable(this.observer.get(), windProfile);
+    const phaseTable = new PhaseTable(this.observer.get(), profile.winds);
     phaseTable.start = start;
     phaseTable.phases = [
       new DescendToAltitude(finalAltitude).withReasonAfter(VerticalCheckpointReason.CrossingFcuAltitudeDescent),
@@ -610,7 +608,7 @@ class PhaseTable {
 
   constructor(
     private readonly parameters: VerticalProfileComputationParameters,
-    private readonly winds: HeadwindProfile,
+    private readonly winds: WindInterface,
   ) {}
 
   execute(descentStrategy: DescentStrategy, levelFlightStrategy: DescentStrategy): TemporaryCheckpointSequence {
@@ -626,9 +624,9 @@ class PhaseTable {
       }
 
       if (phase.shouldExecute(sequence.lastCheckpoint)) {
-        const headwind = this.winds.getHeadwindComponent(
-          sequence.lastCheckpoint.distanceFromStart,
-          sequence.lastCheckpoint.altitude,
+        // TODO winds get rid of WindComponent
+        const headwind = new WindComponent(
+          -this.winds.getDescentTailwind(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
         );
         const phaseResult = phase.execute(phase.shouldFlyAsLevelSegment ? levelFlightStrategy : descentStrategy)(
           sequence.lastCheckpoint,

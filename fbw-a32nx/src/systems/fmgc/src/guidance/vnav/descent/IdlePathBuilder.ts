@@ -13,7 +13,8 @@ import {
 import { TemporaryCheckpointSequence } from '@fmgc/guidance/vnav/profile/TemporaryCheckpointSequence';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
-import { HeadwindProfile } from '@fmgc/guidance/vnav/wind/HeadwindProfile';
+import { BaseGeometryProfile } from '../profile/BaseGeometryProfile';
+import { WindComponent } from '../wind';
 
 export class IdlePathBuilder {
   private readonly idleDescentStrategy: DescentStrategy;
@@ -37,24 +38,17 @@ export class IdlePathBuilder {
   }
 
   buildIdlePath(
+    profile: BaseGeometryProfile,
     sequence: TemporaryCheckpointSequence,
     descentSpeedConstraints: MaxSpeedConstraint[],
     speedProfile: SpeedProfile,
-    windProfile: HeadwindProfile,
     topOfDescentAltitude: Feet,
     toDistance: NauticalMiles = -Infinity,
   ): void {
     // Assume the last checkpoint is the start of the geometric path
     sequence.copyLastCheckpoint({ reason: VerticalCheckpointReason.IdlePathEnd });
 
-    this.buildIdleSequence(
-      sequence,
-      descentSpeedConstraints,
-      speedProfile,
-      windProfile,
-      topOfDescentAltitude,
-      toDistance,
-    );
+    this.buildIdleSequence(profile, sequence, descentSpeedConstraints, speedProfile, topOfDescentAltitude, toDistance);
 
     if (sequence.lastCheckpoint.reason === VerticalCheckpointReason.IdlePathAtmosphericConditions) {
       sequence.lastCheckpoint.reason = VerticalCheckpointReason.TopOfDescent;
@@ -64,10 +58,10 @@ export class IdlePathBuilder {
   }
 
   private buildIdleSequence(
+    profile: BaseGeometryProfile,
     sequence: TemporaryCheckpointSequence,
     descentSpeedConstraints: MaxSpeedConstraint[],
     speedProfile: SpeedProfile,
-    windProfile: HeadwindProfile,
     topOfDescentAltitude: Feet,
     toDistance: NauticalMiles = -Infinity,
   ) {
@@ -98,7 +92,8 @@ export class IdlePathBuilder {
       i++
     ) {
       const { distanceFromStart, altitude, speed, remainingFuelOnBoard } = sequence.lastCheckpoint;
-      const headwind = windProfile.getHeadwindComponent(distanceFromStart, altitude);
+      const headwind = new WindComponent(-profile.winds.getDescentTailwind(distanceFromStart, altitude));
+
       const isUnderSpeedLimitAltitude =
         speedProfile.shouldTakeDescentSpeedLimitIntoAccount() && altitude < descentSpeedLimit.underAltitude;
 

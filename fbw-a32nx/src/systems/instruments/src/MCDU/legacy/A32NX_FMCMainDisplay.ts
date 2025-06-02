@@ -64,7 +64,6 @@ import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { initComponents, updateComponents } from '@fmgc/components';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
-import { FmcWindVector } from '@fmgc/guidance/vnav/wind/types';
 
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
@@ -5079,30 +5078,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   public getTripWind() {
     // FIXME convert vnav to use +ve for tailwind, -ve for headwind, it's the other way around at the moment
     return -this.averageWind;
-  }
-
-  public getWinds() {
-    // FIXME
-    return {
-      climb: [],
-      cruise: [],
-      des: [],
-      alternate: null,
-    };
-  }
-
-  public getApproachWind(): FmcWindVector | null {
-    const activePlan = this.currFlightPlanService.active;
-    const destination = activePlan.destinationAirport;
-
-    if (!destination || !destination.location || this.perfApprWindHeading === null || this.perfApprWindSpeed === null) {
-      return null;
-    }
-
-    const magVar = Facilities.getMagVar(destination.location.lat, destination.location.long);
-    const trueHeading = A32NX_Util.magneticToTrue(this.perfApprWindHeading, magVar);
-
-    return { direction: trueHeading, speed: this.perfApprWindSpeed };
   }
 
   public getApproachQnh() {
