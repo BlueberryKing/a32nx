@@ -2715,7 +2715,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     this.incrementVersion();
   }
 
-  protected hasLegAt(index: number): boolean {
+  hasLegAt(index: number): boolean {
     return isLeg(this.maybeElementAt(index));
   }
 
