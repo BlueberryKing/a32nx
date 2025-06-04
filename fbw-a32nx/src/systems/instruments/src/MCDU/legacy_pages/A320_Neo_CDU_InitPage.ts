@@ -557,7 +557,11 @@ export class CDUInitPage {
     const tripWindDirCell = new Column(19, '--');
     const tripWindAvgCell = new Column(21, '---');
 
-    if (mcdu.flightPlanService.active.originAirport && mcdu.flightPlanService.active.destinationAirport) {
+    if (
+      mcdu.flightPlanService.active.originAirport &&
+      mcdu.flightPlanService.active.destinationAirport &&
+      !mcdu.flightPlanService.active.hasWindEntries()
+    ) {
       tripWindDirCell.update(CDUInitPage.formatWindDirection(mcdu.averageWind), Column.cyan, Column.small);
       tripWindAvgCell.update(CDUInitPage.formatWindComponent(mcdu.averageWind), Column.cyan);
 
@@ -695,23 +699,6 @@ export class CDUInitPage {
         mcdu.tryUpdateLW();
         lwCell.update(NXUnits.kgToUser(mcdu.landingWeight).toFixed(1), Column.green, Column.small);
         towLwCellDivider.updateAttributes(Column.green, Column.small);
-
-        const windComponent = Number.isFinite(mcdu.averageWind) ? mcdu.averageWind : 0;
-
-        tripWindDirCell.update(CDUInitPage.formatWindDirection(windComponent), Column.small);
-        tripWindAvgCell.update(CDUInitPage.formatWindComponent(windComponent), Column.big);
-
-        mcdu.onRightInput[4] = async (value, scratchpadCallback) => {
-          setTimeout(() => {
-            if (mcdu.trySetAverageWind(value)) {
-              if (mcdu.page.Current === mcdu.page.InitPageB) {
-                CDUInitPage.ShowPage2(mcdu);
-              }
-            } else {
-              scratchpadCallback();
-            }
-          }, mcdu.getDelayWindLoad());
-        };
 
         if (mcdu._minDestFobEntered) {
           minDestFob.update(NXUnits.kgToUser(mcdu._minDestFob).toFixed(1), Column.cyan);
