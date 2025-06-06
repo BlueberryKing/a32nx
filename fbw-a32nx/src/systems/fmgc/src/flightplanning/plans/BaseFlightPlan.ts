@@ -1287,10 +1287,9 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     await this.approachViaSegment.setProcedure(undefined);
     await this.arrivalEnrouteTransitionSegment.setProcedure(undefined);
     await this.arrivalSegment.setProcedure(undefined);
-    await this.destinationSegment.setDestinationIcao(airportIdent);
-    await this.destinationSegment.setDestinationRunway(undefined);
 
-    await this.flushOperationQueue();
+    this.setDestinationAirport(airportIdent);
+    this.setDestinationRunway(undefined);
 
     this.enrouteSegment.allLegs.splice(legIndexInEnroute + 1, legsToDelete);
 

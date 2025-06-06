@@ -144,6 +144,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     this.setPerformanceData('alternateDescentSpeedLimitSpeed', DefaultPerformanceData.DescentSpeedLimitSpeed);
     this.setPerformanceData('alternateDescentSpeedLimitAltitude', DefaultPerformanceData.DescentSpeedLimitAltitude);
     this.setPerformanceData('isAlternateDescentSpeedLimitPilotEntered', false);
+    this.setPerformanceData('alternateWind', null);
   }
 
   directToLeg(ppos: Coordinates, trueTrack: Degrees, targetLegIndex: number, _withAbeam = false) {
@@ -343,7 +344,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
   override async newDest(index: number, airportIdent: string): Promise<void> {
     await super.newDest(index, airportIdent);
 
-    this.deleteAlternateFlightPlan();
+    await this.deleteAlternateFlightPlan();
   }
 
   setFixInfoEntry(index: 1 | 2 | 3 | 4, fixInfo: FixInfoData | null, notify = true): void {
@@ -534,6 +535,8 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     plan.setPerformanceData('pilotMissedEngineOutAccelerationAltitude', null);
 
     plan.setPerformanceData('databaseTransitionLevel', airport?.transitionLevel ?? null);
+
+    plan.setPerformanceData('descentWindEntries', []);
   }
 
   static fromSerializedFlightPlan<P extends FlightPlanPerformanceData>(
@@ -714,6 +717,10 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
     // Do this so the RPC event is sent
     this.setPerformanceData(windEntryKey, windEntries);
+  }
+
+  async deleteClimbWindEntries(): Promise<void> {
+    this.setPerformanceData('climbWindEntries', []);
   }
 
   async setAlternateWind(entry: WindVector | null): Promise<void> {
