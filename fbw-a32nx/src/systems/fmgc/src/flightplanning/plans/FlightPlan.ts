@@ -154,6 +154,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     this.setPerformanceData('alternateDescentSpeedLimitAltitude', DefaultPerformanceData.DescentSpeedLimitAltitude);
     this.setPerformanceData('isAlternateDescentSpeedLimitPilotEntered', false);
     this.setPerformanceData('pilotAlternateFuel', null);
+    this.setPerformanceData('alternateWind', null);
   }
 
   directToLeg(ppos: Coordinates, trueTrack: Degrees, targetLegIndex: number, _withAbeam = false) {
@@ -548,6 +549,8 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     plan.setPerformanceData('pilotMissedEngineOutAccelerationAltitude', null);
 
     plan.setPerformanceData('databaseTransitionLevel', airport?.transitionLevel ?? null);
+
+    plan.setPerformanceData('descentWindEntries', []);
   }
 
   static fromSerializedFlightPlan<P extends FlightPlanPerformanceData>(
@@ -744,6 +747,10 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
     // Do this so the RPC event is sent
     this.setPerformanceData(windEntryKey, windEntries);
+  }
+
+  async deleteClimbWindEntries(): Promise<void> {
+    this.setPerformanceData('climbWindEntries', []);
   }
 
   async setAlternateWind(entry: WindVector | null): Promise<void> {
