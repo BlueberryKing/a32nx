@@ -11,6 +11,7 @@ import { NXSystemMessages } from '../messages/NXSystemMessages';
 import { AltitudeDescriptor, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
 export class CDUVerticalRevisionPage {
   /**
@@ -24,8 +25,8 @@ export class CDUVerticalRevisionPage {
   static ShowPage(
     mcdu: LegacyFmsPageInterface,
     waypoint,
-    wpIndex,
-    verticalWaypoint,
+    wpIndex: number,
+    verticalWaypoint: VerticalWaypointPrediction | null,
     confirmSpeed = undefined,
     confirmAlt = undefined,
     confirmCode = undefined,
@@ -457,7 +458,6 @@ export class CDUVerticalRevisionPage {
       }; // ALT CSTR
     }
     mcdu.onLeftInput[4] = () => {
-      //TODO: show appropriate wind page based on waypoint
       CDUWindPage.Return = () => {
         CDUVerticalRevisionPage.ShowPage(
           mcdu,
@@ -471,7 +471,15 @@ export class CDUVerticalRevisionPage {
           inAlternate,
         );
       };
-      CDUWindPage.ShowPage(mcdu, forPlan);
+
+      const phase = verticalWaypoint?.profilePhase;
+      if (phase === ProfilePhase.Cruise) {
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, wpIndex);
+      } else if (phase === ProfilePhase.Descent) {
+        CDUWindPage.ShowDESPage(mcdu, forPlan);
+      } else {
+        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+      }
     }; // WIND
     mcdu.onRightInput[4] = () => {
       if (!mcdu.cruiseLevel) {
