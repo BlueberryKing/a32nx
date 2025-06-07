@@ -3,11 +3,8 @@
 
 import { EventBus, EventSubscriber, Publisher } from '@microsoft/msfs-sdk';
 import { AocFmsMessages, FmsAocMessages } from './databus/FmsBus';
-import { FreetextMessage } from '../../common/src/messages/FreetextMessage';
+import { FreetextMessage, WeatherMessage, AtsuMessage, WindUplinkMessage, AtisType } from '../../common/src/messages';
 import { AtsuStatusCodes } from '../../common/src/AtsuStatusCodes';
-import { AtisType } from '../../common/src/messages/AtisMessage';
-import { WeatherMessage } from '../../common/src/messages/WeatherMessage';
-import { AtsuMessage } from '../../common/src/messages/AtsuMessage';
 import { AtcAocMessages } from '../../atc/src/databus/AtcAocBus';
 import { FwcDataBusTypes } from '../../common/src/databus/FwcBus';
 import { ClockDataBusTypes } from '../../common/src/databus/ClockBus';
@@ -27,6 +24,7 @@ export type AocDigitalInputCallbacks = {
   registerMessages: (messages: AtsuMessage[]) => void;
   messageRead: (messageId: number) => void;
   removeMessage: (messageId: number) => void;
+  requestWinds: (sentCallback: () => void) => Promise<[AtsuStatusCodes, WindUplinkMessage | null]>;
 };
 
 export class DigitalInputs {
@@ -39,6 +37,7 @@ export class DigitalInputs {
     registerMessages: null,
     messageRead: null,
     removeMessage: null,
+    requestWinds: null,
   };
 
   private subscriber: EventSubscriber<
@@ -149,6 +148,15 @@ export class DigitalInputs {
     this.subscriber.on('aocRemoveMessage').handle((messageId) => {
       if (this.callbacks.removeMessage !== null) {
         this.callbacks.removeMessage(messageId);
+      }
+    });
+    this.subscriber.on('aocRequestWinds').handle(({ requestId }) => {
+      if (this.callbacks.requestWinds !== null) {
+        this.callbacks
+          .requestWinds(() => {})
+          .then((data) => {
+            this.publisher.pub('aocWindsResponse', { requestId, data }, true, false);
+          });
       }
     });
   }
