@@ -214,6 +214,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   getOrSelectWaypointByIdent(ident: string, callback: (fix: Fix) => void): void;
   getIsaTemp(alt: number): number;
   uplinkWinds(forPlan: FlightPlanIndex): Promise<void>;
+  computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined;
 
   flightPlanService: FlightPlanService;
   navigationDatabase: NavigationDatabase;

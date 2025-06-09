@@ -38,8 +38,9 @@ export class CDULateralRevisionPage {
       const long = CDUInitPage.ConvertDDToDMS(leg.definition.waypoint.location['long'], true);
       coordinates = `${lat.deg}°${lat.min}.${Math.ceil(Number(lat.sec / 100))}${lat.dir}/${long.deg}°${long.min}.${Math.ceil(Number(long.sec / 100))}${long.dir}[color]green`;
     }
-    /** @type {BaseFlightPlan} */
-    const targetPlan = inAlternate ? mcdu.getAlternateFlightPlan(forPlan) : mcdu.getFlightPlan(forPlan);
+
+    const plan = mcdu.getFlightPlan(forPlan);
+    const targetPlan = inAlternate ? plan.alternateFlightPlan : plan;
 
     const isPpos = leg === undefined || (legIndexFP === 0 && leg !== targetPlan.originLeg);
     const isFrom = legIndexFP === targetPlan.fromLegIndex && forPlan === FlightPlanIndex.Active && !inAlternate;
@@ -133,7 +134,7 @@ export class CDULateralRevisionPage {
 
     let enableAltnLabel = '';
     let enableAltnCell = '';
-    if (targetPlan['alternateDestinationAirport'] && !isDeparture && !inAlternate) {
+    if (!isDeparture && !inAlternate && plan.alternateDestinationAirport) {
       enableAltnLabel = '{sp}ENABLE[color]cyan';
       enableAltnCell = '{ALTN[color]cyan';
 
@@ -141,28 +142,17 @@ export class CDULateralRevisionPage {
         return mcdu.getDelaySwitchPage();
       };
       mcdu.onLeftInput[3] = async () => {
-        // TODO fm position
-        const ppos = {
-          lat: SimVar.GetSimVarValue('PLANE LATITUDE', 'Degrees'),
-          long: SimVar.GetSimVarValue('PLANE LONGITUDE', 'Degrees'),
-        };
+        const cruiseLevel = mcdu.computeAlternateCruiseLevel(forPlan);
 
-        const flightPlan = mcdu.getFlightPlan(forPlan);
-        const alternateAirport = flightPlan.alternateDestinationAirport;
-        if (alternateAirport) {
-          const distance = Avionics.Utils.computeGreatCircleDistance(ppos, alternateAirport.location);
-          const cruiseLevel = CDULateralRevisionPage.determineAlternateFlightLevel(distance);
-
-          try {
-            await mcdu.flightPlanService.enableAltn(legIndexFP, cruiseLevel, forPlan);
-          } catch (e) {
-            console.error(e);
-            mcdu.logTroubleshootingError(e);
-            mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
-          }
-
-          CDUFlightPlanPage.ShowPage(mcdu, 0, false, forPlan);
+        try {
+          await mcdu.flightPlanService.enableAltn(legIndexFP, cruiseLevel, forPlan);
+        } catch (e) {
+          console.error(e);
+          mcdu.logTroubleshootingError(e);
+          mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
         }
+
+        CDUFlightPlanPage.ShowPage(mcdu, 0, false, forPlan);
       };
     }
 
@@ -216,15 +206,5 @@ export class CDULateralRevisionPage {
     mcdu.onLeftInput[5] = () => {
       mcdu.returnPageCallback();
     };
-  }
-
-  static determineAlternateFlightLevel(distance) {
-    if (distance > 200) {
-      return 310;
-    } else if (distance > 100) {
-      return 220;
-    } else {
-      return 100;
-    }
   }
 }
