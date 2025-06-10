@@ -568,7 +568,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
   }
 
   get destinationLeg() {
-    return this.elementAt(this.destinationLegIndex);
+    return this.legElementAt(this.destinationLegIndex);
   }
 
   get destinationLegIndex() {
