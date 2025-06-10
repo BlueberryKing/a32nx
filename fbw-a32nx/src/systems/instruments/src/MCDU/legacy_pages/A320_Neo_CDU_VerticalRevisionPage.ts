@@ -12,6 +12,8 @@ import { AltitudeDescriptor, WaypointConstraintType } from '@flybywiresim/fbw-sd
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { ProfilePhase, VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
+import { FlightPlanLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
+import { SegmentClass } from '@fmgc/flightplanning/segments/SegmentClass';
 
 export class CDUVerticalRevisionPage {
   /**
@@ -24,7 +26,7 @@ export class CDUVerticalRevisionPage {
    */
   static ShowPage(
     mcdu: LegacyFmsPageInterface,
-    waypoint,
+    waypoint: FlightPlanLeg,
     wpIndex: number,
     verticalWaypoint: VerticalWaypointPrediction | null,
     confirmSpeed = undefined,
@@ -472,7 +474,7 @@ export class CDUVerticalRevisionPage {
         );
       };
 
-      const phase = verticalWaypoint?.profilePhase;
+      const phase = this.getProfilePhase(waypoint, verticalWaypoint);
       if (phase === ProfilePhase.Cruise) {
         CDUWindPage.ShowCRZPage(mcdu, forPlan, wpIndex);
       } else if (phase === ProfilePhase.Descent) {
@@ -609,6 +611,25 @@ export class CDUVerticalRevisionPage {
           );
         }
       };
+    }
+  }
+
+  private static getProfilePhase(
+    leg: FlightPlanLeg,
+    verticalWaypoint: VerticalWaypointPrediction | null,
+  ): ProfilePhase {
+    if (verticalWaypoint) {
+      return verticalWaypoint.profilePhase;
+    }
+
+    switch (leg.segment.class) {
+      case SegmentClass.Departure:
+        return ProfilePhase.Climb;
+      case SegmentClass.Enroute:
+        return ProfilePhase.Cruise;
+      case SegmentClass.Arrival:
+      default:
+        return ProfilePhase.Descent;
     }
   }
 
