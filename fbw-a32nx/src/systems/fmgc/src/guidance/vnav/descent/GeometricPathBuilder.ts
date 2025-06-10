@@ -20,7 +20,6 @@ import { PlannedGeometricSegment } from '@fmgc/guidance/vnav/descent/GeometricPa
 import { SpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { DescentPathBuilder } from '@fmgc/guidance/vnav/descent/DescentPathBuilder';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
-import { WindComponent } from '../wind';
 
 export class GeometricPathBuilder {
   private flightPathAngleStrategy: FlightPathAngleStrategy;
@@ -119,16 +118,13 @@ export class GeometricPathBuilder {
       }
 
       // Decelerate to speed target
-      const headwind = new WindComponent(
-        -profile.winds.getDescentTailwind(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
-      );
       const decelerationStep = this.flightPathAngleStrategy.predictToSpeed(
         sequence.lastCheckpoint.altitude,
         accelerationTarget.speed,
         sequence.lastCheckpoint.speed,
         managedDescentSpeedMach,
         sequence.lastCheckpoint.remainingFuelOnBoard,
-        headwind,
+        -profile.winds.getDescentTailwind(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
         { speedbrakesExtended: useSpeedbrakes, flapConfig: FlapConf.CLEAN, gearExtended: false },
       );
 
@@ -164,11 +160,9 @@ export class GeometricPathBuilder {
         }
 
         // Fly to constraint
-        const headwind = new WindComponent(
-          -profile.winds.getDescentTailwind(
-            sequence.lastCheckpoint.distanceFromStart,
-            sequence.lastCheckpoint.altitude,
-          ),
+        const headwind = -profile.winds.getDescentTailwind(
+          sequence.lastCheckpoint.distanceFromStart,
+          sequence.lastCheckpoint.altitude,
         );
         const stepToConstraint = this.flightPathAngleStrategy.predictToDistance(
           sequence.lastCheckpoint.altitude,
@@ -190,16 +184,13 @@ export class GeometricPathBuilder {
 
     if (segment.end.distanceFromStart - sequence.lastCheckpoint.distanceFromStart < 0) {
       // Fly to end of segment
-      const headwind = new WindComponent(
-        -profile.winds.getDescentTailwind(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
-      );
       const stepToEndOfSegment = this.flightPathAngleStrategy.predictToDistance(
         sequence.lastCheckpoint.altitude,
         segment.end.distanceFromStart - sequence.lastCheckpoint.distanceFromStart,
         sequence.lastCheckpoint.speed,
         managedDescentSpeedMach,
         sequence.lastCheckpoint.remainingFuelOnBoard,
-        headwind,
+        -profile.winds.getDescentTailwind(sequence.lastCheckpoint.distanceFromStart, sequence.lastCheckpoint.altitude),
       );
 
       sequence.addCheckpointFromStep(
