@@ -213,8 +213,8 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   reselectNavaid(icao: string): void;
   getOrSelectWaypointByIdent(ident: string, callback: (fix: Fix) => void): void;
   getIsaTemp(alt: number): number;
-  uplinkWinds(forPlan: FlightPlanIndex): Promise<void>;
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined;
+  uplinkWinds(forPlan: FlightPlanIndex, sentCallback?: () => void): Promise<void>;
 
   flightPlanService: FlightPlanService;
   navigationDatabase: NavigationDatabase;
