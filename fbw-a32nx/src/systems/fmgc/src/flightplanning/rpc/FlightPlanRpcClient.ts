@@ -445,4 +445,8 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
   setAlternateWind(entry: WindVector | null, planIndex: number): Promise<void> {
     return this.callFunctionViaRpc('setAlternateWind', entry, planIndex);
   }
+
+  insertWindUplink(planIndex: number): Promise<void> {
+    return this.callFunctionViaRpc('insertWindUplink', planIndex);
+  }
 }
