@@ -17,6 +17,7 @@ import {
   Departure,
   Fix,
   LegType,
+  MathUtils,
   ProcedureTransition,
   Runway,
   SpeedDescriptor,
@@ -283,11 +284,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     for (let i = 0; i < this.allLegs.length; i++) {
       const element = this.allLegs[i];
 
-      if (element.isDiscontinuity === true) {
-        continue;
-      }
-
-      if (!element.isXF()) {
+      if (!isLeg(element) || !element.isXF()) {
         continue;
       }
 
@@ -296,6 +293,30 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       }
 
       return i;
+    }
+
+    return -1;
+  }
+
+  /**
+   * Finds the index of the first XF leg whose fix has the same coordintes as the coordinates provided, or -1 if none is found
+   *
+   * @param lat the latitude of the coordinates to look for
+   * @param lon the longitude of the coordinates to look for
+   */
+  findLegIndexByCoordinates(lat: number, lon: number): number {
+    for (let i = 0; i < this.allLegs.length; i++) {
+      const element = this.allLegs[i];
+
+      if (!isLeg(element) || !element.isXF()) {
+        continue;
+      }
+
+      const fixLocation = element.terminationWaypoint().location;
+
+      if (MathUtils.isAboutEqual(fixLocation.lat, lat) && MathUtils.isAboutEqual(fixLocation.long, lon)) {
+        return i;
+      }
     }
 
     return -1;
