@@ -174,7 +174,7 @@ export class CDUWindPage {
         }
 
         try {
-          await mcdu.flightPlanService.insertWindUplink(forPlan);
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCLBPage(mcdu, forPlan));
         } catch (e) {
           console.error('Error inserting climb wind uplink:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -188,7 +188,9 @@ export class CDUWindPage {
         }
       }
 
-      CDUWindPage.ShowCLBPage(mcdu, forPlan);
+      if (mcdu.page.Current === mcdu.page.ClimbWind) {
+        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+      }
     };
   }
 
@@ -350,7 +352,7 @@ export class CDUWindPage {
         }
 
         try {
-          await mcdu.flightPlanService.insertWindUplink(forPlan);
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCRZPage(mcdu, forPlan, fpIndex));
         } catch (e) {
           console.error('Error inserting cruise wind uplink:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -364,7 +366,9 @@ export class CDUWindPage {
         }
       }
 
-      CDUWindPage.ShowCRZPage(mcdu, forPlan, fpIndex);
+      if (mcdu.page.Current === mcdu.page.CruiseWind) {
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, fpIndex);
+      }
     };
 
     const previousCruiseLegIndex = this.findPreviousCruiseLegIndex(mcdu, plan, fpIndex - 1);
@@ -604,7 +608,7 @@ export class CDUWindPage {
         }
 
         try {
-          await mcdu.flightPlanService.insertWindUplink(forPlan);
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
         } catch (e) {
           console.error('Error inserting descent wind uplink:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -618,7 +622,9 @@ export class CDUWindPage {
         }
       }
 
-      CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+      if (mcdu.page.Current === mcdu.page.DescentWind) {
+        CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+      }
     };
 
     // TODO temperature entries
