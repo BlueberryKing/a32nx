@@ -8,7 +8,7 @@ import { CDUVerticalRevisionPage } from './A320_Neo_CDU_VerticalRevisionPage';
 import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { CDUHoldAtPage } from './A320_Neo_CDU_HoldAtPage';
 import { CDUInitPage } from './A320_Neo_CDU_InitPage';
-import { AltitudeDescriptor, NXUnits, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
+import { AltitudeDescriptor, MathUtils, NXUnits, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanLeg, isDiscontinuity } from '@fmgc/flightplanning/legs/FlightPlanLeg';
@@ -413,7 +413,12 @@ export class CDUFlightPlanPage {
           if (isPageB) {
             speedConstraint = Wind.NoTrueDegreesPrediction;
 
-            if (verticalWaypoint?.windPrediction !== undefined) {
+            const windDirection = mcdu.navigation?.getWindDirection();
+
+            if (isFromLeg && windDirection !== null) {
+              speedConstraint = `${MathUtils.normalise360(windDirection).toFixed(0).padStart(3, '0')}°`;
+              spdColor = color;
+            } else if (verticalWaypoint?.windPrediction !== undefined) {
               speedConstraint = isFromLeg
                 ? formatWindPredictionDirection(verticalWaypoint?.windPrediction)
                 : `{small}${formatWindPredictionDirection(verticalWaypoint?.windPrediction)}{end}`;
@@ -454,7 +459,12 @@ export class CDUFlightPlanPage {
           if (isPageB) {
             altitudeConstraint = Wind.NoMagnitudePrediction;
 
-            if (verticalWaypoint?.windPrediction !== undefined) {
+            const windSpeed = mcdu.navigation?.getWindSpeed();
+
+            if (isFromLeg && windSpeed !== null) {
+              altitudeConstraint = Math.round(Math.abs(windSpeed)).toFixed(0).padStart(3, '0');
+              altColor = color;
+            } else if (verticalWaypoint?.windPrediction !== undefined) {
               altitudeConstraint = formatWindPredictionMagnitude(verticalWaypoint.windPrediction);
               altColor = color;
               altSize = isFromLeg ? 'big' : 'small';

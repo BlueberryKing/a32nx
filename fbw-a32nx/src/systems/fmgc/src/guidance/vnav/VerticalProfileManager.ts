@@ -43,6 +43,7 @@ import {
   VerticalCheckpointReason,
 } from './profile/NavGeometryProfile';
 import { ClimbPathBuilder } from './climb/ClimbPathBuilder';
+import { EventBus } from '@microsoft/msfs-sdk';
 
 export class VerticalProfileManager {
   private takeoffPathBuilder: TakeoffPathBuilder;
@@ -70,6 +71,7 @@ export class VerticalProfileManager {
   expediteProfile: SelectedGeometryProfile | undefined;
 
   constructor(
+    private readonly bus: EventBus,
     private readonly flightPlanService: FlightPlanService,
     private observer: VerticalProfileComputationParametersObserver,
     private atmosphericConditions: AtmosphericConditions,
@@ -119,6 +121,7 @@ export class VerticalProfileManager {
     );
 
     const mcduProfile = new NavGeometryProfile(
+      this.bus,
       this.flightPlanService,
       this.constraintReader,
       this.atmosphericConditions,
@@ -183,6 +186,7 @@ export class VerticalProfileManager {
 
   computeDescentPath(): void {
     const descentProfile = new NavGeometryProfile(
+      this.bus,
       this.flightPlanService,
       this.constraintReader,
       this.atmosphericConditions,
@@ -228,7 +232,7 @@ export class VerticalProfileManager {
       }
 
       const selectedSpeedProfile = new ExpediteSpeedProfile(greenDotSpeed);
-      this.expediteProfile = new SelectedGeometryProfile(this.flightPlanService.active);
+      this.expediteProfile = new SelectedGeometryProfile(this.bus, this.flightPlanService.active);
       const climbStrategy = new ClimbThrustClimbStrategy(this.observer, this.atmosphericConditions, this.acConfig);
 
       this.expediteProfile.addPresentPositionCheckpoint(
@@ -249,7 +253,7 @@ export class VerticalProfileManager {
       this.expediteProfile.finalizeProfile();
     } catch (e) {
       console.error(e);
-      this.expediteProfile = new SelectedGeometryProfile(this.flightPlanService.active);
+      this.expediteProfile = new SelectedGeometryProfile(this.bus, this.flightPlanService.active);
     }
   }
 
@@ -260,8 +264,8 @@ export class VerticalProfileManager {
     const { fcuAltitude, cleanSpeed, presentPosition, fuelOnBoard, approachSpeed, flightPhase } = this.observer.get();
 
     const ndProfile = this.fcuModes.isLatAutoControlActive()
-      ? new NavGeometryProfile(this.flightPlanService, this.constraintReader, this.atmosphericConditions)
-      : new SelectedGeometryProfile(this.flightPlanService.active);
+      ? new NavGeometryProfile(this.bus, this.flightPlanService, this.constraintReader, this.atmosphericConditions)
+      : new SelectedGeometryProfile(this.bus, this.flightPlanService.active);
 
     let speedProfile: SpeedProfile;
     if (this.fcuModes.isExpediteModeActive()) {
