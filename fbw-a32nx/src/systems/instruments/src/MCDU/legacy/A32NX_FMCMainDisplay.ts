@@ -2568,12 +2568,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   }
 
   public onUplinkInProgress() {
-    this.setScratchpadMessage(NXSystemMessages.uplinkInsertInProg);
+    this.addMessageToQueue(NXSystemMessages.uplinkInsertInProg);
   }
 
   public onUplinkDone() {
     this.removeMessageFromQueue(NXSystemMessages.uplinkInsertInProg.text);
-    this.setScratchpadMessage(NXSystemMessages.aocActFplnUplink);
+    this.addMessageToQueue(NXSystemMessages.aocActFplnUplink);
   }
 
   public deduplicateFacilities<T extends DatabaseItem<any>>(items: T[]): Promise<T | undefined> {
@@ -5325,6 +5325,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
       if (status !== AtsuStatusCodes.Ok) {
         plan.pendingWindUplink.onUplinkAborted();
+        this.addMessageToQueue(NXSystemMessages.invalidWindTempUplk);
         return;
       }
 
@@ -5332,7 +5333,19 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
       PendingWindUplinkParser.setFromUplink(uplink, plan);
 
+      this.addMessageToQueue(
+        NXSystemMessages.windTempDataUplk,
+        () => !plan.pendingWindUplink.isWindUplinkReadyToInsert(),
+      );
+
       if (!shouldInsertDirectly) {
+        if (this.flightPlanService.hasTemporary || this.page.Current === this.page.DirectToPage) {
+          this.addMessageToQueue(
+            NXSystemMessages.windUplinkPending,
+            () => !plan.pendingWindUplink.isWindUplinkReadyToInsert(),
+          );
+        }
+
         return;
       }
     }
