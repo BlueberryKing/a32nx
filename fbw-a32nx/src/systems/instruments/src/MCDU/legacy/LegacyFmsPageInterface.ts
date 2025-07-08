@@ -27,6 +27,7 @@ import { FlightPhaseManager } from '@fmgc/flightphase';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { DataManager } from '@fmgc/flightplanning/DataManager';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
+import { EquitimePoint } from '@fmgc/EquitimePoint';
 
 export type LskCallback = (
   /** The scratchpad content when the LSK was pressed. */
@@ -222,6 +223,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   guidanceController?: GuidanceController;
   dataManager?: DataManager;
   navigation?: Navigation;
+  equitimePoint?: EquitimePoint;
   v1Speed: number | null;
   vRSpeed: number | null;
   v2Speed: number | null;
