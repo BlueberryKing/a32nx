@@ -36,6 +36,7 @@ import { VMLeg } from './lnav/legs/VM';
 import { ConsumerValue, EventBus } from '@microsoft/msfs-sdk';
 import { FlightPhaseManagerEvents } from '@fmgc/flightphase';
 import { A32NX_Util } from '../../../shared/src/A32NX_Util';
+import { EquitimePoint } from '../EquitimePoint';
 
 // How often the (milliseconds)
 const GEOMETRY_RECOMPUTATION_TIMER = 5_000;
@@ -303,7 +304,8 @@ export class GuidanceController {
     private readonly bus: EventBus,
     fmgc: Fmgc,
     private readonly flightPlanService: FlightPlanService,
-    private efisInterfaces: Record<EfisSide, EfisInterface>,
+    efisInterfaces: Record<EfisSide, EfisInterface>,
+    equitimePoint: EquitimePoint,
     private readonly efisNDRangeValues: number[],
     private readonly acConfig: AircraftConfig,
   ) {
@@ -324,7 +326,13 @@ export class GuidanceController {
       this.windProfileFactory,
       this.acConfig,
     );
-    this.pseudoWaypoints = new PseudoWaypoints(flightPlanService, this, this.atmosphericConditions, this.acConfig);
+    this.pseudoWaypoints = new PseudoWaypoints(
+      flightPlanService,
+      this,
+      this.atmosphericConditions,
+      equitimePoint,
+      this.acConfig,
+    );
     this.efisVectors = new EfisVectors(this.bus, this.flightPlanService, this, efisInterfaces);
     this.symbolConfig = acConfig.fmSymbolConfig;
     this.approachIdentSize = this.symbolConfig.showRnpArLabel ? 14 : 9;
