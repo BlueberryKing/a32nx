@@ -23,6 +23,7 @@ import {
   FlightStateData,
   PositionReportData,
   WindUplinkMessage,
+  WindRequestMessage,
 } from '@datalink/common';
 import { FmsRouterMessages, RouterFmsMessages } from '@datalink/router';
 import { EventBus, Instrument, InstrumentBackplane, MappedSubject } from '@microsoft/msfs-sdk';
@@ -332,10 +333,13 @@ export class FmsClient implements Instrument {
     });
   }
 
-  public receiveWindUplink(sentCallback: () => void): Promise<[AtsuStatusCodes, WindUplinkMessage | null]> {
+  public receiveWindUplink(
+    request: WindRequestMessage,
+    sentCallback: () => void,
+  ): Promise<[AtsuStatusCodes, WindUplinkMessage | null]> {
     return new Promise<[AtsuStatusCodes, WindUplinkMessage | null]>((resolve, _reject) => {
       const requestId = this.requestId++;
-      this.publisher.pub('aocRequestWinds', { requestId }, true, false);
+      this.publisher.pub('aocRequestWinds', { requestId, ...request }, true, false);
       sentCallback();
 
       this.windsResponseCallbacks.push((response: [AtsuStatusCodes, WindUplinkMessage | null], id: number) => {
