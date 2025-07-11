@@ -5343,9 +5343,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         }
 
         console.log(`[FMS] Uplinked winds: ${formatWindUplinkMessage(uplink)}`);
-
-        const shouldInsertDirectly = !this.isAnEngineOn() && !plan.hasWindEntries();
-
         PendingWindUplinkParser.setFromUplink(uplink, plan);
 
         this.addMessageToQueue(
@@ -5353,6 +5350,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
           () => !plan.pendingWindUplink.isWindUplinkReadyToInsert(),
         );
 
+        const shouldInsertDirectly = !this.isAnEngineOn() && !plan.hasWindEntries();
         if (!shouldInsertDirectly) {
           if (this.flightPlanService.hasTemporary || this.page.Current === this.page.DirectToPage) {
             this.addMessageToQueue(
