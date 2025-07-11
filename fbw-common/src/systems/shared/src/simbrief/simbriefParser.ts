@@ -1,7 +1,7 @@
 // Copyright (c) 2023-2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { AircraftGithubVersionChecker, UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
+import { AircraftGithubVersionChecker, NXDataStore, UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
 import { ISimbriefData } from './simbriefInterface';
 
 const SIMBRIEF_BASE_URL = 'https://www.simbrief.com/api/xml.fetcher.php';
@@ -9,6 +9,17 @@ const SIMBRIEF_BASE_URL = 'https://www.simbrief.com/api/xml.fetcher.php';
 const getRequestData: RequestInit = {
   headers: { Accept: 'application/json' },
   method: 'GET',
+};
+
+export const getSimBriefOfp = (): Promise<ISimbriefData> => {
+  const navigraphUsername = NXDataStore.get('NAVIGRAPH_USERNAME', '');
+  const overrideSimBriefUserID = NXDataStore.get('CONFIG_OVERRIDE_SIMBRIEF_USERID', '');
+
+  if (!navigraphUsername && !overrideSimBriefUserID) {
+    throw new Error('No Navigraph username provided');
+  }
+
+  return getSimbriefData(navigraphUsername, overrideSimBriefUserID);
 };
 
 export const getSimbriefData = async (

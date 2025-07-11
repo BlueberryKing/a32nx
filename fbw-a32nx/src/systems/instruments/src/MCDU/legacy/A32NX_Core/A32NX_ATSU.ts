@@ -2,11 +2,9 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { NXDataStore } from '@flybywiresim/fbw-sdk';
+import { ISimbriefData, NXDataStore } from '@flybywiresim/fbw-sdk';
 import { McduMessage, NXFictionalMessages } from '../../messages/NXSystemMessages';
 import { AtsuMessageType } from '@datalink/common';
-// FIXME rogue import from EFB
-import { ISimbriefData } from '../../../../../../../../fbw-common/src/systems/instruments/src/EFB/Apis/Simbrief';
 import { SimBriefUplinkAdapter } from '@fmgc/flightplanning/uplink/SimBriefUplinkAdapter';
 
 // FIXME move all to ATSU (systems host)
@@ -47,6 +45,7 @@ const lbsToKg = (value) => {
 
 /**
  * Fetch SimBrief OFP data and store on FMCMainDisplay object
+ * FIXME consolidate with fbw-common/src/systems/shared/src/simbrief/simbriefParser.ts
  */
 export const getSimBriefOfp = (
   mcdu: { simbrief: any; setScratchpadMessage(m: McduMessage) },
