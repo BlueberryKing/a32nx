@@ -280,7 +280,7 @@ export class VerticalProfileManager {
    * Build a path from the present position to the FCU altitude
    */
   computeTacticalNdProfile(): void {
-    const { fcuAltitude, cleanSpeed, presentPosition, fuelOnBoard, approachSpeed } = this.observer.get();
+    const { fcuAltitude, cleanSpeed, presentPosition, fuelOnBoard, approachSpeed, flightPhase } = this.observer.get();
 
     const ndProfile = this.fcuModes.isLatAutoControlActive()
       ? new NavGeometryProfile(this.flightPlanService, this.constraintReader, this.atmosphericConditions)
@@ -331,7 +331,7 @@ export class VerticalProfileManager {
         climbWinds,
         fcuAltitude,
       );
-    } else if (this.fcuModes.isInDescentMode()) {
+    } else if (this.fcuModes.isInDescentMode() || this.fcuModes.isDescentModeArmed()) {
       const descentStrategy = this.getDescentStrategyForVerticalMode();
       const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
       const offset = this.computeTacticalToGuidanceProfileOffset();
@@ -349,6 +349,30 @@ export class VerticalProfileManager {
       this.interceptNdWithGuidanceProfile(ndProfile);
       this.insertLevelSegmentPwp(ndProfile);
       this.insertNextDescentPwp(ndProfile);
+    } else if (
+      this.fcuModes.isInLevelFlightMode() &&
+      flightPhase >= FmgcFlightPhase.Descent &&
+      flightPhase <= FmgcFlightPhase.Approach
+    ) {
+      if (this.fcuModes.isInAltCaptureMode()) {
+        ndProfile.lastCheckpoint.altitude = fcuAltitude;
+      }
+
+      const descentWinds = new HeadwindProfile(this.windProfileFactory.getDescentWinds(), this.headingProfile);
+      const offset = this.computeTacticalToGuidanceProfileOffset();
+      const schedule = this.getDecelerationScheduleFromDescentPath(offset);
+
+      this.tacticalDescentPathBuilder.buildLevelTacticalDescentPath(
+        ndProfile,
+        this.constraintReader.totalFlightPlanDistance,
+        speedProfile,
+        descentWinds,
+        schedule,
+      );
+
+      this.interceptNdWithGuidanceProfile(ndProfile);
+      this.insertLevelSegmentPwp(ndProfile);
+      this.insertNextDescentPwp(ndProfile);
     }
 
     ndProfile.finalizeProfile();
@@ -359,7 +383,7 @@ export class VerticalProfileManager {
    * Computes an intercept point between the profile that's predicted in the currently active modes and the precomputed descent profile.
    */
   private interceptNdWithGuidanceProfile(ndProfile: BaseGeometryProfile): void {
-    const { flightPhase, fcuVerticalMode, fcuArmedVerticalMode, presentPosition, fcuAltitude } = this.observer.get();
+    const { flightPhase, presentPosition, fcuAltitude } = this.observer.get();
     if (
       !this.fcuModes.isLatAutoControlActive() ||
       !this.descentProfile ||
@@ -377,7 +401,9 @@ export class VerticalProfileManager {
     );
     const hasIntercept = index >= 0;
 
-    const isDesActive = fcuVerticalMode === VerticalMode.DES;
+    const isDesActive = this.fcuModes.isDescentModeActive();
+    const isAltActive = this.fcuModes.isAltModeActive();
+    const isDesArmed = this.fcuModes.isDescentSegmentArmed();
 
     // If we have an intercept, add the intercept checkpoint
     if (hasIntercept) {
@@ -387,19 +413,19 @@ export class VerticalProfileManager {
       const interceptCheckpoint = ndProfile.addInterpolatedCheckpoint(interceptDistance, { reason: interceptReason });
 
       const isAircraftTooCloseToIntercept = Math.abs(presentPosition.alt - interceptCheckpoint.altitude) < 100;
-      if (isAircraftTooCloseToIntercept) {
+      if (isAircraftTooCloseToIntercept || this.fcuModes.isInLevelFlightMode()) {
         // If we're close to the intercept, we don't want to draw the intercept point, so use a reason that does not create a PWP
         interceptCheckpoint.reason = VerticalCheckpointReason.AtmosphericConditions;
       }
     }
 
-    // In DES mode, we assume that we continue on the managed profile after the intercept, so we splice away the tactical profile and append the managed one after the intercept
+    // In DES mode or with DES or FINAL armed, we assume that we continue on the managed profile after the intercept, so we splice away the tactical profile and append the managed one after the intercept
+    // In ALT mode, we assume that we continue descent after the intercept. In this case, the intercept will be a T/D arrow
     // In a selected mode, we continue until level off and only then continue with the managed profile.
-    const isDesArmed = isArmed(fcuArmedVerticalMode, ArmedVerticalMode.DES);
-    const shouldContinueWithManagedProfileAfterIntercept = hasIntercept && (isDesActive || isDesArmed);
+    const shouldContinueWithManagedProfileAfterIntercept = hasIntercept && (isDesActive || isDesArmed || isAltActive);
 
     if (shouldContinueWithManagedProfileAfterIntercept) {
-      ndProfile.checkpoints.splice(
+      const splicedElements = ndProfile.checkpoints.splice(
         index + 2, // Add two so we don't splice the intercept checkpoint away after adding it
         Infinity,
         ...this.descentProfile.checkpoints
@@ -417,12 +443,16 @@ export class VerticalProfileManager {
           .filter(({ distanceFromStart }) => distanceFromStart > interceptDistance),
       );
 
-      // If we appended the managed profile directly after the intercept, we will have spliced away the level off arrow, so we have to add it again
-      // At this point, we have to add the level off arrow again, because we spliced the previous one away as it lies after the intercept
-      const levelOffDistance = ndProfile.interpolateDistanceAtAltitudeBackwards(fcuAltitude, true);
-      ndProfile.addInterpolatedCheckpoint(levelOffDistance, {
-        reason: VerticalCheckpointReason.CrossingFcuAltitudeDescent,
-      });
+      if (
+        splicedElements.some((checkpoint) => checkpoint.reason === VerticalCheckpointReason.CrossingFcuAltitudeDescent)
+      ) {
+        // If we appended the managed profile directly after the intercept, we will have spliced away the level off arrow, so we have to add it again
+        // At this point, we have to add the level off arrow again, because we spliced the previous one away as it lies after the intercept
+        const levelOffDistance = ndProfile.interpolateDistanceAtAltitudeBackwards(fcuAltitude, true);
+        ndProfile.addInterpolatedCheckpoint(levelOffDistance, {
+          reason: VerticalCheckpointReason.CrossingFcuAltitudeDescent,
+        });
+      }
     } else {
       ndProfile.checkpoints.push(
         ...this.descentProfile.checkpoints
@@ -833,6 +863,32 @@ class FcuModeObserver {
     );
   }
 
+  public isDescentModeArmed(): boolean {
+    const { fcuArmedVerticalMode } = this.observer.get();
+
+    return isArmed(fcuArmedVerticalMode, ArmedVerticalMode.DES);
+  }
+
+  public isDescentSegmentArmed(): boolean {
+    const { fcuArmedVerticalMode } = this.observer.get();
+
+    return (
+      isArmed(fcuArmedVerticalMode, ArmedVerticalMode.DES) || isArmed(fcuArmedVerticalMode, ArmedVerticalMode.FINAL)
+    );
+  }
+
+  public isDescentModeActive(): boolean {
+    const { fcuVerticalMode } = this.observer.get();
+
+    return fcuVerticalMode === VerticalMode.DES;
+  }
+
+  public isAltModeActive(): boolean {
+    const fcuVerticalMode = this.observer.get().fcuVerticalMode;
+
+    return fcuVerticalMode === VerticalMode.ALT || fcuVerticalMode === VerticalMode.ALT_CPT;
+  }
+
   public isInLevelFlightMode(): boolean {
     const { fcuVerticalMode, fcuVerticalSpeed, fcuFlightPathAngle } = this.observer.get();
 
@@ -841,6 +897,12 @@ class FcuModeObserver {
       (fcuVerticalMode === VerticalMode.FPA && Math.abs(fcuFlightPathAngle) < 10) ||
       (fcuVerticalMode === VerticalMode.VS && Math.abs(fcuVerticalSpeed) < 10)
     );
+  }
+
+  public isInAltCaptureMode(): boolean {
+    const { fcuVerticalMode } = this.observer.get();
+
+    return fcuVerticalMode === VerticalMode.ALT_CPT || fcuVerticalMode === VerticalMode.ALT_CST_CPT;
   }
 
   public isExpediteModeActive(): boolean {

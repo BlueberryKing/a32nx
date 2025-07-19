@@ -6,7 +6,7 @@
 import { ConstraintUtils } from '@flybywiresim/fbw-sdk';
 import { AircraftConfig } from '@fmgc/flightplanning/AircraftConfigTypes';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
+import { FlightPathAngleStrategy, VerticalSpeedStrategy } from '@fmgc/guidance/vnav/climb/ClimbStrategy';
 import { SpeedProfile } from '@fmgc/guidance/vnav/climb/SpeedProfile';
 import { AircraftConfiguration, AircraftConfigurationRegister } from '@fmgc/guidance/vnav/descent/ApproachPathBuilder';
 import { DescentStrategy } from '@fmgc/guidance/vnav/descent/DescentStrategy';
@@ -62,7 +62,7 @@ export class TacticalDescentPathBuilder {
 
   constructor(
     private observer: VerticalProfileComputationParametersObserver,
-    atmosphericConditions: AtmosphericConditions,
+    private atmosphericConditions: AtmosphericConditions,
     private readonly acConfig: AircraftConfig,
   ) {
     this.levelFlightStrategy = new VerticalSpeedStrategy(this.observer, atmosphericConditions, 0, this.acConfig);
@@ -187,6 +187,58 @@ export class TacticalDescentPathBuilder {
     // slightly below the speed limit alt (= final alt), and the phase table will not execute the last phase because we're already below the final alt.
     if (sequence.lastCheckpoint.reason === VerticalCheckpointReason.AtmosphericConditions) {
       sequence.lastCheckpoint.reason = VerticalCheckpointReason.CrossingFcuAltitudeDescent;
+    }
+
+    if (VnavConfig.DEBUG_PROFILE && numRecomputations >= 100) {
+      console.warn('[FMS/VNAV] Tactical path iteration terminated after 100 iterations. This is a bug.');
+    }
+
+    if (sequence != null) {
+      profile.checkpoints.push(...sequence.get());
+    }
+  }
+
+  buildLevelTacticalDescentPath(
+    profile: BaseGeometryProfile,
+    toDistance: number,
+    speedProfile: SpeedProfile,
+    windProfile: HeadwindProfile,
+    schedule: DecelerationSchedule,
+  ) {
+    const levelStrategy = new FlightPathAngleStrategy(this.observer, this.atmosphericConditions, 0, this.acConfig);
+
+    const start = profile.lastCheckpoint;
+
+    let minAlt = Infinity;
+    const altConstraintsToUse = profile.descentAltitudeConstraints.map((constraint) => {
+      minAlt = Math.min(minAlt, ConstraintUtils.minimumAltitude(constraint.constraint));
+      return {
+        distanceFromStart: constraint.distanceFromStart,
+        minimumAltitude: minAlt,
+      } as MinimumDescentAltitudeConstraint;
+    });
+
+    const decelPointDistance = schedule.approachPoints[0]?.distanceFromStart ?? Infinity;
+    const speedConstraintsToUse = profile.descentSpeedConstraints.filter(
+      ({ distanceFromStart }) => distanceFromStart < decelPointDistance,
+    );
+
+    const phaseTable = new PhaseTable(this.observer.get(), windProfile);
+    phaseTable.start = start;
+    phaseTable.phases = [new DescendToDistance(toDistance).asLevelSegment()];
+
+    let isPathValid = false;
+    let numRecomputations = 0;
+    let sequence: TemporaryCheckpointSequence | null = null;
+    while (!isPathValid && numRecomputations++ < 100) {
+      sequence = phaseTable.execute(levelStrategy, this.levelFlightStrategy);
+      isPathValid = this.checkForViolations(
+        phaseTable,
+        altConstraintsToUse,
+        speedConstraintsToUse,
+        speedProfile,
+        schedule,
+      );
     }
 
     if (VnavConfig.DEBUG_PROFILE && numRecomputations >= 100) {
