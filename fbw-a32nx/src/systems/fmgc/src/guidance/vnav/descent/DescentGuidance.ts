@@ -14,7 +14,7 @@ import { VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { SpeedMargin } from './SpeedMargin';
 import { TodGuidance } from './TodGuidance';
-import { AircraftConfig } from '../../../flightplanning/AircraftConfigTypes';
+import { AircraftConfig, PathCaptureProfile } from '../../../flightplanning/AircraftConfigTypes';
 
 enum DescentVerticalGuidanceState {
   InvalidProfile,
@@ -33,42 +33,6 @@ enum PathCaptureState {
   OnPath,
   InPathCapture,
 }
-
-interface PathCaptureProfile {
-  /**
-   * Gain used to calculate whether the difference between current and target VS is enough to start path capture
-   */
-  pathCaptureGain: number;
-  /**
-   * Gain used to calculate whether the difference between current and target VS is too large to continue path capture
-   */
-  pathDisengagementGain: number;
-  /**
-   * If we don't get a valid VS value from the ADIRS, path capture will start if linear deviation is less than this value
-   */
-  fallbackPathCaptureDeviation: number;
-  /**
-   * Maximum linear deviation before we disengage from the path if path capture condition is no longer met
-   */
-  maxOnPathDeviation: number;
-  /**
-   * If linear deviation is less than this value, path capture will always start regardless of VS
-   */
-  minCaptureDeviation: number;
-  /**
-   * If linear deviation is greater than this value, path capture will never start
-   */
-  maxCaptureDeviation: number;
-}
-
-const VPATH_CAPTURE_PROFILE: PathCaptureProfile = {
-  pathCaptureGain: 0.1,
-  pathDisengagementGain: 0.2,
-  fallbackPathCaptureDeviation: 100,
-  maxOnPathDeviation: 100,
-  minCaptureDeviation: 50,
-  maxCaptureDeviation: 500,
-};
 
 export class DescentGuidance {
   private verticalState: DescentVerticalGuidanceState = DescentVerticalGuidanceState.InvalidProfile;
@@ -99,7 +63,7 @@ export class DescentGuidance {
 
   private isInUnderspeedCondition: boolean = false;
 
-  private readonly pathCaptureProfile: PathCaptureProfile = VPATH_CAPTURE_PROFILE;
+  private readonly pathCaptureProfile: PathCaptureProfile;
 
   private pathCaptureState: PathCaptureState = PathCaptureState.OffPath;
 
@@ -116,6 +80,7 @@ export class DescentGuidance {
       this.observer,
       this.atmosphericConditions,
     );
+    this.pathCaptureProfile = config.vnavConfig.VPATH_CAPTURE_PROFILE;
 
     this.writeToSimVars();
   }
@@ -268,7 +233,7 @@ export class DescentGuidance {
 
         break;
       case PathCaptureState.OnPath:
-        if (Math.abs(linearDeviation) > this.pathCaptureProfile.minCaptureDeviation && !allowPathCapture) {
+        if (Math.abs(linearDeviation) > this.pathCaptureProfile.maxOnPathDeviation && !allowPathCapture) {
           this.pathCaptureState = PathCaptureState.OffPath;
         }
 
@@ -277,7 +242,7 @@ export class DescentGuidance {
         const shouldDisengageFromActiveCapture = !this.isPathCaptureConditionMet(
           linearDeviation,
           targetVerticalSpeed,
-          this.pathCaptureProfile.pathCaptureGain,
+          this.pathCaptureProfile.pathDisengagementGain,
         );
 
         if (shouldDisengageFromActiveCapture) {

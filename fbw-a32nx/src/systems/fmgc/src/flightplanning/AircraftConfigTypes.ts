@@ -59,6 +59,8 @@ export interface VnavConfig {
    * The maximum operating Mach number
    */
   MMO: number;
+
+  VPATH_CAPTURE_PROFILE: PathCaptureProfile;
 }
 
 /** Only covers aircraft specific configs, no debug switches */
@@ -190,4 +192,31 @@ export interface FMSymbolsConfig {
 
   /** whether to show RNP label on ND for RNP AR approaches */
   showRnpArLabel: boolean;
+}
+
+export interface PathCaptureProfile {
+  /**
+   * Gain used to calculate whether the difference between current and target VS is enough to start path capture
+   */
+  pathCaptureGain: number;
+  /**
+   * Gain used to calculate whether the difference between current and target VS is too large to continue path capture
+   */
+  pathDisengagementGain: number;
+  /**
+   * If we don't get a valid VS value from the ADIRS, path capture will start if linear deviation is less than this value
+   */
+  fallbackPathCaptureDeviation: number;
+  /**
+   * Maximum linear deviation before we disengage from the path if path capture condition is no longer met
+   */
+  maxOnPathDeviation: number;
+  /**
+   * If linear deviation is less than this value, path capture will always start regardless of VS
+   */
+  minCaptureDeviation: number;
+  /**
+   * If linear deviation is greater than this value, path capture will never start
+   */
+  maxCaptureDeviation: number;
 }

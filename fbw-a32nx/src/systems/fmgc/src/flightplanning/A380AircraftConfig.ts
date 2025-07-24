@@ -29,6 +29,14 @@ const vnavConfig: VnavConfig = {
   LIM_PSEUDO_WPT_LABEL: '(SPDLIM)',
   VMO: 340,
   MMO: 0.89,
+  VPATH_CAPTURE_PROFILE: {
+    pathCaptureGain: 0.2,
+    pathDisengagementGain: 0.4,
+    fallbackPathCaptureDeviation: 100,
+    maxOnPathDeviation: 100,
+    minCaptureDeviation: 50,
+    maxCaptureDeviation: 500,
+  },
 };
 
 const flightModelParams: FlightModelParameters = {
