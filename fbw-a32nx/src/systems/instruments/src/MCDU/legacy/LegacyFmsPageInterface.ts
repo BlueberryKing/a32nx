@@ -232,7 +232,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   guidanceController?: GuidanceController;
   dataManager?: DataManager;
   navigation?: Navigation;
-  equitimePoint?: EquitimePoint;
+  equitimePoint: EquitimePoint;
   holdDecelReached: boolean;
   holdIndex: number;
   holdSpeedTarget?: number;
