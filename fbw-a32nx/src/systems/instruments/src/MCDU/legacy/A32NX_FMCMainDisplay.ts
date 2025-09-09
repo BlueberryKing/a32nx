@@ -315,7 +315,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   public efisInterfaces?: Record<EfisSide, EfisInterface>;
   public guidanceController?: GuidanceController;
   public navigation?: Navigation;
-  public equitimePoint?: EquitimePoint;
+  public equitimePoint: EquitimePoint;
 
   public casToMachManualCrossoverCurve;
   public machToCasManualCrossoverCurve;

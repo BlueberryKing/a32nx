@@ -224,7 +224,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   guidanceController?: GuidanceController;
   dataManager?: DataManager;
   navigation?: Navigation;
-  equitimePoint?: EquitimePoint;
+  equitimePoint: EquitimePoint;
   v1Speed: number | null;
   vRSpeed: number | null;
   v2Speed: number | null;
