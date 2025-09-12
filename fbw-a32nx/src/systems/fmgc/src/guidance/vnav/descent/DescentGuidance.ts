@@ -9,12 +9,13 @@ import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions
 import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/AircraftToProfileRelation';
 import { NavGeometryProfile } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
-import { Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { SpeedMargin } from './SpeedMargin';
 import { TodGuidance } from './TodGuidance';
 import { AircraftConfig, PathCaptureProfile } from '../../../flightplanning/AircraftConfigTypes';
+import { Navigation } from '../../../navigation/Navigation';
 
 enum DescentVerticalGuidanceState {
   InvalidProfile,
@@ -68,11 +69,12 @@ export class DescentGuidance {
   private pathCaptureState: PathCaptureState = PathCaptureState.OffPath;
 
   constructor(
-    config: AircraftConfig,
+    private config: AircraftConfig,
     private guidanceController: GuidanceController,
     private aircraftToDescentProfileRelation: AircraftToDescentProfileRelation,
     private observer: VerticalProfileComputationParametersObserver,
     private atmosphericConditions: AtmosphericConditions,
+    private navigation: Navigation,
   ) {
     this.speedMargin = new SpeedMargin(config, this.observer);
     this.todGuidance = new TodGuidance(
@@ -129,7 +131,7 @@ export class DescentGuidance {
   update(deltaTime: number, distanceToEnd: NauticalMiles) {
     this.aircraftToDescentProfileRelation.update(distanceToEnd);
 
-    if (!this.aircraftToDescentProfileRelation.isValid) {
+    if (!this.aircraftToDescentProfileRelation.isValid || !this.isNavigationAvailable()) {
       this.changeState(DescentVerticalGuidanceState.InvalidProfile);
       return;
     }
@@ -159,6 +161,15 @@ export class DescentGuidance {
     this.todGuidance.update(deltaTime);
   }
 
+  private isNavigationAvailable() {
+    return (
+      this.navigation.getGroundSpeed() !== null &&
+      this.navigation.getTrueAirspeed() !== null &&
+      this.navigation.getInertialVerticalSpeed() !== null &&
+      this.navigation.getInertialFlightPathAngle() !== null
+    );
+  }
+
   private updateLinearDeviation() {
     const { fcuVerticalMode, flightPhase } = this.observer.get();
 
@@ -184,10 +195,11 @@ export class DescentGuidance {
     const isApproachPhaseActive = this.observer.get().flightPhase === FmgcFlightPhase.Approach;
     const isHoldActive = this.guidanceController.isManualHoldActive();
     const targetVerticalSpeed = this.aircraftToDescentProfileRelation.currentTargetVerticalSpeed();
+    const targetPathAngle = this.aircraftToDescentProfileRelation.currentTargetPathAngle();
 
     this.targetAltitudeGuidance = this.atmosphericConditions.currentPressureAltitude - linearDeviation;
 
-    this.updatePathCaptureState(linearDeviation, targetVerticalSpeed);
+    this.updatePathCaptureState(linearDeviation, targetPathAngle * MathUtils.DEGREES_TO_RADIANS);
     const shouldGoOffPath = this.pathCaptureState === PathCaptureState.OffPath;
 
     if ((!isHoldActive && shouldGoOffPath && linearDeviation > 0) || this.isInOverspeedCondition) {
@@ -200,7 +212,7 @@ export class DescentGuidance {
         this.targetVerticalSpeed = -1000;
       } else if (isOnGeometricPath) {
         this.requestedVerticalMode = RequestedVerticalMode.FpaSpeed;
-        this.targetVerticalSpeed = this.aircraftToDescentProfileRelation.currentTargetPathAngle() / 2;
+        this.targetVerticalSpeed = targetPathAngle / 2;
       } else {
         this.requestedVerticalMode = RequestedVerticalMode.VsSpeed;
         this.targetVerticalSpeed = isAboveSpeedLimitAltitude && !isCloseToAirfieldElevation ? -1000 : -500;
@@ -218,12 +230,8 @@ export class DescentGuidance {
     }
   }
 
-  private updatePathCaptureState(linearDeviation: Feet, targetVerticalSpeed: FeetPerMinute): void {
-    const allowPathCapture = this.isPathCaptureConditionMet(
-      linearDeviation,
-      targetVerticalSpeed,
-      this.pathCaptureProfile.pathCaptureGain,
-    );
+  private updatePathCaptureState(linearDeviation: Feet, targetPathAngleRad: Radians): void {
+    const allowPathCapture = this.isPathCaptureConditionMet(linearDeviation, targetPathAngleRad);
 
     switch (this.pathCaptureState) {
       case PathCaptureState.OffPath:
@@ -241,7 +249,7 @@ export class DescentGuidance {
       case PathCaptureState.InPathCapture: {
         const shouldDisengageFromActiveCapture = !this.isPathCaptureConditionMet(
           linearDeviation,
-          targetVerticalSpeed,
+          targetPathAngleRad,
           this.pathCaptureProfile.pathDisengagementGain,
         );
 
@@ -258,35 +266,52 @@ export class DescentGuidance {
     }
   }
 
-  private isPathCaptureConditionMet(linearDeviation: Feet, targetVerticalSpeed: FeetPerMinute, gain: number): boolean {
-    const verticalSpeed = this.getVerticalSpeed();
-    if (!verticalSpeed) {
-      // Fallback path capture condition
-      return Math.abs(linearDeviation) < this.pathCaptureProfile.fallbackPathCaptureDeviation;
+  private isPathCaptureConditionMet(linearDeviation: Feet, vpathAngleRad: Radians, extraGain = 1): boolean {
+    const inertialVerticalSpeed = this.navigation.getInertialVerticalSpeed();
+    const inertialFpa = this.navigation.getInertialFlightPathAngle();
+    const inertialGroundSpeed = this.navigation.getGroundSpeed();
+    const trueAirspeed = this.navigation.getTrueAirspeed();
+
+    if (
+      inertialVerticalSpeed === null ||
+      inertialFpa === null ||
+      inertialGroundSpeed === null ||
+      trueAirspeed === null
+    ) {
+      // We normally check this before getting into this function, but we check again to make TS happy
+      return false;
     }
 
-    return (
-      Math.abs(linearDeviation) <
-      Math.min(
-        this.pathCaptureProfile.maxCaptureDeviation,
-        Math.max(this.pathCaptureProfile.minCaptureDeviation, gain * Math.abs(verticalSpeed - targetVerticalSpeed)),
-      )
-    );
-  }
+    const targetVerticalSpeed = inertialGroundSpeed * Math.tan(vpathAngleRad);
 
-  private getVerticalSpeed(): FeetPerMinute | null {
-    const barometricVs = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_ADR_1_BAROMETRIC_VERTICAL_SPEED');
-    const inertialVs = Arinc429Word.fromSimVarValue('L:A32NX_ADIRS_IR_1_VERTICAL_SPEED');
+    const unsaturatedCaptureZone =
+      MathUtils.clamp(
+        inertialVerticalSpeed - targetVerticalSpeed,
+        -this.pathCaptureProfile.vpathLawMaxLinearDeviation,
+        this.pathCaptureProfile.vpathLawMaxLinearDeviation,
+      ) / this.pathCaptureProfile.vpathLawCaptureGain;
 
-    if (inertialVs.isNormalOperation()) {
-      return inertialVs.value;
-    }
+    const saturatedCaptureZone =
+      linearDeviation > 0
+        ? (trueAirspeed ** 2 /
+            this.pathCaptureProfile.vpathMaxLoadFactor /
+            this.config.flightModelParameters.gravityConstKNS /
+            60) *
+          (Math.cos(vpathAngleRad) -
+            Math.cos(inertialFpa * MathUtils.DEGREES_TO_RADIANS) +
+            Math.tan(vpathAngleRad) * (Math.sin(vpathAngleRad) - Math.sin(inertialFpa * MathUtils.DEGREES_TO_RADIANS)))
+        : (trueAirspeed ** 2 /
+            this.pathCaptureProfile.vpathMaxLoadFactor /
+            this.config.flightModelParameters.gravityConstKNS /
+            60) *
+          (Math.cos(inertialFpa * MathUtils.DEGREES_TO_RADIANS) -
+            Math.cos(vpathAngleRad) +
+            Math.tan(vpathAngleRad) * (Math.sin(inertialFpa * MathUtils.DEGREES_TO_RADIANS) - Math.sin(vpathAngleRad)));
 
-    if (barometricVs.isNormalOperation()) {
-      return barometricVs.value;
-    }
+    const optimalCaptureZone = Math.max(Math.abs(unsaturatedCaptureZone), Math.abs(saturatedCaptureZone));
+    const captureZone = extraGain * Math.max(optimalCaptureZone, this.pathCaptureProfile.minCaptureDeviation);
 
-    return null;
+    return linearDeviation > 0 ? linearDeviation < captureZone : linearDeviation > -captureZone;
   }
 
   private updateSpeedTarget() {

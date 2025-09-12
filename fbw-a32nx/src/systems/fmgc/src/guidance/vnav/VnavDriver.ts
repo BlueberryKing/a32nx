@@ -35,6 +35,7 @@ import { VMLeg } from '@fmgc/guidance/lnav/legs/VM';
 import { FMLeg } from '@fmgc/guidance/lnav/legs/FM';
 import { MathUtils } from '@flybywiresim/fbw-sdk';
 import { VnavConfig } from './VnavConfig';
+import { Navigation } from '../../navigation/Navigation';
 
 export class VnavDriver implements GuidanceComponent {
   version: number = 0;
@@ -82,6 +83,7 @@ export class VnavDriver implements GuidanceComponent {
     private readonly atmosphericConditions: AtmosphericConditions,
     private readonly windProfileFactory: WindProfileFactory,
     private readonly acConfig: AircraftConfig,
+    navigation: Navigation,
   ) {
     this.headingProfile = new NavHeadingProfile(flightPlanService);
     this.currentMcduSpeedProfile = new McduSpeedProfile(this.computationParametersObserver, 0, [], []);
@@ -103,6 +105,7 @@ export class VnavDriver implements GuidanceComponent {
           this.aircraftToDescentProfileRelation,
           computationParametersObserver,
           this.atmosphericConditions,
+          navigation,
         );
 
     this.profileManager = new VerticalProfileManager(

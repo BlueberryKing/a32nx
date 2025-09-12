@@ -196,27 +196,33 @@ export interface FMSymbolsConfig {
 
 export interface PathCaptureProfile {
   /**
-   * Gain used to calculate whether the difference between current and target VS is enough to start path capture
-   */
-  pathCaptureGain: number;
-  /**
-   * Gain used to calculate whether the difference between current and target VS is too large to continue path capture
+   * A factor to apply to the path capture zone calculation to determine whether the path capture should be cancelled.
+   * For example, a value of 1.1 means that an active path capture is cancelled if the linear deviation exceeds 1.1 times
+   * the current path capture zone
    */
   pathDisengagementGain: number;
   /**
-   * If we don't get a valid VS value from the ADIRS, path capture will start if linear deviation is less than this value
-   */
-  fallbackPathCaptureDeviation: number;
-  /**
-   * Maximum linear deviation before we disengage from the path if path capture condition is no longer met
+   * Maximum linear deviation in feet before we disengage from the path if path capture condition is no longer met
    */
   maxOnPathDeviation: number;
   /**
-   * If linear deviation is less than this value, path capture will always start regardless of VS
+   * If linear deviation in feet is less than this value, path capture will always start regardless of VS
    */
   minCaptureDeviation: number;
+
   /**
-   * If linear deviation is greater than this value, path capture will never start
+   * Parameter used within the flight guidance to compute the target vertical speed in the VPATH law
    */
-  maxCaptureDeviation: number;
+  vpathLawCaptureGain: number;
+
+  /**
+   * Parameter used within the flight guidance that describes the linear deviation in feet at which the law commands the
+   * maximal closure rate towards the path
+   */
+  vpathLawMaxLinearDeviation: number;
+
+  /**
+   * Parameter used within the flight guidance that describes the maximal load factor the law may command
+   */
+  vpathMaxLoadFactor: number;
 }

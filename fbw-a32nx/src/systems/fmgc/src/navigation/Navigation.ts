@@ -111,6 +111,20 @@ export class Navigation implements NavigationProvider {
     (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_TRUE_AIRSPEED`,
   );
 
+  private inertialVerticalSpeed: number | null = null;
+
+  private static readonly inertialVerticalSpeedVars = Array.from(
+    { length: 3 },
+    (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_VERTICAL_SPEED`,
+  );
+
+  private inertialFlightPathAngle: number | null = null;
+
+  private static readonly inertialFlightPathAngleVars = Array.from(
+    { length: 3 },
+    (_, i) => `L:A32NX_ADIRS_IR_${i + 1}_FLIGHT_PATH_ANGLE`,
+  );
+
   private staticAirTemperature: number | null = null;
 
   private static readonly staticAirTemperatureVars = Array.from(
@@ -177,6 +191,7 @@ export class Navigation implements NavigationProvider {
     this.updatePosition();
     this.updateRadioHeight();
     this.updateAirData();
+    this.updateInertialReference();
 
     this.navaidSelectionManager.update(deltaTime);
     this.landingSystemSelectionManager.update(deltaTime);
@@ -257,7 +272,13 @@ export class Navigation implements NavigationProvider {
     }
   }
 
+  private updateInertialReference(): void {
+    this.inertialVerticalSpeed = this.getAdiruValue(Navigation.inertialVerticalSpeedVars);
+    this.inertialFlightPathAngle = this.getAdiruValue(Navigation.inertialFlightPathAngleVars);
+  }
+
   private updatePosition(): void {
+    // TODO actually compute from ADIRS (/GPS)
     this.ppos.lat = SimVar.GetSimVarValue('PLANE LATITUDE', 'degree latitude');
     this.ppos.long = SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude');
     this.groundSpeed = SimVar.GetSimVarValue('GPS GROUND SPEED', 'knots');
@@ -292,6 +313,18 @@ export class Navigation implements NavigationProvider {
 
   public getTrueAirspeed(): number | null {
     return this.trueAirspeed;
+  }
+
+  public getGroundSpeed(): number | null {
+    return this.groundSpeed;
+  }
+
+  public getInertialVerticalSpeed(): number | null {
+    return this.inertialVerticalSpeed;
+  }
+
+  public getInertialFlightPathAngle(): number | null {
+    return this.inertialFlightPathAngle;
   }
 
   public getStaticAirTemperature(): number | null {

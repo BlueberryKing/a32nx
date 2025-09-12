@@ -30,12 +30,12 @@ const vnavConfig: VnavConfig = {
   VMO: 340,
   MMO: 0.89,
   VPATH_CAPTURE_PROFILE: {
-    pathCaptureGain: 0.2,
-    pathDisengagementGain: 0.4,
-    fallbackPathCaptureDeviation: 100,
+    pathDisengagementGain: 1.1,
     maxOnPathDeviation: 100,
     minCaptureDeviation: 50,
-    maxCaptureDeviation: 500,
+    vpathLawCaptureGain: 8,
+    vpathLawMaxLinearDeviation: 1500,
+    vpathMaxLoadFactor: 0.5,
   },
 };
 

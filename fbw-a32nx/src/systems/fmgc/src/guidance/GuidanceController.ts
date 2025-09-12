@@ -36,6 +36,7 @@ import { VMLeg } from './lnav/legs/VM';
 import { ConsumerValue, EventBus } from '@microsoft/msfs-sdk';
 import { FlightPhaseManagerEvents } from '@fmgc/flightphase';
 import { A32NX_Util } from '../../../shared/src/A32NX_Util';
+import { Navigation } from '../navigation/Navigation';
 
 // How often the (milliseconds)
 const GEOMETRY_RECOMPUTATION_TIMER = 5_000;
@@ -306,6 +307,7 @@ export class GuidanceController {
     private efisInterfaces: Record<EfisSide, EfisInterface>,
     private readonly efisNDRangeValues: number[],
     private readonly acConfig: AircraftConfig,
+    navigation: Navigation,
   ) {
     this.verticalProfileComputationParametersObserver = new VerticalProfileComputationParametersObserver(
       fmgc,
@@ -323,6 +325,7 @@ export class GuidanceController {
       this.atmosphericConditions,
       this.windProfileFactory,
       this.acConfig,
+      navigation,
     );
     this.pseudoWaypoints = new PseudoWaypoints(flightPlanService, this, this.atmosphericConditions, this.acConfig);
     this.efisVectors = new EfisVectors(this.bus, this.flightPlanService, this, efisInterfaces);
