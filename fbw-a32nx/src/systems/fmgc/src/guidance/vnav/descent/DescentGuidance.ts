@@ -296,14 +296,16 @@ export class DescentGuidance {
         ? (trueAirspeed ** 2 /
             this.pathCaptureProfile.vpathMaxLoadFactor /
             this.config.flightModelParameters.gravityConstKNS /
-            60) *
+            3600) *
+          MathUtils.FEET_TO_NAUTICAL_MILES *
           (Math.cos(vpathAngleRad) -
             Math.cos(inertialFpa * MathUtils.DEGREES_TO_RADIANS) +
             Math.tan(vpathAngleRad) * (Math.sin(vpathAngleRad) - Math.sin(inertialFpa * MathUtils.DEGREES_TO_RADIANS)))
         : (trueAirspeed ** 2 /
             this.pathCaptureProfile.vpathMaxLoadFactor /
             this.config.flightModelParameters.gravityConstKNS /
-            60) *
+            3600) *
+          MathUtils.FEET_TO_NAUTICAL_MILES *
           (Math.cos(inertialFpa * MathUtils.DEGREES_TO_RADIANS) -
             Math.cos(vpathAngleRad) +
             Math.tan(vpathAngleRad) * (Math.sin(inertialFpa * MathUtils.DEGREES_TO_RADIANS) - Math.sin(vpathAngleRad)));

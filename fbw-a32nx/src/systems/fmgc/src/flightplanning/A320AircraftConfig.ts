@@ -35,7 +35,7 @@ const vnavConfig: VnavConfig = {
     minCaptureDeviation: 50,
     vpathLawCaptureGain: 8,
     vpathLawMaxLinearDeviation: 1500,
-    vpathMaxLoadFactor: 0.5,
+    vpathMaxLoadFactor: 0.1,
   },
 };
 
