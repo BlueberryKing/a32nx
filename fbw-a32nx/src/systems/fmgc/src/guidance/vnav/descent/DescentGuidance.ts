@@ -282,7 +282,7 @@ export class DescentGuidance {
       return false;
     }
 
-    const targetVerticalSpeed = inertialGroundSpeed * Math.tan(vpathAngleRad);
+    const targetVerticalSpeed = MathUtils.KNOTS_TO_FEET_PER_MINUTE * inertialGroundSpeed * Math.tan(vpathAngleRad);
 
     const unsaturatedCaptureZone =
       MathUtils.clamp(
@@ -310,7 +310,7 @@ export class DescentGuidance {
             Math.cos(vpathAngleRad) +
             Math.tan(vpathAngleRad) * (Math.sin(inertialFpa * MathUtils.DEGREES_TO_RADIANS) - Math.sin(vpathAngleRad)));
 
-    const optimalCaptureZone = Math.max(Math.abs(unsaturatedCaptureZone), Math.abs(saturatedCaptureZone));
+    const optimalCaptureZone = 1.2 * Math.max(Math.abs(unsaturatedCaptureZone), Math.abs(saturatedCaptureZone));
     const captureZone = extraGain * Math.max(optimalCaptureZone, this.pathCaptureProfile.minCaptureDeviation);
 
     return linearDeviation > 0 ? linearDeviation < captureZone : linearDeviation > -captureZone;

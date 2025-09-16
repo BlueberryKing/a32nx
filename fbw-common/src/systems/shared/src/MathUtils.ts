@@ -13,6 +13,8 @@ export class MathUtils {
 
   static METRES_TO_NAUTICAL_MILES = 1852;
 
+  static KNOTS_TO_FEET_PER_MINUTE = 101.269;
+
   public static TWO_PI = Math.PI * 2;
 
   private static optiPow10 = [];
