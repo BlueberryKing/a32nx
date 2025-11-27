@@ -5632,7 +5632,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       return {};
     }
 
-    const cruiseLevel = plan.performanceData.cruiseFlightLevel;
+    const cruiseLevel = plan.performanceData.cruiseFlightLevel.get();
     const phase = this.flightPhaseManager.phase;
 
     const shouldRequestClimbWinds =
