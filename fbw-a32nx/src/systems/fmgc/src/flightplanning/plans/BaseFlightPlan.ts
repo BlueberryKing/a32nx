@@ -68,7 +68,7 @@ import { LnavConfig } from '@fmgc/guidance/LnavConfig';
 import { bearingTo } from 'msfs-geo';
 import { RestringOptions } from './RestringOptions';
 import { FlightPlanQueuedOperation } from '@fmgc/flightplanning/plans/FlightPlanQueuedOperation';
-import { formatWindEntry, PropagatedWindEntry, PropagationType, WindEntry } from '../data/wind';
+import { debugFormatWindEntry, PropagatedWindEntry, PropagationType, WindEntry } from '../data/wind';
 
 export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerformanceData>
   implements ReadonlyFlightPlan
@@ -2894,8 +2894,8 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
 
     if (LnavConfig.VERBOSE_FPM_LOG) {
       console.group('[FMS/FPM] Cruise wind modification');
-      console.log(`[FMS/FPM] 1) Entered ${formatWindEntry(newEntry)}`);
-      console.log(`[FMS/FPM] 2) Clicked on entry ${formatWindEntry(clickedEntry)}`);
+      console.log(`[FMS/FPM] 1) Entered ${debugFormatWindEntry(newEntry)}`);
+      console.log(`[FMS/FPM] 2) Clicked on entry ${debugFormatWindEntry(clickedEntry)}`);
     }
 
     // Check if the new altitude we entered already exists as a cruise wind entry level
@@ -2905,12 +2905,12 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
 
     if (propagatedEntry) {
       LnavConfig.VERBOSE_FPM_LOG &&
-        console.log(`[FMS/FPM] 3) Entry found at new altitude ${formatWindEntry(propagatedEntry)}`);
+        console.log(`[FMS/FPM] 3) Entry found at new altitude ${debugFormatWindEntry(propagatedEntry)}`);
 
       if (propagatedEntry.type === PropagationType.Entry) {
         LnavConfig.VERBOSE_FPM_LOG &&
           console.log(
-            `[FMS/FPM] 4) Propagated wind entry exists on this leg. Editing ${formatWindEntry(propagatedEntry)}`,
+            `[FMS/FPM] 4) Propagated wind entry exists on this leg. Editing ${debugFormatWindEntry(propagatedEntry)}`,
           );
 
         const oldEntry = leg.cruiseWindEntries.find(
@@ -2922,7 +2922,9 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         this.syncCruiseWindChange(atIndex);
       } else {
         LnavConfig.VERBOSE_FPM_LOG &&
-          console.log(`[FMS/FPM] 4) Propagated wind comes from a different leg. Adding ${formatWindEntry(newEntry)}`);
+          console.log(
+            `[FMS/FPM] 4) Propagated wind comes from a different leg. Adding ${debugFormatWindEntry(newEntry)}`,
+          );
 
         await this.addCruiseWindEntry(atIndex, newEntry, maxNumEntries);
       }
@@ -2931,7 +2933,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
         console.log(
           `[FMS/FPM] 3) Editing a cruise wind entry. Deleting all entries at the old altitude (FL${(altitude / 100).toFixed(0).padStart(3, '0')}).`,
         );
-        console.log(`[FMS/FPM] 4) Adding ${formatWindEntry(newEntry)}`);
+        console.log(`[FMS/FPM] 4) Adding ${debugFormatWindEntry(newEntry)}`);
       }
 
       // Delete all entries with the same altitude (FCOM)
