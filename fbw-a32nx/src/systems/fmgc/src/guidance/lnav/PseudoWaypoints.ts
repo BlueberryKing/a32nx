@@ -298,9 +298,16 @@ export class PseudoWaypoints implements GuidanceComponent {
     path: Geometry,
     wptCount: number,
     distanceFromEnd: NauticalMiles,
+    snapToLegs: boolean = false,
     debugString?: string,
   ): [lla: Coordinates, distanceFromLegTermination: number, legIndex: number] | undefined {
-    return path.pointFromEndOfPath(this.guidanceController.activeLegIndex, wptCount, distanceFromEnd, debugString);
+    return path.pointFromEndOfPath(
+      this.guidanceController.activeLegIndex,
+      wptCount,
+      distanceFromEnd,
+      snapToLegs,
+      debugString,
+    );
   }
 
   private createPseudoWaypointFromVerticalCheckpoint(
@@ -324,6 +331,7 @@ export class PseudoWaypoints implements GuidanceComponent {
         geometry,
         wptCount,
         totalDistance - checkpoint?.distanceFromStart,
+        true,
         checkpoint.reason,
       );
       if (!pwp) {
