@@ -10,11 +10,11 @@ import { AircraftToDescentProfileRelation } from '@fmgc/guidance/vnav/descent/Ai
 import { NavGeometryProfile } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
-import { VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { SpeedMargin } from './SpeedMargin';
 import { TodGuidance } from './TodGuidance';
 import { AircraftConfig } from '../../../flightplanning/AircraftConfigTypes';
+import { VerticalMode } from '../../../../../shared/src/autopilot';
 
 enum DescentVerticalGuidanceState {
   InvalidProfile,
@@ -103,6 +103,8 @@ export class DescentGuidance {
 
   private pathCaptureState: PathCaptureState = PathCaptureState.OffPath;
 
+  private shouldRequestVdev = false;
+
   constructor(
     config: AircraftConfig,
     private guidanceController: GuidanceController,
@@ -163,14 +165,17 @@ export class DescentGuidance {
 
   update(deltaTime: number, distanceToEnd: NauticalMiles) {
     this.aircraftToDescentProfileRelation.update(distanceToEnd);
+    this.updateVdevRequest();
 
     if (!this.aircraftToDescentProfileRelation.isValid) {
       this.changeState(DescentVerticalGuidanceState.InvalidProfile);
       return;
     }
 
+    const verticalMode = this.observer.get().fcuVerticalMode;
+
     if (
-      (this.observer.get().fcuVerticalMode === VerticalMode.DES) !==
+      (verticalMode === VerticalMode.DES || verticalMode === VerticalMode.FINAL) !==
       (this.verticalState === DescentVerticalGuidanceState.ProvidingGuidance)
     ) {
       this.changeState(
@@ -185,6 +190,7 @@ export class DescentGuidance {
     this.updateSpeedGuidance();
     this.updateOverUnderspeedCondition();
     this.updateLinearDeviation();
+    this.updateFinalAppEngagementCondition();
 
     if (this.verticalState === DescentVerticalGuidanceState.ProvidingGuidance) {
       this.updateDesModeGuidance();
@@ -471,5 +477,28 @@ export class DescentGuidance {
     }
 
     return this.aircraftToDescentProfileRelation.computeLinearDeviation();
+  }
+
+  private updateFinalAppEngagementCondition() {
+    const prevCanEngage = SimVar.GetSimVarValue('L:A32NX_FG_FINAL_CAN_ENGAGE', 'boolean');
+    const canEngage = this.aircraftToDescentProfileRelation.canEngageFinalApp();
+
+    if (canEngage !== prevCanEngage) {
+      SimVar.SetSimVarValue('L:A32NX_FG_FINAL_CAN_ENGAGE', 'boolean', canEngage);
+    }
+  }
+
+  private updateVdevRequest() {
+    const { flightPhase } = this.observer.get();
+    const rnavAppSelected = SimVar.GetSimVarValue('L:A32NX_FG_RNAV_APP_SELECTED', 'boolean');
+
+    const requestVdev = flightPhase === FmgcFlightPhase.Approach && rnavAppSelected;
+
+    if (requestVdev !== this.shouldRequestVdev) {
+      SimVar.SetSimVarValue('L:A32NX_FMGC_L_VDEV_REQUEST', 'bool', requestVdev);
+      SimVar.SetSimVarValue('L:A32NX_FMGC_R_VDEV_REQUEST', 'bool', requestVdev);
+
+      this.shouldRequestVdev = requestVdev;
+    }
   }
 }

@@ -196,6 +196,14 @@ export class NavGeometryProfile extends BaseGeometryProfile {
     return this.constraintReader.fafDistanceToEnd;
   }
 
+  get iafDistanceToEnd(): NauticalMiles {
+    return this.constraintReader.iafDistanceToEnd;
+  }
+
+  get fdpDistanceToEnd(): NauticalMiles {
+    return this.constraintReader.fdpDistanceToEnd;
+  }
+
   get finalAltitude(): Feet {
     return this.constraintReader.finalAltitude;
   }

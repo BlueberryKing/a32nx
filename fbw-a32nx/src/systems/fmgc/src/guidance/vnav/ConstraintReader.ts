@@ -51,6 +51,9 @@ export class ConstraintReader {
 
   public finalAltitude: Feet = 50;
 
+  public iafDistanceToEnd = this.fafDistanceToEnd;
+
+
   constructor(
     private flightPlanService: FlightPlanService,
     private guidanceController: GuidanceController,
@@ -61,6 +64,7 @@ export class ConstraintReader {
   updateFlightPlan() {
     this.reset();
     this.updateDistancesToEnd();
+    this.updateFinalAltitude();
 
     let maxSpeed = Infinity;
 
@@ -153,9 +157,11 @@ export class ConstraintReader {
       if (leg.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.FinalApproachFix) {
         this.fafDistanceToEnd = legDistanceToEnd;
       }
-    }
 
-    this.updateFinalAltitude();
+      if (i === plan.firstApproachViaLegIndex) {
+        this.iafDistanceToEnd = legDistanceToEnd;
+      }
+    }
   }
 
   private updateFinalAltitude(): void {
@@ -210,6 +216,7 @@ export class ConstraintReader {
     this.finalDescentAngle = -3;
     this.fafDistanceToEnd =
       1000 / Math.tan(-this.finalDescentAngle * MathUtils.DEGREES_TO_RADIANS) / MathUtils.FEET_TO_NAUTICAL_MILES;
+    this.iafDistanceToEnd = this.fafDistanceToEnd;
     this.finalAltitude = 50;
   }
 

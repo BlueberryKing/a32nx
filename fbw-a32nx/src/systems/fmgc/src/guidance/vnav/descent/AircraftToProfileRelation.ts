@@ -11,6 +11,7 @@ import {
 import { VerticalProfileComputationParametersObserver } from '@fmgc/guidance/vnav/VerticalProfileComputationParameters';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { MathUtils } from '@flybywiresim/fbw-sdk';
+import { Common } from '../common';
 
 export class AircraftToDescentProfileRelation {
   public isValid: boolean = false;
@@ -27,6 +28,10 @@ export class AircraftToDescentProfileRelation {
 
   get distanceFromStart(): NauticalMiles {
     return this.totalFlightPlanDistance - this.distanceToEnd;
+  }
+
+  get currentDistanceToEnd(): NauticalMiles {
+    return this.distanceToEnd;
   }
 
   constructor(private observer: VerticalProfileComputationParametersObserver) {}
@@ -132,12 +137,48 @@ export class AircraftToDescentProfileRelation {
   }
 
   isCloseToAirfieldElevation(): boolean {
-    const { destinationElevation, presentPosition } = this.observer.get();
+  canEngageFinalApp() {
+    const { altitude } = this.observer.get();
+    const distance = this.distanceFromStart;
 
-    return presentPosition.alt < destinationElevation + 5000;
-  }
+    if (!this.currentProfile) {
+      return false;
+    }
 
-  get currentDistanceToEnd(): NauticalMiles {
-    return this.distanceToEnd;
+    const iafDistanceFromStart = this.currentProfile.totalFlightPlanDistance - this.currentProfile.iafDistanceToEnd;
+
+    for (let i = 0; i < this.currentProfile.checkpoints.length - 1; i++) {
+      const start = this.currentProfile.checkpoints[i];
+      const end = this.currentProfile.checkpoints[i + 1];
+
+      if (start.distanceFromStart < iafDistanceFromStart || end.distanceFromStart < distance) {
+        continue;
+      }
+
+      if (distance + 1.5 < start.distanceFromStart) {
+        return false;
+      }
+
+      // Have to be on the leg or at most 1.5 miles before it, i.e
+      // start - 1.5 <= distance <= end
+
+      const isDescendingLeg =
+        end.distanceFromStart - start.distanceFromStart > 1e-4 && end.altitude < start.altitude - 1e-4;
+
+      if (isDescendingLeg) {
+        // Check within 150 ft of the path
+        const pathAlt = Common.interpolate(
+          distance,
+          start.distanceFromStart,
+          end.distanceFromStart,
+          start.altitude,
+          end.altitude,
+        );
+
+        return Math.abs(altitude - pathAlt) < 150;
+      }
+    }
+
+    return false;
   }
 }

@@ -260,6 +260,10 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     return this.firstMissedApproachLegIndex - this.approachSegment.legCount;
   }
 
+  get firstApproachViaLegIndex() {
+    return this.firstMissedApproachLegIndex - this.approachSegment.legCount - this.approachViaSegment.legCount;
+  }
+
   get firstEnrouteLegIndex(): number {
     return this.lastEnrouteLegIndex - this.enrouteSegment.legCount;
   }
