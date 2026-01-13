@@ -12,9 +12,13 @@ import { UnitType } from '@microsoft/msfs-sdk';
 import { ArmedLateralMode, ArmedVerticalMode, LateralMode, VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlightPlanIndex } from '../../flightplanning/FlightPlanManager';
+import { NavigationProvider } from '../../navigation/NavigationProvider';
+import { Coordinates } from 'msfs-geo';
+import { Arinc429Register } from '@flybywiresim/fbw-sdk';
 
 export interface VerticalProfileComputationParameters {
-  presentPosition: LatLongAlt;
+  presentPosition: Coordinates | null;
+  altitude: number | null;
 
   fcuAltitude: Feet;
   fcuVerticalMode: VerticalMode;
@@ -65,21 +69,38 @@ export interface VerticalProfileComputationParameters {
 export class VerticalProfileComputationParametersObserver {
   private parameters: VerticalProfileComputationParameters;
 
+  private readonly fcuEisDiscrete2: Arinc429Register = Arinc429Register.empty();
+
   constructor(
     private fmgc: Fmgc,
     private flightPlanService: FlightPlanService,
+    private navigation: NavigationProvider,
   ) {
     this.update();
   }
 
   update() {
     const efobTonnes = this.fmgc.getDestEFOB(false);
+    // TODO use both sides
+    this.fcuEisDiscrete2.setFromSimVar('L:A32NX_FCU_LEFT_EIS_DISCRETE_WORD_2');
+
+    const fcuLateralMode = SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_MODE', 'Enum');
+    let fcuVerticalMode = SimVar.GetSimVarValue('L:A32NX_FMA_VERTICAL_MODE', 'Enum');
+
+    // HAX!
+    if (fcuLateralMode === LateralMode.NAV && fcuVerticalMode === VerticalMode.NONE) {
+      fcuVerticalMode = VerticalMode.FINAL;
+    }
+
     this.parameters = {
-      presentPosition: this.getPresentPosition(),
+      presentPosition: this.navigation.getPpos(),
+      altitude: this.fcuEisDiscrete2.bitValueOr(28, true)
+        ? this.navigation.getPressureAltitude()
+        : this.navigation.getBaroCorrectedAltitude(),
 
       fcuAltitude: Simplane.getAutoPilotDisplayedAltitudeLockValue(),
-      fcuVerticalMode: SimVar.GetSimVarValue('L:A32NX_FMA_VERTICAL_MODE', 'Enum'),
-      fcuLateralMode: SimVar.GetSimVarValue('L:A32NX_FMA_LATERAL_MODE', 'Enum'),
+      fcuVerticalMode,
+      fcuLateralMode,
       fcuVerticalSpeed: SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_VS_SELECTED', 'Feet per minute'),
       fcuFlightPathAngle: SimVar.GetSimVarValue('L:A32NX_AUTOPILOT_FPA_SELECTED', 'Degrees'),
       fcuSpeedManaged: SimVar.GetSimVarValue('L:A32NX_FCU_SPD_MANAGED_DOT', 'number'),
@@ -143,20 +164,12 @@ export class VerticalProfileComputationParametersObserver {
 
     if (VnavConfig.ALLOW_DEBUG_PARAMETER_INJECTION) {
       this.parameters.flightPhase = FmgcFlightPhase.Descent;
-      this.parameters.presentPosition.alt = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_ALTITUDE', 'feet');
+      this.parameters.altitude = SimVar.GetSimVarValue('L:A32NX_FM_VNAV_DEBUG_ALTITUDE', 'feet');
       this.parameters.fcuVerticalMode = VerticalMode.DES;
       this.parameters.fcuLateralMode = LateralMode.NAV;
       this.parameters.zeroFuelWeight = 134400;
       this.parameters.v2Speed = 126;
     }
-  }
-
-  private getPresentPosition(): LatLongAlt {
-    return new LatLongAlt(
-      SimVar.GetSimVarValue('PLANE LATITUDE', 'degree latitude'),
-      SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude'),
-      SimVar.GetSimVarValue('INDICATED ALTITUDE', 'feet'),
-    );
   }
 
   private getV2Speed(): Knots {
@@ -198,7 +211,9 @@ export class VerticalProfileComputationParametersObserver {
       areApproachSpeedsValid &&
       hasZeroFuelWeight &&
       hasGrossWeight &&
-      hasCruiseAltitude
+      hasCruiseAltitude &&
+      this.parameters.altitude !== null &&
+      this.parameters.presentPosition !== null
     );
   }
 

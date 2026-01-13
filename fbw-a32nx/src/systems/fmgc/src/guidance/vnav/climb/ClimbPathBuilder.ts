@@ -482,7 +482,7 @@ export class ClimbPathBuilder {
   addSpeedLimitAsCheckpoint(profile: BaseGeometryProfile) {
     const {
       climbSpeedLimit: { underAltitude },
-      presentPosition: { alt },
+      altitude: alt,
       cruiseAltitude,
     } = this.computationParametersObserver.get();
 
@@ -496,9 +496,9 @@ export class ClimbPathBuilder {
   }
 
   private addFcuAltitudeAsCheckpoint(profile: BaseGeometryProfile) {
-    const { fcuAltitude, presentPosition, cruiseAltitude } = this.computationParametersObserver.get();
+    const { fcuAltitude, altitude, cruiseAltitude } = this.computationParametersObserver.get();
 
-    if (fcuAltitude <= presentPosition.alt || fcuAltitude > cruiseAltitude) {
+    if (fcuAltitude <= altitude || fcuAltitude > cruiseAltitude) {
       return;
     }
 
