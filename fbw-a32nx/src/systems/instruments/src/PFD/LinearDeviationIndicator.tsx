@@ -1,12 +1,14 @@
-// @ts-strict-ignore
 // Copyright (c) 2021-2023 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
 import { Arinc429ConsumerSubject, ArincEventBus } from '@flybywiresim/fbw-sdk';
-import { DisplayComponent, FSComponent, Subject, VNode } from '@microsoft/msfs-sdk';
+import { ConsumerSubject, DisplayComponent, FSComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk';
 import { FmsVars } from 'instruments/src/MsfsAvionicsCommon/providers/FmsDataPublisher';
 import { Arinc429Values } from 'instruments/src/PFD/shared/ArincValueProvider';
+import { FgBus } from './shared/FgBusProvider';
+import { PFDSimvars } from './shared/PFDSimvarPublisher';
+import { getDisplayIndex } from './PFD';
 
 type LinearDeviationIndicatorProps = {
   bus: ArincEventBus;
@@ -17,7 +19,10 @@ export class LinearDeviationIndicator extends DisplayComponent<LinearDeviationIn
     this.props.bus.getArincSubscriber<Arinc429Values>().on('altitudeAr'),
   );
 
-  private shouldShowLinearDeviation = false;
+  private readonly linearDeviationRequested = ConsumerSubject.create(
+    this.props.bus.getSubscriber<FmsVars>().on('linearDeviationActive'),
+    false,
+  );
 
   private componentTransform = Subject.create('');
 
@@ -38,25 +43,58 @@ export class LinearDeviationIndicator extends DisplayComponent<LinearDeviationIn
   private latchSymbolVisibility = Subject.create<'visible' | 'hidden'>('hidden');
 
   // TODO: Use ARINC value for this
-  private flightPathAltitude: Feet = 0;
+  private readonly targetAltitude = ConsumerSubject.create(
+    this.props.bus
+      .getSubscriber<FmsVars>()
+      .on('targetAltitude')
+      .atFrequency(1000 / 60),
+    undefined,
+  );
+
+  private readonly fmgcDiscreteWord1 = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<FgBus>().on('fmgcDiscreteWord1'),
+  );
+
+  private readonly fmgcDiscreteWord2 = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<FgBus>().on('fmgcDiscreteWord2'),
+  );
+
+  private readonly fmgcDiscreteWord3 = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<FgBus>().on('fmgcDiscreteWord3'),
+  );
+
+  private readonly finalArmedOrActive = MappedSubject.create(
+    ([discrete1, discrete2, discrete3]) =>
+      discrete3.bitValueOr(23, false) || // FINAL armed
+      (discrete2.bitValueOr(12, false) && discrete1.bitValueOr(23, false)), // FINAL APP active
+    this.fmgcDiscreteWord1,
+    this.fmgcDiscreteWord2,
+    this.fmgcDiscreteWord3,
+  );
+
+  private readonly vdevRequest = ConsumerSubject.create(null, false);
+
+  private readonly linearDeviationInhibited = MappedSubject.create(
+    ([linearDeviationActive, finalArmedOrActive, vdevRequest]) =>
+      !linearDeviationActive || finalArmedOrActive || vdevRequest,
+    this.linearDeviationRequested,
+    this.finalArmedOrActive,
+    this.vdevRequest,
+  );
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    const sub = this.props.bus.getSubscriber<Arinc429Values & FmsVars>();
+    const sub = this.props.bus.getSubscriber<Arinc429Values & FmsVars & PFDSimvars>();
 
-    this.altitude.sub((alt) => {
-      if (!alt.isNormalOperation() || !this.shouldShowLinearDeviation) {
-        this.upperLinearDeviationReadoutVisibility.set('hidden');
-        this.lowerLinearDeviationReadoutVisibility.set('hidden');
-        this.linearDeviationDotLowerHalfVisibility.set('hidden');
-        this.linearDeviationDotUpperHalfVisibility.set('hidden');
-        this.linearDeviationDotVisibility.set('hidden');
-
+    const onAltChangedSub = this.altitude.sub((alt) => {
+      const targetAlt = this.targetAltitude.get();
+      if (!alt.isNormalOperation() || targetAlt === undefined) {
+        this.hide();
         return;
       }
 
-      const deviation = alt.value - this.flightPathAltitude;
+      const deviation = alt.value - targetAlt;
       const pixelOffset = this.pixelOffsetFromDeviation(Math.max(Math.min(deviation, 500), -500));
 
       this.componentTransform.set(`translate(0 ${pixelOffset})`);
@@ -101,21 +139,28 @@ export class LinearDeviationIndicator extends DisplayComponent<LinearDeviationIn
     }, true);
 
     sub
-      .on('linearDeviationActive')
-      .whenChanged()
-      .handle((isActive) => (this.shouldShowLinearDeviation = isActive));
-
-    sub
       .on('verticalProfileLatched')
       .whenChanged()
       .handle((s) => this.latchSymbolVisibility.set(s ? 'visible' : 'hidden'));
 
-    sub
-      .on('targetAltitude')
-      .atFrequency(1000 / 60)
-      .handle((targetAltitude) => {
-        this.flightPathAltitude = targetAltitude;
-      });
+    this.vdevRequest.setConsumer(sub.on(getDisplayIndex() === 1 ? 'vdevRequestLeft' : 'vdevRequestRight'));
+
+    this.linearDeviationInhibited.sub((isInhibited) => {
+      if (isInhibited) {
+        this.hide();
+        onAltChangedSub.pause();
+      } else {
+        onAltChangedSub.resume();
+      }
+    }, true);
+  }
+
+  private hide() {
+    this.upperLinearDeviationReadoutVisibility.set('hidden');
+    this.lowerLinearDeviationReadoutVisibility.set('hidden');
+    this.linearDeviationDotLowerHalfVisibility.set('hidden');
+    this.linearDeviationDotUpperHalfVisibility.set('hidden');
+    this.linearDeviationDotVisibility.set('hidden');
   }
 
   render(): VNode {

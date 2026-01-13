@@ -15,13 +15,15 @@ import {
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
-import { ArincEventBus, Arinc429RegisterSubject, MathUtils } from '@flybywiresim/fbw-sdk';
+import { ArincEventBus, Arinc429RegisterSubject, MathUtils, Arinc429ConsumerSubject } from '@flybywiresim/fbw-sdk';
 
 import { getDisplayIndex } from 'instruments/src/PFD/PFD';
 import { FcuBus } from 'instruments/src/PFD/shared/FcuBusProvider';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { LagFilter } from './PFDUtils';
+import { FmsVars } from 'instruments/src/MsfsAvionicsCommon/providers/FmsDataPublisher';
+import { FgBus } from './shared/FgBusProvider';
 
 // FIXME true ref
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
@@ -35,6 +37,8 @@ export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instru
   private readonly xtkValid = this.xtk.map((v) => Math.abs(v) > 0);
 
   private readonly ldevRequest = ConsumerSubject.create(null, false);
+
+  private readonly vdevRequest = ConsumerSubject.create(null, false);
 
   private readonly altitude2 = Arinc429RegisterSubject.createEmpty();
 
@@ -50,7 +54,32 @@ export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instru
     this.xtkValid,
   );
 
-  private readonly isVDevHidden = Subject.create(true);
+  private readonly fmgcDiscreteWord1 = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<FgBus>().on('fmgcDiscreteWord1'),
+  );
+
+  private readonly fmgcDiscreteWord2 = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<FgBus>().on('fmgcDiscreteWord2'),
+  );
+
+  private readonly fmgcDiscreteWord3 = Arinc429ConsumerSubject.create(
+    this.props.bus.getArincSubscriber<FgBus>().on('fmgcDiscreteWord3'),
+  );
+
+  private readonly finalArmedOrActive = MappedSubject.create(
+    ([discrete1, discrete2, discrete3]) =>
+      discrete3.bitValueOr(23, false) || // FINAL armed
+      (discrete2.bitValueOr(12, false) && discrete1.bitValueOr(23, false)), // FINAL APP active
+    this.fmgcDiscreteWord1,
+    this.fmgcDiscreteWord2,
+    this.fmgcDiscreteWord3,
+  );
+
+  private readonly isVDevHidden = MappedSubject.create(
+    ([finalArmedOrActive, vdevRequest]) => !finalArmedOrActive && !vdevRequest,
+    this.finalArmedOrActive,
+    this.vdevRequest,
+  );
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -66,6 +95,7 @@ export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instru
     });
 
     this.ldevRequest.setConsumer(sub.on(getDisplayIndex() === 1 ? 'ldevRequestLeft' : 'ldevRequestRight'));
+    this.vdevRequest.setConsumer(sub.on(getDisplayIndex() === 1 ? 'vdevRequestLeft' : 'vdevRequestRight'));
 
     this.xtk.setConsumer(sub.on('xtk'));
   }
@@ -576,27 +606,56 @@ class VDevIndicator extends DisplayComponent<{ bus: ArincEventBus }> {
 
   private VDevSymbol = FSComponent.createRef<SVGPathElement>();
 
+  private readonly altitude = Arinc429ConsumerSubject.create(
+    this.props.bus
+      .getArincSubscriber<Arinc429Values>()
+      .on('altitudeAr')
+      .atFrequency(1000 / 60),
+  );
+
+  private readonly targetAltitude = ConsumerSubject.create(
+    this.props.bus
+      .getSubscriber<FmsVars>()
+      .on('targetAltitude')
+      .atFrequency(1000 / 60),
+    undefined,
+  );
+
+  private readonly deviation = MappedSubject.create(
+    ([alt, targetAlt]) => (!alt.isInvalid() && targetAlt !== undefined ? alt.value - targetAlt : undefined),
+    this.altitude,
+    this.targetAltitude,
+  );
+
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    // TODO use correct simvar once RNAV is implemented
-    const deviation = 0;
-    const dots = deviation / 100;
+    this.deviation.sub((deviation) => {
+      if (deviation === undefined) {
+        this.VDevSymbolLower.instance.style.visibility = 'hidden';
+        this.VDevSymbolUpper.instance.style.visibility = 'hidden';
+        this.VDevSymbol.instance.style.visibility = 'hidden';
 
-    if (dots > 2) {
-      this.VDevSymbolLower.instance.style.visibility = 'visible';
-      this.VDevSymbolUpper.instance.style.visibility = 'hidden';
-      this.VDevSymbol.instance.style.visibility = 'hidden';
-    } else if (dots < -2) {
-      this.VDevSymbolLower.instance.style.visibility = 'hidden';
-      this.VDevSymbolUpper.instance.style.visibility = 'visible';
-      this.VDevSymbol.instance.style.visibility = 'hidden';
-    } else {
-      this.VDevSymbolLower.instance.style.visibility = 'hidden';
-      this.VDevSymbolUpper.instance.style.visibility = 'hidden';
-      this.VDevSymbol.instance.style.visibility = 'visible';
-      this.VDevSymbol.instance.style.transform = `translate3d(0px, ${(dots * 30.238) / 2}px, 0px)`;
-    }
+        return;
+      }
+
+      const dots = deviation / 100;
+
+      if (dots > 2) {
+        this.VDevSymbolLower.instance.style.visibility = 'visible';
+        this.VDevSymbolUpper.instance.style.visibility = 'hidden';
+        this.VDevSymbol.instance.style.visibility = 'hidden';
+      } else if (dots < -2) {
+        this.VDevSymbolLower.instance.style.visibility = 'hidden';
+        this.VDevSymbolUpper.instance.style.visibility = 'visible';
+        this.VDevSymbol.instance.style.visibility = 'hidden';
+      } else {
+        this.VDevSymbolLower.instance.style.visibility = 'hidden';
+        this.VDevSymbolUpper.instance.style.visibility = 'hidden';
+        this.VDevSymbol.instance.style.visibility = 'visible';
+        this.VDevSymbol.instance.style.transform = `translate3d(0px, ${(dots * 30.238) / 2}px, 0px)`;
+      }
+    });
   }
 
   render(): VNode {
