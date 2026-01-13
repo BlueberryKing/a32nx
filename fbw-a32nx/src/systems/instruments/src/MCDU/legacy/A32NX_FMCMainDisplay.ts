@@ -30,6 +30,7 @@ import {
   VhfNavaid,
   Waypoint,
   MagVar,
+  ApproachType as FbwApproachType,
 } from '@flybywiresim/fbw-sdk';
 import { A32NX_Util } from '../../../../shared/src/A32NX_Util';
 import { EfisInterface } from '@fmgc/efis/EfisInterface';
@@ -1458,6 +1459,12 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         //this._onModeManagedAltitude();
         this._onModeSelectedAltitude();
       }
+
+      const shouldUseFinalApp = this.shouldUseFinalAppForApproach();
+      if (shouldUseFinalApp !== SimVar.GetSimVarValue('L:A32NX_FG_RNAV_APP_SELECTED', 'boolean')) {
+        SimVar.SetSimVarValue('L:A32NX_FG_RNAV_APP_SELECTED', 'boolean', shouldUseFinalApp);
+      }
+
       this.updateAutopilotCooldown = this._apCooldown;
     }
   }
@@ -5620,6 +5627,23 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   public logTroubleshootingError(msg: any) {
     this.bus.pub('troubleshooting_log_error', String(msg), true, false);
+  }
+
+  private shouldUseFinalAppForApproach() {
+    const plan = this.flightPlanService.active;
+
+    switch (plan?.approach?.type) {
+      case FbwApproachType.VorDme:
+      case FbwApproachType.Ndb:
+      case FbwApproachType.Gps:
+      case FbwApproachType.NdbDme:
+      case FbwApproachType.Rnav:
+      case FbwApproachType.Vortac:
+      case FbwApproachType.Vor:
+        return true;
+      default:
+        return false;
+    }
   }
 
   // ---------------------------
