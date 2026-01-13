@@ -10,9 +10,16 @@ import {
   MaxSpeedConstraint,
 } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
-import { MathUtils, ApproachType, ApproachWaypointDescriptor, WaypointConstraintType } from '@flybywiresim/fbw-sdk';
+import {
+  MathUtils,
+  ApproachType,
+  ApproachWaypointDescriptor,
+  WaypointConstraintType,
+  ConstraintUtils,
+} from '@flybywiresim/fbw-sdk';
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
+import { isLeg } from '../../flightplanning/legs/FlightPlanLeg';
 
 /**
  * This entire class essentially represents an interface to the flightplan.
@@ -53,6 +60,7 @@ export class ConstraintReader {
 
   public iafDistanceToEnd = this.fafDistanceToEnd;
 
+  public fdpDistanceToEnd = this.fafDistanceToEnd;
 
   constructor(
     private flightPlanService: FlightPlanService,
@@ -69,6 +77,7 @@ export class ConstraintReader {
     let maxSpeed = Infinity;
 
     const plan = this.flightPlanService.active;
+    let platformAltitude: number | undefined = undefined;
 
     for (let i = 0; i < plan.firstMissedApproachLegIndex; i++) {
       const leg = plan.elementAt(i);
@@ -152,6 +161,18 @@ export class ConstraintReader {
 
       if (i === plan.destinationLegIndex && leg.definition.verticalAngle) {
         this.finalDescentAngle = leg.definition.verticalAngle;
+
+        if (platformAltitude !== undefined) {
+          this.fdpDistanceToEnd =
+            (this.finalAltitude - platformAltitude) /
+            MathUtils.FEET_TO_NAUTICAL_MILES /
+            Math.tan(this.finalDescentAngle * MathUtils.DEGREES_TO_RADIANS);
+        }
+      }
+
+      const nextElement = plan.maybeElementAt(i + 1);
+      if (platformAltitude === undefined && isLeg(nextElement) && nextElement.definition.verticalAngle !== undefined) {
+        platformAltitude = ConstraintUtils.minimumAltitude(leg.altitudeConstraint);
       }
 
       if (leg.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.FinalApproachFix) {
@@ -217,6 +238,7 @@ export class ConstraintReader {
     this.fafDistanceToEnd =
       1000 / Math.tan(-this.finalDescentAngle * MathUtils.DEGREES_TO_RADIANS) / MathUtils.FEET_TO_NAUTICAL_MILES;
     this.iafDistanceToEnd = this.fafDistanceToEnd;
+    this.fdpDistanceToEnd = this.fafDistanceToEnd;
     this.finalAltitude = 50;
   }
 

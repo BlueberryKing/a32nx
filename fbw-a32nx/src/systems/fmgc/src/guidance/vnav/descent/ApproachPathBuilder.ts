@@ -200,14 +200,14 @@ export class ApproachPathBuilder {
 
     sequence.addCheckpointFromStep(finalApproachStep, VerticalCheckpointReason.AtmosphericConditions);
 
-    // Build path to FAF by flying the descent angle but decelerating
-    const fafStep = this.buildDecelerationPath(
+    // Build path to FDP by flying the descent angle but decelerating
+    const fdpStep = this.buildDecelerationPath(
       sequence.lastCheckpoint,
       speedProfile,
       windProfile,
-      profile.getDistanceFromStart(profile.fafDistanceToEnd),
+      profile.getDistanceFromStart(profile.fdpDistanceToEnd),
     );
-    sequence.push(...fafStep.get());
+    sequence.push(...fdpStep.get());
 
     //
     this.fpaStrategy.flightPathAngle = 0;
