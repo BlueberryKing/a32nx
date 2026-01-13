@@ -66,7 +66,8 @@ export class CDUProgressPage {
         }
         break;
       }
-      case FmgcFlightPhase.Descent: {
+      case FmgcFlightPhase.Descent:
+      case FmgcFlightPhase.Approach: {
         const vDev = mcdu.guidanceController.vnavDriver.getLinearDeviation();
         let vDevFormattedNumber = '{small}-----{end}';
 
