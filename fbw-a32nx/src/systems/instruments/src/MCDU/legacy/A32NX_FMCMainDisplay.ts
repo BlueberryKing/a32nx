@@ -300,7 +300,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   public efisInterfaces?: Record<EfisSide, EfisInterface>;
   public guidanceController?: GuidanceController;
   public navigation?: Navigation;
-  public equitimePoint: EquitimePoint;
 
   public casToMachManualCrossoverCurve;
   public machToCasManualCrossoverCurve;
@@ -375,15 +374,14 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       R: new EfisInterface('R', this.currFlightPlanService),
     };
     this.navigation = new Navigation(this.bus, this.currFlightPlanService);
-    this.equitimePoint = new EquitimePoint(this.bus, this.flightPlanService, this.navigation);
     this.guidanceController = new GuidanceController(
       this.bus,
       this,
       this.currFlightPlanService,
       this.efisInterfaces,
-      this.equitimePoint,
       a320EfisRangeSettings,
       A320AircraftConfig,
+      this.navigation,
     );
     this.efisSymbolsLeft = new EfisSymbols(
       this.bus,
@@ -5624,6 +5622,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
   public logTroubleshootingError(msg: any) {
     this.bus.pub('troubleshooting_log_error', String(msg), true, false);
+  }
+
+  public get equitimePoint(): EquitimePoint {
+    return this.guidanceController.equitimePoint;
   }
 
   // ---------------------------
