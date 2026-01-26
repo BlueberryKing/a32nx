@@ -20,6 +20,7 @@ import {
 import { VnavConfig } from '@fmgc/guidance/vnav/VnavConfig';
 import { FlightPlanService } from '@fmgc/flightplanning/FlightPlanService';
 import { isLeg } from '../../flightplanning/legs/FlightPlanLeg';
+import { SegmentClass } from '../../flightplanning/segments/SegmentClass';
 
 /**
  * This entire class essentially represents an interface to the flightplan.
@@ -58,7 +59,7 @@ export class ConstraintReader {
 
   public finalAltitude: Feet = 50;
 
-  public iafDistanceToEnd = this.fafDistanceToEnd;
+  public iafDistanceToEnd = 0;
 
   public fdpDistanceToEnd = this.fafDistanceToEnd;
 
@@ -178,11 +179,49 @@ export class ConstraintReader {
       if (leg.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.FinalApproachFix) {
         this.fafDistanceToEnd = legDistanceToEnd;
       }
-
-      if (i === plan.firstApproachViaLegIndex) {
-        this.iafDistanceToEnd = legDistanceToEnd;
-      }
     }
+
+    this.updateIafDistance();
+  }
+
+  private updateIafDistance(): void {
+    const plan = this.flightPlanService.active;
+
+    const iafLegIndex = plan.allLegs.findIndex(
+      (el) => isLeg(el) && el.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.InitialApproachFix,
+    );
+    const fafLegIndex = plan.allLegs.findIndex(
+      (el) => isLeg(el) && el.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.FinalApproachFix,
+    );
+    const lastEnrouteLegIndex = plan.allLegs.reduce(
+      (acc, el, i) => (isLeg(el) && el.segment.class === SegmentClass.Enroute ? Math.max(acc, i) : acc),
+      -1,
+    );
+
+    // We identify the IAF directly
+    if (iafLegIndex >= 0) {
+      const iaf = plan.legElementAt(iafLegIndex);
+      this.iafDistanceToEnd = iaf.calculated?.cumulativeDistanceToEndWithTransitions ?? 0;
+
+      return;
+    }
+
+    // Fallback if we perform a direct to past the IAF, in which case the IAF leg would be removed from the flight plan
+    if (lastEnrouteLegIndex >= 0) {
+      const firstApproachLeg = plan.legElementAt(lastEnrouteLegIndex);
+      this.iafDistanceToEnd = firstApproachLeg.calculated?.cumulativeDistanceToEndWithTransitions ?? 0;
+
+      return;
+    }
+
+    if (fafLegIndex >= 0) {
+      const firstApproachLeg = plan.legElementAt(fafLegIndex);
+      this.iafDistanceToEnd = firstApproachLeg.calculated?.cumulativeDistanceToEndWithTransitions ?? 0;
+
+      return;
+    }
+
+    this.iafDistanceToEnd = 0;
   }
 
   private updateFinalAltitude(): void {

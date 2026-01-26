@@ -156,7 +156,7 @@ export class AircraftToDescentProfileRelation {
       const start = this.currentProfile.checkpoints[i];
       const end = this.currentProfile.checkpoints[i + 1];
 
-      if (start.distanceFromStart < iafDistanceFromStart || end.distanceFromStart < distance) {
+      if (end.distanceFromStart < iafDistanceFromStart || end.distanceFromStart < distance) {
         continue;
       }
 
