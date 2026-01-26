@@ -216,25 +216,31 @@ export class DescentGuidance {
   }
 
   private updateDesModeGuidance() {
+    const { flightPhase, fcuVerticalMode } = this.observer.get();
+
     const isOnGeometricPath = this.aircraftToDescentProfileRelation.isOnGeometricPath();
     const isAboveSpeedLimitAltitude = this.aircraftToDescentProfileRelation.isAboveSpeedLimitAltitude();
     const isCloseToAirfieldElevation = this.aircraftToDescentProfileRelation.isCloseToAirfieldElevation();
     const isBeforeTopOfDescent = !this.aircraftToDescentProfileRelation.isPastTopOfDescent();
     const linearDeviation = this.aircraftToDescentProfileRelation.computeLinearDeviation();
     const isSpeedAuto = Simplane.getAutoPilotAirspeedManaged();
-    const isApproachPhaseActive = this.observer.get().flightPhase === FmgcFlightPhase.Approach;
+    const isApproachPhaseActive = flightPhase === FmgcFlightPhase.Approach;
     const isHoldActive = this.guidanceController.isManualHoldActive();
     const targetVerticalSpeed = this.aircraftToDescentProfileRelation.currentTargetVerticalSpeed();
+    const isFinalAppActive = fcuVerticalMode === VerticalMode.FINAL;
 
     this.targetAltitudeGuidance = this.atmosphericConditions.currentPressureAltitude - linearDeviation;
 
     this.updatePathCaptureState(linearDeviation, targetVerticalSpeed);
     const shouldGoOffPath = this.pathCaptureState === PathCaptureState.OffPath;
 
-    if ((!isHoldActive && shouldGoOffPath && linearDeviation > 0) || this.isInOverspeedCondition) {
+    if (
+      !isFinalAppActive &&
+      ((!isHoldActive && shouldGoOffPath && linearDeviation > 0) || this.isInOverspeedCondition)
+    ) {
       // above path
       this.requestedVerticalMode = RequestedVerticalMode.SpeedThrust;
-    } else if (shouldGoOffPath || isBeforeTopOfDescent || isHoldActive) {
+    } else if ((shouldGoOffPath || isBeforeTopOfDescent || isHoldActive) && !isFinalAppActive) {
       // below path
       if (isHoldActive) {
         this.requestedVerticalMode = RequestedVerticalMode.VsSpeed;
@@ -246,7 +252,13 @@ export class DescentGuidance {
         this.requestedVerticalMode = RequestedVerticalMode.VsSpeed;
         this.targetVerticalSpeed = isAboveSpeedLimitAltitude && !isCloseToAirfieldElevation ? -1000 : -500;
       }
-    } else if (!isOnGeometricPath && isSpeedAuto && !this.isInUnderspeedCondition && !isApproachPhaseActive) {
+    } else if (
+      !isOnGeometricPath &&
+      isSpeedAuto &&
+      !this.isInUnderspeedCondition &&
+      !isApproachPhaseActive &&
+      !isFinalAppActive
+    ) {
       // on idle path
 
       this.requestedVerticalMode = RequestedVerticalMode.VpathThrust;
