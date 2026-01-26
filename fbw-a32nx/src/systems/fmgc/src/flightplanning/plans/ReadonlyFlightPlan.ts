@@ -29,8 +29,6 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
 
   get firstApproachLegIndex(): number;
 
-  get firstApproachViaLegIndex(): number;
-
   get firstEnrouteLegIndex(): number;
 
   get lastEnrouteLegIndex(): number;

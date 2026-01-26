@@ -891,6 +891,15 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     return plan.stringMissedApproach(onConstraintsDeleted);
   }
 
+  async activateMissedApproach(
+    onConstraintsDeleted = (_: FlightPlanLeg): void => {},
+    planIndex = FlightPlanIndex.Active,
+  ) {
+    const plan = this.flightPlanManager.get(planIndex);
+
+    return plan.activateMissedApproach(onConstraintsDeleted);
+  }
+
   public openBatch(name: string): Promise<FlightPlanBatch> {
     return this.flightPlanManager.openBatch(name);
   }

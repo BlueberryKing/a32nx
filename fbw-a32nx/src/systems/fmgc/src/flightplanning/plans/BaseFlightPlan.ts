@@ -16,6 +16,8 @@ import {
   ConstraintUtils,
   Departure,
   Fix,
+  isAirport,
+  isRunway,
   LegType,
   MagVar,
   ProcedureTransition,
@@ -260,10 +262,6 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     return this.firstMissedApproachLegIndex - this.approachSegment.legCount;
   }
 
-  get firstApproachViaLegIndex() {
-    return this.firstMissedApproachLegIndex - this.approachSegment.legCount - this.approachViaSegment.legCount;
-  }
-
   get firstEnrouteLegIndex(): number {
     return this.lastEnrouteLegIndex - this.enrouteSegment.legCount;
   }
@@ -358,8 +356,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     this.incrementVersion();
 
     if (
-      this.activeLeg &&
-      this.activeLeg.isDiscontinuity === false &&
+      isLeg(this.activeLeg) &&
       this.activeLeg.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.MissedApproachPoint
     ) {
       this.stringMissedApproach();
@@ -391,17 +388,6 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
   }
 
   async stringMissedApproach(onConstraintsDeleted = (_: FlightPlanLeg): void => {}) {
-    // Make sure we've not already strung the missed approach
-    // Being on an enroute segment would be an indication of that, unless there's no approach legs at all (after DIR to MAP for example),
-    // then restring anyways
-    if (
-      !this.activeLeg ||
-      this.activeLeg.isDiscontinuity === true ||
-      (this.approachSegment.legCount > 0 && this.activeLeg.segment.class !== SegmentClass.Arrival)
-    ) {
-      return;
-    }
-
     const missedApproachPointIndex = this.allLegs.findIndex(
       (it) =>
         it.isDiscontinuity === false &&
@@ -418,31 +404,37 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     // Move arrival/approach into enroute
     this.redistributeLegsAt(missedApproachPointIndex);
 
-    // Copy missed approach into enroute segment
-    const clonedMissedApproachLegs = this.missedApproachSegment.allLegs.map((it) =>
-      it.isDiscontinuity === false ? it.clone(this.enrouteSegment) : it,
-    );
-    this.enrouteSegment.allLegs.push(...clonedMissedApproachLegs);
-    this.enrouteSegment.allLegs.push({ isDiscontinuity: true });
+    // Move missed approach into enroute
+    const missedAppLegs = this.missedApproachSegment.allLegs
+      .splice(0)
+      .map((el) => (isLeg(el) ? el.clone(this.enrouteSegment) : el));
+
+    this.enrouteSegment.allLegs.push(...missedAppLegs, { isDiscontinuity: true });
     this.enrouteSegment.strung = true;
     this.enrouteSegment.isSequencedMissedApproach = true;
 
+    this.syncSegmentLegsChange(this.missedApproachSegment);
     this.syncSegmentLegsChange(this.enrouteSegment);
 
-    await this.arrivalSegment.setProcedure(undefined);
-
-    this.enqueueOperation(FlightPlanQueuedOperation.RebuildArrivalAndApproach);
-    await this.flushOperationQueue();
-
     this.incrementVersion();
-
-    // It's important that we restring after rebuilding the arrival/approach
-    this.enqueueOperation(FlightPlanQueuedOperation.Restring);
-    await this.flushOperationQueue();
 
     // Set active leg again because the index might've changed when we moved it into enroute
     const activeIndex = this.allLegs.findIndex((it) => it === this.activeLeg);
     this.setActiveLegIndex(activeIndex);
+  }
+
+  async activateMissedApproach(onConstraintsDeleted = (_: FlightPlanLeg): void => {}) {
+    await this.stringMissedApproach(onConstraintsDeleted);
+
+    await this.arrivalSegment.setProcedure(undefined);
+    this.enqueueOperation(FlightPlanQueuedOperation.RebuildArrivalAndApproach);
+
+    await this.flushOperationQueue();
+    this.incrementVersion();
+
+    // It's important that we restring *after* rebuilding the arrival/approach
+    this.enqueueOperation(FlightPlanQueuedOperation.Restring);
+    await this.flushOperationQueue();
   }
 
   version = 0;
@@ -619,7 +611,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
   }
 
   get destinationLeg() {
-    return this.elementAt(this.destinationLegIndex);
+    return this.maybeElementAt(this.destinationLegIndex);
   }
 
   get destinationLegIndex() {
@@ -644,7 +636,25 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
       }
     }
 
-    return accumulator - 1;
+    const candidateLegIndex = accumulator - 1;
+    const candidateLeg = this.maybeElementAt(candidateLegIndex);
+
+    // Only airports, runways, or a missed approach point can be a valid destination
+    // If we sequence the MAP without d the G/A phase, all legs, including the missed approach procedure will be moved
+    // into the enroute segment. The last point of the enroute segment will not be the destination leg though.
+    // TODO consider using a flag for this
+    if (
+      isLeg(candidateLeg) &&
+      (candidateLeg.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.MissedApproachPoint ||
+        (isRunway(candidateLeg.terminationWaypoint()) &&
+          areDatabaseItemsEqual(candidateLeg.terminationWaypoint(), this.destinationRunway)) ||
+        (isAirport(candidateLeg.terminationWaypoint()) &&
+          areDatabaseItemsEqual(candidateLeg.terminationWaypoint(), this.destinationAirport)))
+    ) {
+      return candidateLegIndex;
+    }
+
+    return -1;
   }
 
   get endsAtRunway() {

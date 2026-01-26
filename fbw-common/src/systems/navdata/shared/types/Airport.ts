@@ -54,3 +54,11 @@ export interface Airport extends DatabaseItem<SectionCode.Airport> {
    */
   magVar: number | null;
 }
+
+export function isAirport(o: any): o is Airport {
+  return (
+    typeof o === 'object' &&
+    o.sectionCode === SectionCode.Airport &&
+    o.subSectionCode === AirportSubsectionCode.ReferencePoints
+  );
+}

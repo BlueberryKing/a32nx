@@ -921,18 +921,19 @@ export class CDUFlightPlanPage {
       });
     } else {
       let destCell = '----';
-      if (targetPlan.destinationAirport) {
-        destCell = targetPlan.destinationAirport.ident;
-
-        if (targetPlan.destinationRunway) {
-          destCell = targetPlan.destinationRunway.ident;
-        }
-      }
       let destTimeCell = '----';
       let destDistCell = '----';
       let destEFOBCell = '---.-';
 
-      if (targetPlan.destinationAirport) {
+      if (targetPlan.destinationLegIndex >= 0) {
+        if (targetPlan.destinationAirport) {
+          destCell = targetPlan.destinationAirport.ident;
+
+          if (targetPlan.destinationRunway) {
+            destCell = targetPlan.destinationRunway.ident;
+          }
+        }
+
         const destDist = mcdu.guidanceController.getAlongTrackDistanceToDestination(forPlan);
 
         if (Number.isFinite(destDist)) {
@@ -951,6 +952,34 @@ export class CDUFlightPlanPage {
             destTimeCell = mcdu.getTimePrediction(timeRemaining, forPlan);
           }
         }
+
+        addLskAt(
+          5,
+          () => mcdu.getDelaySwitchPage(),
+          () => {
+            CDULateralRevisionPage.ShowPage(mcdu, targetPlan.destinationLeg, targetPlan.destinationLegIndex, forPlan);
+          },
+        );
+
+        addRskAt(
+          5,
+          () => mcdu.getDelaySwitchPage(),
+          () => {
+            if (isLeg(targetPlan.destinationLeg)) {
+              CDUVerticalRevisionPage.ShowPage(
+                mcdu,
+                targetPlan.destinationLeg,
+                targetPlan.destinationLegIndex,
+                undefined,
+                undefined,
+                undefined,
+                undefined,
+                forPlan,
+                false,
+              );
+            }
+          },
+        );
       }
 
       destText[0] = [
@@ -963,34 +992,6 @@ export class CDUFlightPlanPage {
         `{small}${destDistCell.padStart(4, '\xa0')}\xa0${destEFOBCell.padStart(5, '\xa0')}{end}`,
         `{small}${destTimeCell}{end}{sp}{sp}{sp}{sp}`,
       ];
-
-      addLskAt(
-        5,
-        () => mcdu.getDelaySwitchPage(),
-        () => {
-          CDULateralRevisionPage.ShowPage(mcdu, targetPlan.destinationLeg, targetPlan.destinationLegIndex, forPlan);
-        },
-      );
-
-      addRskAt(
-        5,
-        () => mcdu.getDelaySwitchPage(),
-        () => {
-          if (isLeg(targetPlan.destinationLeg)) {
-            CDUVerticalRevisionPage.ShowPage(
-              mcdu,
-              targetPlan.destinationLeg,
-              targetPlan.destinationLegIndex,
-              undefined,
-              undefined,
-              undefined,
-              undefined,
-              forPlan,
-              false,
-            );
-          }
-        },
-      );
     }
 
     // scrollText pad to 10 rows

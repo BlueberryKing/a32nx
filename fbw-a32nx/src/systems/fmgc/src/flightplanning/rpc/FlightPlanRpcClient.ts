@@ -512,6 +512,10 @@ export class FlightPlanRpcClient<P extends FlightPlanPerformanceData> implements
     return this.callFunctionViaRpc('stringMissedApproach', onConstraintsDeleted, planIndex);
   }
 
+  activateMissedApproach(onConstraintsDeleted?: (_: FlightPlanLeg) => void, planIndex?: number): Promise<void> {
+    return this.callFunctionViaRpc('activateMissedApproach', onConstraintsDeleted, planIndex);
+  }
+
   openBatch(name: string): Promise<FlightPlanBatch> {
     return this.callFunctionViaRpc('openBatch', name);
   }

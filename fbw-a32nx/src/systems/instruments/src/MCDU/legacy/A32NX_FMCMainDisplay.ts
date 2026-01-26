@@ -838,7 +838,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       case FmgcFlightPhase.GoAround: {
         SimVar.SetSimVarValue('L:A32NX_GOAROUND_INIT_SPEED', 'number', Simplane.getIndicatedSpeed());
 
-        this.flightPlanService.stringMissedApproach(
+        this.flightPlanService.activateMissedApproach(
           /** @type {FlightPlanLeg} */ (map) => {
             this.addMessageToQueue(NXSystemMessages.cstrDelUpToWpt.getModifiedMessage(map.ident));
           },

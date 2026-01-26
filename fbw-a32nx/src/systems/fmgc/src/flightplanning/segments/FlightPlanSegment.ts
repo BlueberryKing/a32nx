@@ -111,13 +111,12 @@ export abstract class FlightPlanSegment {
   }
 
   /**
-   * Removes all legs including and after `fromIndex` from the segment and merges them into the enroute segment
+   * Removes all legs including and after `fromIndex` from the segment
    *
    * @param atPoint
    */
   truncate(atPoint: number): FlightPlanElement[] {
     if (this.class === SegmentClass.Departure) {
-      // Move legs after cut to enroute
       const removed = this.allLegs.splice(atPoint);
 
       this.flightPlan.syncSegmentLegsChange(this);
@@ -126,7 +125,6 @@ export abstract class FlightPlanSegment {
     }
 
     if (this.class === SegmentClass.Arrival) {
-      // Move legs before cut to enroute
       const removed = [];
       for (let i = 0; i < atPoint + 1; i++) {
         removed.push(this.allLegs.shift());

@@ -403,6 +403,8 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
 
   stringMissedApproach(onConstraintsDeleted?: (map: FlightPlanLeg) => void, planIndex?: number): Promise<void>;
 
+  activateMissedApproach(onConstraintsDeleted?: (map: FlightPlanLeg) => void, planIndex?: number): Promise<void>;
+
   openBatch(name: string): Promise<FlightPlanBatch>;
 
   closeBatch(uuid: string): Promise<FlightPlanBatch>;
