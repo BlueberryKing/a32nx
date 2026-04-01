@@ -130,7 +130,15 @@ export class SimBriefUplinkAdapter {
 
     fms.onUplinkInProgress();
 
-    await flightPlanService.newCityPair(route.from.ident, route.to.ident, undefined, FlightPlanIndex.Uplink);
+    try {
+      await flightPlanService.newCityPair(route.from.ident, route.to.ident, undefined, FlightPlanIndex.Uplink);
+    } catch (e) {
+      SimBriefUplinkAdapter.logTroubleshootingError(
+        fms,
+        `[SimBriefUplinkAdapter](uplinkFlightPlanFromSimbrief) Failed to set city pair: ${e}`,
+      );
+      throw new Error(`[SimBriefUplinkAdapter](uplinkFlightPlanFromSimbrief) Failed to set city pair: ${e}`);
+    }
 
     // Set alternate  airport separately, so the active flight plan uplink still works even if the alternate fails
     try {
@@ -484,7 +492,7 @@ export class SimBriefUplinkAdapter {
       }
     }
 
-    fms.onUplinkDone(intoPlan);
+    fms.onUplinkDone(intoPlan, true);
   }
 
   static async downloadOfpForUserID(username: string, userID?: string): Promise<ISimbriefData> {
