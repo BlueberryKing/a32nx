@@ -2863,18 +2863,6 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     return isLeg(this.maybeElementAt(index));
   }
 
-  /**
-   * Finds the index of the final approach fix
-   * @returns The leg index, or -1 if not found.
-   */
-  getFinalApproachCourseFixIndex(): number {
-    return this.allLegs.findIndex(
-      (el) =>
-        el.isDiscontinuity === false &&
-        el.definition.approachWaypointDescriptor === ApproachWaypointDescriptor.FinalApproachCourseFix,
-    );
-  }
-
   propagateWindsAt(atIndex: number, result: PropagatedWindEntry[], maxNumEntries: number): PropagatedWindEntry[] {
     let numWindEntries = 0;
 
