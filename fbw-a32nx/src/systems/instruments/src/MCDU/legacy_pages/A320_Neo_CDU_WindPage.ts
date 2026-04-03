@@ -458,16 +458,27 @@ export class CDUWindPage {
     const canModifyDesWinds =
       !doesDesWindUplinkExist && (phase < FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Done);
 
-    let requestButton = 'UPLINK*[color]cyan';
-    if (!doesWindUplinkExist) {
-      requestButton = isWindUplinkInProgress ? 'REQUEST [color]amber' : 'REQUEST*[color]amber';
+    // We cannot modify winds in the DES, APPR and G/A phase, so we don't allow uplinks in those phases either
+    const enableUplink = phase < FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Done;
+
+    let requestButtonLabel = '';
+    let requestButton = '';
+
+    if (enableUplink) {
+      if (!doesWindUplinkExist) {
+        requestButtonLabel = 'WIND/TEMP{sp}[color]amber';
+        requestButton = isWindUplinkInProgress ? 'REQUEST [color]amber' : 'REQUEST*[color]amber';
+      } else {
+        requestButtonLabel = 'INSERT{sp}[color]cyan';
+        requestButton = 'UPLINK*[color]cyan';
+      }
     }
 
     const template = [
       [isSec ? '\xa0SEC\xa0\xa0DESCENT WIND\xa0\xa0\xa0\xa0\xa0\xa0' : 'DESCENT WIND'],
       ['TRU WIND/ALT', ''],
       ['', ''],
-      ['', doesWindUplinkExist ? 'INSERT{sp}[color]cyan' : 'WIND/TEMP{sp}[color]amber'],
+      ['', requestButtonLabel],
       ['', requestButton],
       ['', ''],
       ['', ''],
@@ -656,33 +667,35 @@ export class CDUWindPage {
       };
     }
 
-    mcdu.onRightInput[1] = async (value) => {
-      if (doesDesWindUplinkExist) {
-        if (value === Keypad.clrValue) {
-          plan.pendingWindUplink.delete();
+    if (enableUplink) {
+      mcdu.onRightInput[1] = async (value) => {
+        if (doesDesWindUplinkExist) {
+          if (value === Keypad.clrValue) {
+            plan.pendingWindUplink.delete();
+            CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+            return;
+          }
+
+          try {
+            await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
+          } catch (e) {
+            console.error('Error inserting descent wind uplink:', e);
+            mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
+          }
+        } else if (!isWindUplinkInProgress) {
+          try {
+            await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
+          } catch (e) {
+            console.error('Error requesting winds:', e);
+            mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
+          }
+        }
+
+        if (mcdu.page.Current === mcdu.page.DescentWind) {
           CDUWindPage.ShowDESPage(mcdu, forPlan, page);
-          return;
         }
-
-        try {
-          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
-        } catch (e) {
-          console.error('Error inserting descent wind uplink:', e);
-          mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
-        }
-      } else if (!isWindUplinkInProgress) {
-        try {
-          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
-        } catch (e) {
-          console.error('Error requesting winds:', e);
-          mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
-        }
-      }
-
-      if (mcdu.page.Current === mcdu.page.DescentWind) {
-        CDUWindPage.ShowDESPage(mcdu, forPlan, page);
-      }
-    };
+      };
+    }
 
     // TODO temperature entries
     mcdu.onNextPage = () => mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
