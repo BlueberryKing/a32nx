@@ -2931,9 +2931,7 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
     }
 
     if (leg.cruiseWindEntries.some((e) => Math.round(e.altitude / 100) === Math.round(entry.altitude / 100))) {
-      console.log(
-        '[FMS/FPM] Tried to add a cruise wind entry with the same altitude as an existing one. Editing instead',
-      );
+      // Tried to add a cruise wind entry with the same altitude as an existing one. Editing the existing one instead
       this.editCruiseWindEntry(atIndex, entry.altitude, entry, maxNumEntries);
     } else {
       leg.cruiseWindEntries.push(entry);
