@@ -67,7 +67,9 @@ export class CDUWindPage {
     }
 
     const phase = mcdu.flightPhaseManager.phase;
-    const canModifyWinds = !doesClbWindUplinkExist && (phase < FmgcFlightPhase.Climb || phase === FmgcFlightPhase.Done);
+    const canModifyWinds =
+      !doesClbWindUplinkExist &&
+      (!plan.isActiveOrCopiedFromActive() || phase < FmgcFlightPhase.Climb || phase === FmgcFlightPhase.Done);
     const allowHistoryWindAccess = forPlan === FlightPlanIndex.Active && phase === FmgcFlightPhase.Preflight;
 
     const template = [
@@ -456,7 +458,8 @@ export class CDUWindPage {
       (phase === FmgcFlightPhase.Cruise && hasCruiseLegs);
 
     const canModifyDesWinds =
-      !doesDesWindUplinkExist && (phase < FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Done);
+      !doesDesWindUplinkExist &&
+      (!plan.isActiveOrCopiedFromActive() || phase < FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Done);
 
     // We cannot modify winds in the DES, APPR and G/A phase, so we don't allow uplinks in those phases either
     const enableUplink = phase < FmgcFlightPhase.Descent || phase === FmgcFlightPhase.Done;
