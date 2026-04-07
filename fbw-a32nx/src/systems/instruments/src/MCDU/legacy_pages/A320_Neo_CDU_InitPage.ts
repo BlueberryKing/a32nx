@@ -356,7 +356,13 @@ export class CDUInitPage {
       ]),
     );
 
-    mcdu.onRightInput[3] = () => {
+    mcdu.onRightInput[3] = (_, scratchpadCallback) => {
+      if (mcdu.flightPlanService.hasTemporary) {
+        mcdu.setScratchpadMessage(NXSystemMessages.temporaryFplnExists);
+        scratchpadCallback();
+        return;
+      }
+
       CDUWindPage.Return = () => {
         CDUInitPage.ShowPage1(mcdu, forPlan);
       };
