@@ -1,5 +1,4 @@
-﻿// @ts-strict-ignore
-// Copyright (c) 2021-2026 FlyByWire Simulations
+﻿// Copyright (c) 2021-2026 FlyByWire Simulations
 // Copyright (c) 2021-2022 Synaptic Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
@@ -133,9 +132,9 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
         ...rest,
       })),
     );
-    cloned.alternateWind.set(
-      this.alternateWind.get() !== null ? Vec2Math.copy(this.alternateWind.get(), Vec2Math.create()) : null,
-    );
+
+    const alternateWind = this.alternateWind.get();
+    cloned.alternateWind.set(alternateWind !== null ? Vec2Math.copy(alternateWind, Vec2Math.create()) : null);
 
     return cloned;
   }
@@ -844,17 +843,17 @@ export class A320FlightPlanPerformanceData implements FlightPlanPerformanceData 
   /**
    * The wind entries for the climb segment entered by the pilot
    */
-  readonly climbWindEntries: Subject<FlightPlanWindEntry[]> = Subject.create([]);
+  readonly climbWindEntries = Subject.create<FlightPlanWindEntry[]>([]);
 
   /**
    * The wind entries for the descent segment entered by the pilot
    */
-  readonly descentWindEntries: Subject<FlightPlanWindEntry[]> = Subject.create([]);
+  readonly descentWindEntries = Subject.create<FlightPlanWindEntry[]>([]);
 
   /**
    * The average wind vector for the alternate flight plan, or null if not set.
    */
-  readonly alternateWind: Subject<WindVector | null> = Subject.create(null);
+  readonly alternateWind = Subject.create<WindVector | null>(null);
 
   readonly estimatedTakeoffTime = Subject.create<number | null>(null);
 
