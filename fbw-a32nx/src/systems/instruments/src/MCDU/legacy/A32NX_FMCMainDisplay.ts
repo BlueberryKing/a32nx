@@ -5708,7 +5708,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       cruiseLevel,
     );
 
-    const legPredictions = this.guidanceController.vnavDriver.mcduProfile?.waypointPredictions;
+    const legPredictions =
+      forPlan === FlightPlanIndex.Active
+        ? this.guidanceController?.vnavDriver.mcduProfile?.waypointPredictions
+        : undefined;
     const cruiseLegs = plan.allLegs.filter((leg, i) => {
       if (!isLeg(leg) || !leg.isXF()) {
         return false;

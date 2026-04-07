@@ -916,8 +916,8 @@ export class CDUWindPage {
    */
   private static findNextCruiseLegIndex(mcdu: LegacyFmsPageInterface, plan: BaseFlightPlan, fromIndex: number): number {
     const legPredictions =
-      plan.index === FlightPlanIndex.Active && mcdu.guidanceController
-        ? mcdu.guidanceController.vnavDriver.mcduProfile?.waypointPredictions
+      plan.index === FlightPlanIndex.Active
+        ? mcdu.guidanceController?.vnavDriver.mcduProfile?.waypointPredictions
         : undefined;
 
     for (let i = Math.max(fromIndex, plan.activeLegIndex); i < plan.firstMissedApproachLegIndex; i++) {
@@ -952,7 +952,10 @@ export class CDUWindPage {
     plan: BaseFlightPlan,
     fromIndex: number,
   ): number {
-    const legPredictions = mcdu.guidanceController?.vnavDriver.mcduProfile?.waypointPredictions;
+    const legPredictions =
+      plan.index === FlightPlanIndex.Active
+        ? mcdu.guidanceController?.vnavDriver.mcduProfile?.waypointPredictions
+        : undefined;
 
     for (let i = fromIndex; i >= Math.max(0, plan.activeLegIndex); i--) {
       const leg = plan.maybeElementAt(i);
