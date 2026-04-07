@@ -7,7 +7,7 @@ import { FmgcFlightPhase } from '../../../shared/src/flightphase';
 import { WindUtils } from '../guidance/vnav/wind/WindUtils';
 
 export class HistoryWind {
-  private static readonly LOCALSTORAGE_KEY: string = 'A32NX.HistoryWinds';
+  private static readonly LOCALSTORAGE_KEY: string = 'FBW.HistoryWinds';
 
   private readonly sub = this.bus.getSubscriber<NavigationEvents & FlightPhaseManagerEvents>();
 
