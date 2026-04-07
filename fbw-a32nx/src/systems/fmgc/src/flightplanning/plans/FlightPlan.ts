@@ -580,7 +580,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
     plan.setPerformanceData('databaseTransitionLevel', airport?.transitionLevel ?? null);
 
-    plan.setPerformanceData('descentWindEntries', []);
+    plan.deleteDescentWindEntries();
   }
 
   static async fromSerializedFlightPlan<P extends FlightPlanPerformanceData>(
