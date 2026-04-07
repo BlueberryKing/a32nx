@@ -224,7 +224,7 @@ export class FlightPlanLeg implements ReadonlyFlightPlanLeg {
   /**
    * Determines whether this leg is a fix-terminating leg (AF, CF, IF, DF, RF, TF, HF)
    */
-  isXF() {
+  isXF(): boolean {
     const legType = this.definition.type;
 
     return (

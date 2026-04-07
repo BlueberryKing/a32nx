@@ -20,6 +20,13 @@ import { PropagatedWindEntry } from '../data/wind';
 export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerformanceData> {
   get index(): number;
 
+  /**
+   * The time at which the flightplan was created in miliseconds since epoch. Undefined if no valid creation time is available or for alternate flightplans.
+   */
+  timeCreated?: number;
+
+  get wasModified(): boolean;
+
   get legCount(): number;
 
   get enrouteLegCount(): number;
@@ -38,6 +45,8 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
 
   get activeLeg(): ReadonlyFlightPlanElement;
 
+  get fromLegIndex(): number;
+
   get isApproachActive(): boolean;
 
   findLegIndexByFixIdent(ident: string): number;
@@ -51,6 +60,8 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
   get destinationLeg(): ReadonlyFlightPlanElement | undefined;
 
   get destinationLegIndex(): number;
+
+  readonly availableDestinationRunways: Runway[];
 
   get endsAtRunway(): boolean;
 
@@ -70,9 +81,13 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
 
   get originRunway(): Runway | undefined;
 
+  readonly availableOriginRunways: Runway[];
+
   get departureRunwayTransition(): ProcedureTransition | undefined;
 
   get originDeparture(): Departure | undefined;
+
+  readonly availableDepartures: Departure[];
 
   get departureEnrouteTransition(): ProcedureTransition | undefined;
 
@@ -85,9 +100,15 @@ export interface ReadonlyFlightPlan<P extends FlightPlanPerformanceData = Flight
 
   get arrivalRunwayTransition(): ProcedureTransition | undefined;
 
+  readonly availableArrivals: Arrival[];
+
   get approachVia(): ProcedureTransition | undefined | null;
 
   get approach(): Approach | undefined;
+
+  readonly availableApproaches: Approach[];
+
+  readonly availableApproachVias: ProcedureTransition[];
 
   get destinationAirport(): Airport | undefined;
 

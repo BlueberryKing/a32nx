@@ -5,7 +5,7 @@
 
 import { Airport, ApproachType, Fix, isMsfs2024, LegType, MagVar, MathUtils, NXDataStore } from '@flybywiresim/fbw-sdk';
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
-import { AeroMath, BitFlags, EventBus, MutableSubscribable, Vec2Math } from '@microsoft/msfs-sdk';
+import { AeroMath, BitFlags, EventBus, MutableSubscribable, Subject, Vec2Math } from '@microsoft/msfs-sdk';
 import { FixInfoData, FixInfoEntry } from '@fmgc/flightplanning/plans/FixInfo';
 import { Coordinates, Degrees } from 'msfs-geo';
 import { FlightPlanLeg, FlightPlanLegFlags, isLeg } from '@fmgc/flightplanning/legs/FlightPlanLeg';
@@ -31,8 +31,9 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     index: number,
     bus: EventBus,
     performanceDataInit: P,
+    time?: number,
   ): FlightPlan<P> {
-    return new FlightPlan(context, index, bus, performanceDataInit);
+    return new FlightPlan<P>(context, index, bus, performanceDataInit, time);
   }
 
   /**
@@ -53,7 +54,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
   /**
    * Shown as the "flight number" in the MCDU, but it's really the callsign
    */
-  flightNumber: string | undefined = undefined;
+  readonly flightNumber = Subject.create<string | null>(null);
 
   /**
    * Possible flags for this flight plan. See {@link FlightPlanFlags} for a list of flags.
@@ -62,9 +63,8 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
   public readonly pendingWindUplink: PendingWindUplink = new PendingWindUplink();
 
-  constructor(context: FlightPlanContext, index: number, bus: EventBus, performanceDataInit: P) {
-    super(context, index, bus);
-
+  constructor(context: FlightPlanContext, index: number, bus: EventBus, performanceDataInit: P, time?: number) {
+    super(context, index, bus, time);
     this.performanceData = performanceDataInit;
   }
 
@@ -75,8 +75,8 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     this.alternateFlightPlan.destroy();
   }
 
-  clone(newIndex: number, options: number = CopyOptions.Default): FlightPlan<P> {
-    const newPlan = FlightPlan.empty(this.context, newIndex, this.bus, this.performanceData.clone());
+  clone(newIndex: number, options: number = CopyOptions.Default, time?: number): FlightPlan<P> {
+    const newPlan = FlightPlan.empty(this.context, newIndex, this.bus, this.performanceData.clone(), time);
 
     newPlan.version = this.version;
     newPlan.originSegment = this.originSegment.clone(newPlan, options);
@@ -103,7 +103,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
     newPlan.activeLegIndex = this.activeLegIndex;
 
-    newPlan.flightNumber = this.flightNumber;
+    newPlan.flightNumber.set(this.flightNumber.get());
 
     if (BitFlags.isAll(options, CopyOptions.IncludeFixInfos)) {
       newPlan.fixInfos = this.fixInfos.map((it) => it?.clone());
@@ -486,7 +486,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
   }
 
   setFlightNumber(flightNumber: string, notify = true) {
-    this.flightNumber = flightNumber;
+    this.flightNumber.set(flightNumber);
 
     if (notify) {
       this.sendEvent('flightPlan.setFlightNumber', {
@@ -524,10 +524,12 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
         'defaultEngineOutAccelerationAltitude',
         referenceAltitude + parseInt(NXDataStore.getLegacy('CONFIG_ENG_OUT_ACCEL_ALT', '1500')),
       );
-      plan.setPerformanceData(
-        'defaultGroundTemperature',
-        Math.round(AeroMath.isaTemperature(referenceAltitude * 0.3048)),
-      );
+      if (plan.performanceData.defaultGroundTemperature !== undefined) {
+        plan.setPerformanceData(
+          'defaultGroundTemperature',
+          Math.round(AeroMath.isaTemperature(referenceAltitude * 0.3048)),
+        );
+      }
     } else {
       plan.setPerformanceData('defaultThrustReductionAltitude', null);
       plan.setPerformanceData('defaultAccelerationAltitude', null);
@@ -587,8 +589,9 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     serialized: SerializedFlightPlan,
     bus: EventBus,
     performanceDataInit: P,
+    time?: number,
   ): Promise<FlightPlan<P>> {
-    const newPlan = FlightPlan.empty<P>(context, index, bus, performanceDataInit);
+    const newPlan = FlightPlan.empty<P>(context, index, bus, performanceDataInit, time);
 
     // TODO init performance data
 
@@ -731,6 +734,9 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
     );
   }
 
+  getFlightNumber(): Subject<string | null> {
+    return this.flightNumber;
+  }
   /**
    * Sets the climb wind entry at the specified altitude rounded to the nearest 100 feet.
    * If the provided entry is null, the entry is deleted.
