@@ -243,7 +243,7 @@ export class CDUWindPage {
     // If - for any reason - we cannot find a suitable leg at the requested index or downstream of it, just show the
     // descent wind page instead
     const nextSuitableLegIndex = this.findNextCruiseLegIndex(mcdu, plan, fpIndex);
-    if (this.allowCruiseWindPageAccess(plan, phase, nextSuitableLegIndex >= 0)) {
+    if (!this.allowCruiseWindPageAccess(plan, phase, nextSuitableLegIndex >= 0)) {
       this.ShowDESPage(mcdu, forPlan);
       return;
     }
