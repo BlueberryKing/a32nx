@@ -5698,9 +5698,13 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     const phase = this.flightPhaseManager.phase;
 
     const shouldRequestClimbWinds =
-      (phase >= FmgcFlightPhase.Preflight && phase <= FmgcFlightPhase.Takeoff) || phase === FmgcFlightPhase.Done;
+      !plan.isActiveOrCopiedFromActive() ||
+      (phase >= FmgcFlightPhase.Preflight && phase <= FmgcFlightPhase.Takeoff) ||
+      phase === FmgcFlightPhase.Done;
     const shouldRequestCruiseWinds =
-      (phase >= FmgcFlightPhase.Preflight && phase <= FmgcFlightPhase.Cruise) || phase === FmgcFlightPhase.Done;
+      !plan.isActiveOrCopiedFromActive() ||
+      (phase >= FmgcFlightPhase.Preflight && phase <= FmgcFlightPhase.Cruise) ||
+      phase === FmgcFlightPhase.Done;
     const shouldRequestDescentWinds = plan.destinationAirport !== undefined;
 
     const finalCruiseLevel = plan.allLegs.reduce(
