@@ -2669,6 +2669,9 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
       SimVar.SetSimVarValue('L:FMC_FLIGHT_PLAN_IS_TEMPORARY', 'number', 0);
       SimVar.SetSimVarValue('L:MAP_SHOW_TEMPORARY_FLIGHT_PLAN', 'number', 0);
+
+      this.removeMessageFromQueue(NXSystemMessages.windTempUplkPending.text);
+
       callback();
     } else {
       callback();
@@ -2692,6 +2695,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
       SimVar.SetSimVarValue('L:FMC_FLIGHT_PLAN_IS_TEMPORARY', 'number', 0);
       SimVar.SetSimVarValue('L:MAP_SHOW_TEMPORARY_FLIGHT_PLAN', 'number', 0);
+
+      this.removeMessageFromQueue(NXSystemMessages.windTempUplkPending.text);
 
       callback();
     }
@@ -5657,11 +5662,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
         const shouldInsertDirectly = !this.isAnEngineOn() && !plan.hasWindEntries();
         if (!shouldInsertDirectly) {
-          if (this.flightPlanService.hasTemporary || this.page.Current === this.page.DirectToPage) {
-            this.addMessageToQueue(
-              NXSystemMessages.windUplinkPending,
-              () => !plan.pendingWindUplink.isWindUplinkReadyToInsert(),
-            );
+          if (this.flightPlanService.hasTemporary) {
+            this.addMessageToQueue(NXSystemMessages.windTempUplkPending);
           }
 
           return;

@@ -116,7 +116,7 @@ export const NXSystemMessages = {
   stepDeleted: new TypeIIMessage('STEP DELETED'),
   temporaryFplnExists: new TypeIMessage('TEMPORARY F-PLN EXISTS'),
   windTempDataUplk: new TypeIIMessage('WIND/TEMP DATA UPLK'),
-  windUplinkPending: new TypeIIMessage('WIND UPLINK PENDING', true),
+  windTempUplkPending: new TypeIIMessage('WIND/TEMP UPLK PENDING', true),
   noAnswerToRequest: new TypeIMessage('NO ANSWER TO REQUEST'),
 };
 

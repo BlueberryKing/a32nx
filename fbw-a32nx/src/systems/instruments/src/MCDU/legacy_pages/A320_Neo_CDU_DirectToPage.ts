@@ -16,15 +16,6 @@ export class CDUDirectToPage {
   static ShowPage(mcdu: LegacyFmsPageInterface, directWaypoint?: Fix, wptsListIndex = 0) {
     const plan = mcdu.flightPlanService.active;
 
-    // Prevent direct to if wind uplink is pending
-    if (plan?.pendingWindUplink?.isWindUplinkReadyToInsert()) {
-      mcdu.addMessageToQueue(
-        NXSystemMessages.windUplinkPending,
-        () => !plan.pendingWindUplink.isWindUplinkReadyToInsert(),
-      );
-      return;
-    }
-
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.DirectToPage;
     mcdu.returnPageCallback = () => {
