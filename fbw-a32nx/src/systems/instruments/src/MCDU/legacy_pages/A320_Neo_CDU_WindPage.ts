@@ -53,6 +53,13 @@ export class CDUWindPage {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.ClimbWind;
 
+    // Auto refresh the page to switch to the next page if we sequenced out of the climb phase while the page was open
+    mcdu.SelfPtr = setTimeout(() => {
+      if (mcdu.page.Current === mcdu.page.ClimbWind) {
+        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+      }
+    }, mcdu.PageTimeout.Medium);
+
     const plan = mcdu.getFlightPlan(forPlan);
     const originElevation = plan.originAirport?.location.alt ?? 0;
     const isSec = forPlan >= FlightPlanIndex.FirstSecondary;
@@ -71,6 +78,11 @@ export class CDUWindPage {
       !doesClbWindUplinkExist &&
       (!plan.isActiveOrCopiedFromActive() || phase < FmgcFlightPhase.Climb || phase === FmgcFlightPhase.Done);
     const allowHistoryWindAccess = forPlan === FlightPlanIndex.Active && phase === FmgcFlightPhase.Preflight;
+
+    if (!this.allowClimbWindPageAccess(plan, phase)) {
+      this.ShowCRZPage(mcdu, forPlan, 0);
+      return;
+    }
 
     const template = [
       [isSec ? '\xa0SEC\xa0\xa0\xa0CLIMB WIND\xa0\xa0\xa0\xa0\xa0\xa0\xa0' : 'CLIMB WIND'],
@@ -217,18 +229,26 @@ export class CDUWindPage {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.CruiseWind;
 
+    // Auto refresh the page to switch to the next page if we sequenced out of the crusie phase while the page was open
+    mcdu.SelfPtr = setTimeout(() => {
+      if (mcdu.page.Current === mcdu.page.CruiseWind) {
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, fpIndex);
+      }
+    }, mcdu.PageTimeout.Medium);
+
     const plan = mcdu.getFlightPlan(forPlan);
     const isSec = forPlan >= FlightPlanIndex.FirstSecondary;
+    const phase = mcdu.flightPhaseManager.phase;
 
     // If - for any reason - we cannot find a suitable leg at the requested index or downstream of it, just show the
     // descent wind page instead
     const nextSuitableLegIndex = this.findNextCruiseLegIndex(mcdu, plan, fpIndex);
-    if (nextSuitableLegIndex === -1) {
+    if (this.allowCruiseWindPageAccess(plan, phase, nextSuitableLegIndex >= 0)) {
       this.ShowDESPage(mcdu, forPlan);
       return;
     }
 
-    const leg = plan.legElementAt(fpIndex);
+    const leg = plan.legElementAt(nextSuitableLegIndex);
 
     const doesWindUplinkExist = plan.pendingWindUplink.isWindUplinkReadyToInsert();
     const doesCrzWindUplinkExist = doesWindUplinkExist && plan.pendingWindUplink.cruiseWinds !== undefined;
@@ -241,8 +261,7 @@ export class CDUWindPage {
 
     const maxNumCruiseWindEntries = 4;
 
-    const phase = mcdu.flightPhaseManager.phase;
-    const canGoToPrevPhase = phase < FmgcFlightPhase.Cruise || phase === FmgcFlightPhase.Done;
+    const canGoToPrevPhase = this.allowClimbWindPageAccess(plan, phase);
 
     const template = [
       [isSec ? '\xa0SEC\xa0\xa0\xa0\xa0CRZ WIND\xa0\xa0\xa0\xa0\xa0\xa0\xa0\xa0' : 'CRZ WIND'],
@@ -436,6 +455,12 @@ export class CDUWindPage {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.DescentWind;
 
+    mcdu.SelfPtr = setTimeout(() => {
+      if (mcdu.page.Current === mcdu.page.DescentWind) {
+        CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+      }
+    }, mcdu.PageTimeout.Medium);
+
     const plan = mcdu.getFlightPlan(forPlan);
     const destinationElevation = plan.destinationAirport?.location.alt ?? 0;
     const isSec = forPlan >= FlightPlanIndex.FirstSecondary;
@@ -451,11 +476,8 @@ export class CDUWindPage {
     const nextCruiseLegIndex = this.findNextCruiseLegIndex(mcdu, plan, 0);
     const hasCruiseLegs = nextCruiseLegIndex >= 0;
 
-    // Make sure we can only go the cruise page if we have cruise legs
     const canGoToPrevPhase =
-      phase < FmgcFlightPhase.Cruise ||
-      phase === FmgcFlightPhase.Done ||
-      (phase === FmgcFlightPhase.Cruise && hasCruiseLegs);
+      this.allowClimbWindPageAccess(plan, phase) || this.allowCruiseWindPageAccess(plan, phase, hasCruiseLegs);
 
     const canModifyDesWinds =
       !doesDesWindUplinkExist &&
@@ -707,7 +729,13 @@ export class CDUWindPage {
 
   static ShowHistoryPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
     mcdu.clearDisplay();
-    mcdu.page.Current = mcdu.page.ClimbWind;
+    mcdu.page.Current = mcdu.page.HistoryWind;
+
+    mcdu.SelfPtr = setTimeout(() => {
+      if (mcdu.page.Current === mcdu.page.HistoryWind && mcdu.flightPhaseManager.phase !== FmgcFlightPhase.Preflight) {
+        CDUWindPage.ShowPage(mcdu, forPlan);
+      }
+    }, mcdu.PageTimeout.Medium);
 
     const plan = mcdu.getFlightPlan(forPlan);
     const cruiseLevel = plan.performanceData.cruiseFlightLevel.get();
@@ -1024,5 +1052,17 @@ export class CDUWindPage {
     }
 
     return climbWinds.every((wind, i) => areWindEntriesTheSame(wind, historyWinds[i]));
+  }
+
+  private static allowClimbWindPageAccess(plan: FlightPlan, phase: FmgcFlightPhase) {
+    return !plan.isActiveOrCopiedFromActive() || phase < FmgcFlightPhase.Cruise || phase === FmgcFlightPhase.Done;
+  }
+
+  private static allowCruiseWindPageAccess(plan: FlightPlan, phase: FmgcFlightPhase, hasCruiseLegs: boolean) {
+    // Make sure we can only go the cruise page if we have cruise legs
+    return (
+      hasCruiseLegs &&
+      (!plan.isActiveOrCopiedFromActive() || phase <= FmgcFlightPhase.Cruise || phase === FmgcFlightPhase.Done)
+    );
   }
 }
