@@ -970,6 +970,18 @@ export class FlightPlanService<P extends FlightPlanPerformanceData = FlightPlanP
     return plan.setDescentWindEntry(altitude, entry, this.config.NUM_DESCENT_WIND_LEVELS, shouldUpdateTwrWind);
   }
 
+  async deleteAllClimbWindEntries() {
+    this.deleteClimbWindEntries(FlightPlanIndex.Active);
+
+    for (let i = 1; i <= this.config.NUM_SECONDARY_FLIGHT_PLANS; i++) {
+      const sec = this.secondary(i);
+
+      if (sec.isActiveOrCopiedFromActive()) {
+        this.deleteClimbWindEntries(sec.index);
+      }
+    }
+  }
+
   deleteClimbWindEntries(planIndex: number) {
     const plan = this.flightPlanManager.get(planIndex);
 

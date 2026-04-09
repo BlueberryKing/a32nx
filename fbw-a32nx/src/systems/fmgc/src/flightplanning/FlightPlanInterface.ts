@@ -497,6 +497,11 @@ export interface FlightPlanInterface<P extends FlightPlanPerformanceData = Fligh
   ): Promise<void>;
 
   /**
+   * Deletes all climb wind entries on the active flight plan and all secondary flight plans copied from the active plan
+   */
+  deleteAllClimbWindEntries(): Promise<void>;
+
+  /**
    * Deletes all climb wind entries
    * @param planIndex which flight plan index to delete the entries from
    */

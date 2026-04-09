@@ -809,7 +809,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         /** Disarm preselected speed/mach for next flight phase */
         this.updatePreSelSpeedMach(undefined);
 
-        this.flightPlanService.deleteClimbWindEntries(FlightPlanIndex.Active);
+        this.flightPlanService.deleteAllClimbWindEntries();
 
         break;
       }
@@ -825,7 +825,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
         this.flightPlanService.setPerformanceData('cruiseFlightLevel', null);
         this.triggerCheckSpeedModeMessage(undefined);
-        this.flightPlanService.deleteClimbWindEntries(FlightPlanIndex.Active);
+        this.flightPlanService.deleteAllClimbWindEntries();
 
         break;
       }
@@ -839,7 +839,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
         SimVar.SetSimVarValue('L:A32NX_GOAROUND_PASSED', 'bool', 0);
         this.checkDestData();
-        this.flightPlanService.deleteClimbWindEntries(FlightPlanIndex.Active);
+        this.flightPlanService.deleteAllClimbWindEntries();
 
         break;
       }
@@ -873,7 +873,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
           this.updateThrustReductionAcceleration();
         }
 
-        this.flightPlanService.deleteClimbWindEntries(FlightPlanIndex.Active);
+        this.flightPlanService.deleteAllClimbWindEntries();
 
         if (this.page.Current === this.page.ProgressPage) {
           CDUProgressPage.ShowPage(this.mcdu);
