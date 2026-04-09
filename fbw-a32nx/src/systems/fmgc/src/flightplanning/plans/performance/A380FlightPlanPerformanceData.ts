@@ -114,6 +114,7 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
     cloned.approachTemperature.set(this.approachTemperature.get());
     cloned.approachWindDirection.set(this.approachWindDirection.get());
     cloned.approachWindMagnitude.set(this.approachWindMagnitude.get());
+    cloned.isApproachWindPilotEntered.set(this.isApproachWindPilotEntered.get());
     cloned.pilotVapp.set(this.pilotVapp.get());
     cloned.approachBaroMinimum.set(this.approachBaroMinimum.get());
     cloned.approachRadioMinimum.set(this.approachRadioMinimum.get());
@@ -822,6 +823,12 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
   readonly approachWindMagnitude = Subject.create<number | null>(null);
 
   /**
+   * Whether the wind magnitude and direction were entered by the pilot, false if no entry has been made or if the wind
+   * has been automatically transferred from a descent wind entry at ground level
+   */
+  readonly isApproachWindPilotEntered = Subject.create<boolean>(false);
+
+  /**
    * The approach speed Vapp manually overridden by the pilot in knots, or null if not set.
    */
   readonly pilotVapp = Subject.create<number | null>(null);
@@ -951,6 +958,7 @@ export class A380FlightPlanPerformanceData implements FlightPlanPerformanceData 
       approachTemperature: this.approachTemperature.get(),
       approachWindDirection: this.approachWindDirection.get(),
       approachWindMagnitude: this.approachWindMagnitude.get(),
+      isApproachWindPilotEntered: this.isApproachWindPilotEntered.get(),
       pilotVapp: this.pilotVapp.get(),
       approachBaroMinimum: this.approachBaroMinimum.get(),
       approachRadioMinimum: this.approachRadioMinimum.get(),

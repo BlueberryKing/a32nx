@@ -2034,8 +2034,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       return (
         Number.isFinite(plan.performanceData.approachQnh.get()) &&
         Number.isFinite(plan.performanceData.approachTemperature.get()) &&
-        Number.isFinite(plan.performanceData.approachWindDirection.get()) &&
-        Number.isFinite(plan.performanceData.approachWindMagnitude.get())
+        plan.performanceData.isApproachWindPilotEntered
       );
     });
   }
@@ -3834,6 +3833,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     if (s === Keypad.clrValue) {
       this.flightPlanService.setPerformanceData('approachWindDirection', null, forPlan);
       this.flightPlanService.setPerformanceData('approachWindMagnitude', null, forPlan);
+      this.flightPlanService.setPerformanceData('isApproachWindPilotEntered', false, forPlan);
 
       this.flightPlanService.setDescentWindEntry(0, null, forPlan);
 
@@ -3852,6 +3852,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     }
     this.flightPlanService.setPerformanceData('approachWindDirection', dir % 360, forPlan); // 360 is displayed as 0
     this.flightPlanService.setPerformanceData('approachWindMagnitude', mag, forPlan);
+    this.flightPlanService.setPerformanceData('isApproachWindPilotEntered', true, forPlan);
 
     const plan = this.getFlightPlan(forPlan);
 

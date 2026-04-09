@@ -527,6 +527,12 @@ export interface FlightPlanPerformanceData {
   readonly approachWindMagnitude: MutableSubscribable<number | null>;
 
   /**
+   * Whether the wind magnitude and direction were entered by the pilot, false if no entry has been made or if the wind
+   * has been automatically transferred from a descent wind entry at ground level
+   */
+  readonly isApproachWindPilotEntered: MutableSubscribable<boolean>;
+
+  /**
    * The approach speed Vapp manually overridden by the pilot in knots, or null if not set.
    */
   readonly pilotVapp: MutableSubscribable<number | null>;
@@ -745,6 +751,7 @@ export interface SerializedFlightPlanPerformanceData {
   approachTemperature: number | null;
   approachWindDirection: number | null;
   approachWindMagnitude: number | null;
+  isApproachWindPilotEntered: boolean;
   pilotVapp: number | null;
   approachBaroMinimum: number | null;
   approachRadioMinimum: 'NO DH' | number | null;
