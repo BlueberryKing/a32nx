@@ -58,4 +58,19 @@ export class PendingWindUplink {
   isWindUplinkReadyToInsert(): boolean {
     return this.state === PendingWindUplinkState.ReadyToInsert;
   }
+
+  getAllCruiseWindAltitudes(): number[] {
+    if (this.cruiseWinds === undefined) return [];
+
+    const levels: number[] = [];
+    for (const fix of this.cruiseWinds) {
+      for (const level of fix.levels) {
+        if (!levels.includes(level.altitude)) {
+          levels.push(level.altitude);
+        }
+      }
+    }
+
+    return levels;
+  }
 }
