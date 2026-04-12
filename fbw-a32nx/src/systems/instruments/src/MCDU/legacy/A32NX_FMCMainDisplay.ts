@@ -54,13 +54,7 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { CompanyRoute } from '@simbridge/index';
 import { Keypad } from './A320_Neo_CDU_Keypad';
 import { FmsClient } from '@atsu/fmsclient';
-import {
-  AtsuStatusCodes,
-  CruiseWindRequest,
-  formatWindDownlinkMessage,
-  formatWindUplinkMessage,
-  WindRequestMessage,
-} from '@datalink/common';
+import { AtsuStatusCodes, CruiseWindRequest, WindRequestMessage } from '@datalink/common';
 import { A320_Neo_CDU_MainDisplay } from './A320_Neo_CDU_MainDisplay';
 import { FmsDisplayInterface } from '@fmgc/flightplanning/interface/FmsDisplayInterface';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
@@ -5629,7 +5623,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       plan.pendingWindUplink.onUplinkRequested();
 
       const request = this.formatWindRequest(forPlan);
-      console.log(`[FMS/WindUplink] Downlink wind request: ${formatWindDownlinkMessage(request)}`);
 
       try {
         const [status, uplink] = await this.atsu.receiveWindUplink(request, sentCallback);
@@ -5645,8 +5638,6 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
 
           return;
         }
-
-        console.log(`[FMS/WindUplink] Uplinked winds: ${formatWindUplinkMessage(uplink)}`);
 
         PendingWindUplinkParser.setFromUplink(
           uplink,
