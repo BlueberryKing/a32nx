@@ -81,6 +81,8 @@ export interface LegCalculations {
   cumulativeDistanceToEndWithTransitions: number;
   /** Whether the leg terminates in a vertical discontinuity */
   endsInTooSteepPath: boolean;
+  /** The outbound track of the leg (at it's termination), in degrees, relative to true north. */
+  outboundTrack?: number;
   /**
    * The average true track from the last valid leg termination prior to this one to the termination of this leg
    * or undefined if it could not be computed.

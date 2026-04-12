@@ -540,9 +540,9 @@ export class GuidanceController {
     );
 
     // Update distance to destination
-    geometry.updateDistancesAndTracks(plan, Math.max(0, plan.activeLegIndex - 1), plan.firstMissedApproachLegIndex);
+    geometry.updateCalculatedData(plan, Math.max(0, plan.activeLegIndex - 1), plan.firstMissedApproachLegIndex);
     // Update distances in missed approach segment
-    geometry.updateDistancesAndTracks(plan, Math.max(plan.firstMissedApproachLegIndex), plan.legCount);
+    geometry.updateCalculatedData(plan, Math.max(plan.firstMissedApproachLegIndex), plan.legCount);
   }
 
   /**
