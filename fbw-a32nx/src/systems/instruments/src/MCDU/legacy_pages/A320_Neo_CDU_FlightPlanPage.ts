@@ -150,7 +150,6 @@ export class CDUFlightPlanPage {
     targetPlan: FlightPlan,
     includeAlternate: boolean = false,
     firstLegIndex: number = 0,
-    lastLegIndex: number = targetPlan.legCount,
   ) {
     const waypointsAndMarkers: WaypointsAndMarkersLine[] = [];
     const first = Math.max(firstLegIndex, targetPlan.fromLegIndex);
@@ -164,7 +163,7 @@ export class CDUFlightPlanPage {
     // Primary F-PLAN
 
     // In this loop, we insert pseudowaypoints between regular waypoints and compute the distances between the previous and next (pseudo-)waypoint.
-    for (let i = first; i < Math.min(targetPlan.legCount, lastLegIndex); i++) {
+    for (let i = first; i < targetPlan.legCount; i++) {
       const inMissedApproach = i >= targetPlan.firstMissedApproachLegIndex;
       const isActiveLeg = i === targetPlan.activeLegIndex && forActiveOrTemporary;
       const isBeforeActiveLeg = i < targetPlan.activeLegIndex && forActiveOrTemporary;

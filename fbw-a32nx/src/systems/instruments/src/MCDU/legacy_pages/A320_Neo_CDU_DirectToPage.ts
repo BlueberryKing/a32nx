@@ -35,13 +35,7 @@ export class CDUDirectToPage {
     const numRows = directWaypoint === undefined ? 5 : 4;
     const firstRowIndex = directWaypoint === undefined ? 1 : 2;
 
-    const waypointsAndMarkers = CDUFlightPlanPage.createWaypointsAndMarkers(
-      mcdu,
-      plan,
-      false,
-      1,
-      plan.firstMissedApproachLegIndex,
-    );
+    const waypointsAndMarkers = CDUFlightPlanPage.createWaypointsAndMarkers(mcdu, plan, false, 1);
     const scrollWindow = CDUFlightPlanPage.createScrollWindow(
       mcdu,
       waypointsAndMarkers,
@@ -131,7 +125,7 @@ export class CDUDirectToPage {
             const { fpIndex, leg } = line;
 
             const term = leg.terminationWaypoint();
-            if (!leg.isXF() || term === null) {
+            if (!leg.isXF() || term === null || fpIndex >= plan.firstMissedApproachLegIndex) {
               mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
               scratchpadCallback();
               return;
