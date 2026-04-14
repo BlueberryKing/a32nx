@@ -145,9 +145,15 @@ export class CDUFlightPlanPage {
   // scrollWindow -> scrollText
   // scrollText -> template
 
-  static createWaypointsAndMarkers(mcdu: LegacyFmsPageInterface, targetPlan: FlightPlan) {
+  static createWaypointsAndMarkers(
+    mcdu: LegacyFmsPageInterface,
+    targetPlan: FlightPlan,
+    includeAlternate: boolean = false,
+    firstLegIndex: number = 0,
+    lastLegIndex: number = targetPlan.legCount,
+  ) {
     const waypointsAndMarkers: WaypointsAndMarkersLine[] = [];
-    const first = Math.max(0, targetPlan.fromLegIndex);
+    const first = Math.max(firstLegIndex, targetPlan.fromLegIndex);
     const forActiveOrTemporary = targetPlan.index === 0;
 
     // VNAV
@@ -158,7 +164,7 @@ export class CDUFlightPlanPage {
     // Primary F-PLAN
 
     // In this loop, we insert pseudowaypoints between regular waypoints and compute the distances between the previous and next (pseudo-)waypoint.
-    for (let i = first; i < targetPlan.legCount; i++) {
+    for (let i = first; i < Math.min(targetPlan.legCount, lastLegIndex); i++) {
       const inMissedApproach = i >= targetPlan.firstMissedApproachLegIndex;
       const isActiveLeg = i === targetPlan.activeLegIndex && forActiveOrTemporary;
       const isBeforeActiveLeg = i < targetPlan.activeLegIndex && forActiveOrTemporary;
@@ -244,51 +250,53 @@ export class CDUFlightPlanPage {
     }
 
     // Primary ALTN F-PLAN
-    if (targetPlan.alternateDestinationAirport) {
-      for (let i = 0; i < targetPlan.alternateFlightPlan.legCount; i++) {
-        const inMissedApproach = i >= targetPlan.alternateFlightPlan.firstMissedApproachLegIndex;
+    if (includeAlternate) {
+      if (targetPlan.alternateDestinationAirport) {
+        for (let i = 0; i < targetPlan.alternateFlightPlan.legCount; i++) {
+          const inMissedApproach = i >= targetPlan.alternateFlightPlan.firstMissedApproachLegIndex;
 
-        const wp = targetPlan.alternateFlightPlan.allLegs[i];
+          const wp = targetPlan.alternateFlightPlan.allLegs[i];
 
-        if (wp.isDiscontinuity) {
-          waypointsAndMarkers.push({ marker: Markers.FPLN_DISCONTINUITY, fpIndex: i, inAlternate: true });
-          continue;
+          if (wp.isDiscontinuity) {
+            waypointsAndMarkers.push({ marker: Markers.FPLN_DISCONTINUITY, fpIndex: i, inAlternate: true });
+            continue;
+          }
+
+          if (
+            i >= targetPlan.alternateFlightPlan.activeLegIndex &&
+            wp.isDiscontinuity === false &&
+            wp.definition.type === 'HM'
+          ) {
+            waypointsAndMarkers.push({ holdResumeExit: wp, fpIndex: i, inAlternate: true });
+          }
+
+          const distanceFromLastLine =
+            wp.isDiscontinuity === false && wp.calculated
+              ? wp.calculated.cumulativeDistanceWithTransitions - cumulativeDistance
+              : 0;
+          cumulativeDistance =
+            wp.isDiscontinuity === false && wp.calculated
+              ? wp.calculated.cumulativeDistanceWithTransitions
+              : cumulativeDistance;
+
+          waypointsAndMarkers.push({ wp, fpIndex: i, inAlternate: true, inMissedApproach, distanceFromLastLine });
+
+          if (i === targetPlan.alternateFlightPlan.lastIndex) {
+            waypointsAndMarkers.push({
+              marker: Markers.END_OF_ALTN_FPLN,
+              fpIndex: i + 1,
+              inAlternate: true,
+              inMissedApproach: false,
+            });
+          }
         }
-
-        if (
-          i >= targetPlan.alternateFlightPlan.activeLegIndex &&
-          wp.isDiscontinuity === false &&
-          wp.definition.type === 'HM'
-        ) {
-          waypointsAndMarkers.push({ holdResumeExit: wp, fpIndex: i, inAlternate: true });
-        }
-
-        const distanceFromLastLine =
-          wp.isDiscontinuity === false && wp.calculated
-            ? wp.calculated.cumulativeDistanceWithTransitions - cumulativeDistance
-            : 0;
-        cumulativeDistance =
-          wp.isDiscontinuity === false && wp.calculated
-            ? wp.calculated.cumulativeDistanceWithTransitions
-            : cumulativeDistance;
-
-        waypointsAndMarkers.push({ wp, fpIndex: i, inAlternate: true, inMissedApproach, distanceFromLastLine });
-
-        if (i === targetPlan.alternateFlightPlan.lastIndex) {
-          waypointsAndMarkers.push({
-            marker: Markers.END_OF_ALTN_FPLN,
-            fpIndex: i + 1,
-            inAlternate: true,
-            inMissedApproach: false,
-          });
-        }
+      } else if (targetPlan.legCount > 0) {
+        waypointsAndMarkers.push({
+          marker: Markers.NO_ALTN_FPLN,
+          fpIndex: targetPlan.legCount + 1,
+          inAlternate: true,
+        });
       }
-    } else if (targetPlan.legCount > 0) {
-      waypointsAndMarkers.push({
-        marker: Markers.NO_ALTN_FPLN,
-        fpIndex: targetPlan.legCount + 1,
-        inAlternate: true,
-      });
     }
 
     return waypointsAndMarkers;
@@ -301,10 +309,14 @@ export class CDUFlightPlanPage {
     offset: number,
     isPageB: boolean,
     tocIndex: number,
+    maxNumRows: number = 5,
   ): ScrollWindowLine[] {
     const forPlan = targetPlan.index;
-    const forActiveOrTemporary = forPlan === 0;
-    const planAccentColor = forActiveOrTemporary ? (mcdu.flightPlanService.hasTemporary ? 'yellow' : 'green') : 'white';
+    const forActiveOrTemporary = forPlan === FlightPlanIndex.Active || forPlan === FlightPlanIndex.Temporary;
+    let planAccentColor = 'white';
+    if (forActiveOrTemporary) {
+      planAccentColor = forPlan === FlightPlanIndex.Active ? 'green' : 'yellow';
+    }
 
     if (mcdu.guidanceController === undefined) {
       return [];
@@ -315,7 +327,7 @@ export class CDUFlightPlanPage {
       ? fmsGeometryProfile.waypointPredictions
       : null;
 
-    const rowsCount = Math.min(waypointsAndMarkers.length, 6);
+    const rowsCount = Math.min(waypointsAndMarkers.length, maxNumRows);
 
     let useTransitionAltitude = false;
 
@@ -651,8 +663,7 @@ export class CDUFlightPlanPage {
           isOverfly,
         };
       } else if (pwp) {
-        const baseColor = forActiveOrTemporary ? (mcdu.flightPlanService.hasTemporary ? 'yellow' : 'green') : 'white';
-        const color = isActive ? 'white' : baseColor;
+        const color = isActive ? 'white' : planAccentColor;
 
         // TODO: PWP should not be shown while predictions are recomputed or in a temporary flight plan,
         // but if I don't show them, the flight plan jumps around because the offset is no longer correct if the number of items in the flight plan changes.
@@ -934,7 +945,7 @@ export class CDUFlightPlanPage {
       title.push(new Column(16, 'SEC'));
     }
 
-    const waypointsAndMarkers = this.createWaypointsAndMarkers(mcdu, targetPlan);
+    const waypointsAndMarkers = this.createWaypointsAndMarkers(mcdu, targetPlan, true);
     if (waypointsAndMarkers.length === 0) {
       mcdu.setTemplate([FormatLine(...title), ...emptyFplnPage(forPlan)]);
       mcdu.onLeftInput[0] = () => CDULateralRevisionPage.ShowPage(mcdu, undefined, undefined, forPlan);
