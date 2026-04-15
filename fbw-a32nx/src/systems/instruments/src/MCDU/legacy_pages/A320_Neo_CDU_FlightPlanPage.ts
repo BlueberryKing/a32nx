@@ -196,7 +196,7 @@ export class CDUFlightPlanPage {
             inMissedApproach,
             distanceFromLastLine,
             isActive: isActiveLeg && j === 0,
-            inAlternate: true,
+            inAlternate: false,
           });
         }
       }
@@ -207,7 +207,7 @@ export class CDUFlightPlanPage {
           fpIndex: i,
           inMissedApproach,
           isActive: isActiveLeg,
-          inAlternate: true,
+          inAlternate: false,
         });
       }
 
@@ -285,7 +285,7 @@ export class CDUFlightPlanPage {
               marker: Markers.END_OF_ALTN_FPLN,
               fpIndex: i + 1,
               inAlternate: true,
-              inMissedApproach: false,
+              inMissedApproach,
             });
           }
         }
