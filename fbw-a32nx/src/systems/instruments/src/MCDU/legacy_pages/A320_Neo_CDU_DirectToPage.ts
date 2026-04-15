@@ -35,7 +35,7 @@ export class CDUDirectToPage {
     const numRows = directWaypoint === undefined ? 5 : 4;
     const firstRowIndex = directWaypoint === undefined ? 1 : 2;
 
-    const waypointsAndMarkers = CDUFlightPlanPage.createWaypointsAndMarkers(mcdu, plan, false, 1);
+    const waypointsAndMarkers = CDUFlightPlanPage.createWaypointsAndMarkers(mcdu, plan, false, plan.activeLegIndex);
     if (waypointsAndMarkers.length === 0) {
       waypointsAndMarkers.push(
         { marker: Markers.FPLN_DISCONTINUITY, fpIndex: 0, inAlternate: false },
