@@ -1,7 +1,7 @@
 // Copyright (c) 2020, 2022 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { CDUFlightPlanPage } from './A320_Neo_CDU_FlightPlanPage';
+import { CDUFlightPlanPage, Markers } from './A320_Neo_CDU_FlightPlanPage';
 import { Fix } from '@flybywiresim/fbw-sdk';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { Column, FormatLine, FormatTemplate } from '../legacy/A320_Neo_CDU_Format';
@@ -36,6 +36,13 @@ export class CDUDirectToPage {
     const firstRowIndex = directWaypoint === undefined ? 1 : 2;
 
     const waypointsAndMarkers = CDUFlightPlanPage.createWaypointsAndMarkers(mcdu, plan, false, 1);
+    if (waypointsAndMarkers.length === 0) {
+      waypointsAndMarkers.push(
+        { marker: Markers.FPLN_DISCONTINUITY, fpIndex: 0, inAlternate: false },
+        { marker: Markers.END_OF_FPLN, fpIndex: 1, inAlternate: false },
+      );
+    }
+
     const scrollWindow = CDUFlightPlanPage.createScrollWindow(
       mcdu,
       waypointsAndMarkers,

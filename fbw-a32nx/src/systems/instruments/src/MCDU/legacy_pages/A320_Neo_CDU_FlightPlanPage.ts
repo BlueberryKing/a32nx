@@ -28,7 +28,7 @@ import { PseudoWaypoint } from '@fmgc/guidance/PseudoWaypoint';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { VerticalWaypointPrediction } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
 
-const Markers = {
+export const Markers = {
   FPLN_DISCONTINUITY: ['---F-PLN DISCONTINUITY--'],
   END_OF_FPLN: ['------END OF F-PLN------'],
   NO_ALTN_FPLN: ['-----NO ALTN F-PLN------'],
