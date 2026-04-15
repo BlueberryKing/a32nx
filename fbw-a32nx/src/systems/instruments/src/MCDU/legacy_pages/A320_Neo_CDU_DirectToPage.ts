@@ -152,6 +152,12 @@ export class CDUDirectToPage {
             scratchpadCallback();
         }
       };
+
+      mcdu.rightInputDelay[firstRowIndex + i] = mcdu.getDelayBasic;
+      mcdu.onRightInput[firstRowIndex + i] = (_, scratchpadCallback) => {
+        mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+        scratchpadCallback();
+      };
     }
 
     let up = false;
