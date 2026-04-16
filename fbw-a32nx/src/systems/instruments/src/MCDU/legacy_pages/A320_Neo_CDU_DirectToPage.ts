@@ -132,7 +132,7 @@ export class CDUDirectToPage {
             const { fpIndex, leg } = line;
 
             const term = leg.terminationWaypoint();
-            if (!leg.isXF() || term === null || fpIndex >= plan.firstMissedApproachLegIndex) {
+            if ((!leg.isXF() && !leg.isHX()) || term === null || fpIndex >= plan.firstMissedApproachLegIndex) {
               mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
               scratchpadCallback();
               return;
