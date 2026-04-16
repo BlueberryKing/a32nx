@@ -3699,7 +3699,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       return false;
     }
 
-    if (v < 1) {
+    if (v > 0 && v < 1) {
       this.setScratchpadMessage(NXSystemMessages.onlySpdEntryAllowed);
       return false;
     }
