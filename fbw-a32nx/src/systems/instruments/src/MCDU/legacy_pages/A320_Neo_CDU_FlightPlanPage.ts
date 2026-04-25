@@ -1402,19 +1402,6 @@ export class CDUFlightPlanPage {
     };
   }
 
-  // addRskAt(rowI, 0, (value, scratchpadCallback) => {
-  //   // IMM EXIT, only active once reaching decel
-  //   if (isActive) {
-  //     mcdu.fmgcMesssagesListener.triggerToAllSubscribers('A32NX_IMM_EXIT', fpIndex, immExit);
-  //     setTimeout(() => {
-  //       CDUFlightPlanPage.ShowPage(mcdu, offset, isPageB, forPlan);
-  //     }, 500);
-  //   } else if (decelReached) {
-  //     CDUFlightPlanPage.clearElement(mcdu, fpIndex, forPlan, inAlternate, scratchpadCallback);
-  //     return;
-  //   }
-  //   scratchpadCallback();
-  // });
   static holdVerticalRevision({
     fpIndex,
     inAlternate,
