@@ -59,6 +59,8 @@ export interface NavigationEvents {
 
   /** The selected computed airspeed in knots, or null if invalid/NCD. */
   fms_nav_computed_airspeed: number | null;
+  /** The selected true airspeed in knots, or null if invalid/NCD. */
+  fms_nav_true_airspeed: number | null;
 
   /** Whether GPS primary is in use. */
   fms_nav_gps_primary: boolean;
@@ -115,7 +117,7 @@ export class Navigation implements NavigationProvider {
     (_, i) => `L:A32NX_ADIRS_ADR_${i + 1}_COMPUTED_AIRSPEED`,
   );
 
-  private trueAirspeed: number | null = null;
+  private readonly trueAirspeed = Subject.create<number | null>(null);
 
   private static readonly trueAirspeedVars = Array.from(
     { length: 3 },
@@ -181,6 +183,7 @@ export class Navigation implements NavigationProvider {
     this.baroAltitude.sub((v) => this.publisher.pub('fms_nav_baro_corrected_altitude', v, false, true), true);
 
     this.computedAirspeed.sub((v) => this.publisher.pub('fms_nav_computed_airspeed', v, false, true), true);
+    this.trueAirspeed.sub((v) => this.publisher.pub('fms_nav_true_airspeed', v, false, true), true);
 
     this._accuracyHigh.sub((v) => {
       SimVar.SetSimVarValue('L:A32NX_FMGC_L_NAV_ACCURACY_HIGH', 'bool', v);
@@ -266,7 +269,7 @@ export class Navigation implements NavigationProvider {
     this.pressureAltitude.set(this.getAdiruValue(Navigation.pressureAltitudeVars));
 
     this.computedAirspeed.set(this.getAdiruValue(Navigation.computedAirspeedVars));
-    this.trueAirspeed = this.getAdiruValue(Navigation.trueAirspeedVars);
+    this.trueAirspeed.set(this.getAdiruValue(Navigation.trueAirspeedVars));
     this.staticAirTemperature = this.getAdiruValue(Navigation.staticAirTemperatureVars);
   }
 
@@ -345,7 +348,7 @@ export class Navigation implements NavigationProvider {
   }
 
   public getTrueAirspeed(): number | null {
-    return this.trueAirspeed;
+    return this.trueAirspeed.get();
   }
 
   public getStaticAirTemperature(): number | null {

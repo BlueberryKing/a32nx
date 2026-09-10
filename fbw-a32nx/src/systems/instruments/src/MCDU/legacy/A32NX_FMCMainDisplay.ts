@@ -104,6 +104,8 @@ import { EngineOutControlEvents, EngineOutEvents } from '@fmgc/events/EngineOutE
 import { FmsModule } from '@fmgc/modules/FmsModule';
 import { EngineOutMonitor } from '@fmgc/modules/EngineOutMonitor';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { SoftGaMonitor } from '@fmgc/modules/SoftGaMonitor';
+
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
 
@@ -365,6 +367,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.currNavigationDatabaseService.activeDatabase = this.navigationDatabase;
 
     this.addModule(new EngineOutMonitor(this.bus));
+    this.addModule(new SoftGaMonitor(this.bus));
   }
 
   protected addModule(module: FmsModule) {

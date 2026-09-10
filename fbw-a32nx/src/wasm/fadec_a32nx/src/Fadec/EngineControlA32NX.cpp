@@ -1145,7 +1145,7 @@ void EngineControl_A32NX::updateThrustLimits(double                  simulationT
   simData.thrustLimitToga->set(toga);
   simData.thrustLimitFlex->set(flex);
   simData.thrustLimitClimb->set(clb);
-  simData.thrustLimitMct->set(mct);
+  simData.thrustLimitMct->set(simData.thrustLimitSoftGa->get());
 
 #ifdef PROFILING
   profilerUpdateThrustLimits.stop();

@@ -140,6 +140,10 @@ export class Common {
     return 1479.1 * Math.sqrt(term3);
   }
 
+  static TAStoMach(tas: number, theta: number): number {
+    return tas / 661.4786 / Math.sqrt(theta);
+  }
+
   static CAStoTAS(cas: number, theta: number, delta: number): number {
     const term1 = 1 + 0.2 * (cas / 661.4786) ** 2;
     const term2 = (1 / delta) * (term1 ** 3.5 - 1);

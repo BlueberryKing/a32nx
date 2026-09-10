@@ -218,6 +218,7 @@ class FadecSimData_A32NX {
   NamedVariablePtr thrustLimitIdle;
   NamedVariablePtr thrustLimitMct;
   NamedVariablePtr thrustLimitToga;
+  NamedVariablePtr thrustLimitSoftGa;
   NamedVariablePtr thrustLimitType;
   NamedVariablePtr wingAntiIce;
 
@@ -346,6 +347,7 @@ class FadecSimData_A32NX {
     thrustLimitFlex  = dm->make_named_var("A32NX_AUTOTHRUST_THRUST_LIMIT_FLX", UNITS.Number, AUTO_WRITE);
     thrustLimitMct   = dm->make_named_var("A32NX_AUTOTHRUST_THRUST_LIMIT_MCT", UNITS.Number, AUTO_WRITE);
     thrustLimitToga  = dm->make_named_var("A32NX_AUTOTHRUST_THRUST_LIMIT_TOGA", UNITS.Number, AUTO_WRITE);
+    thrustLimitSoftGa  = dm->make_named_var("A32NX_AUTOTHRUST_THRUST_LIMIT_SOFT_GA", UNITS.Number, AUTO_READ);
 
     packsState[L]       = dm->make_named_var("A32NX_COND_PACK_FLOW_VALVE_1_IS_OPEN", UNITS.Number, AUTO_READ);
     packsState[R]       = dm->make_named_var("A32NX_COND_PACK_FLOW_VALVE_2_IS_OPEN", UNITS.Number, AUTO_READ);
